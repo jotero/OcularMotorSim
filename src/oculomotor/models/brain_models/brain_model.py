@@ -500,12 +500,18 @@ class BrainParams(NamedTuple):
     #     pure pass-through form: direct contribution = τ_p · rate_drive).
     #   Kf (phasic) = 2.5, Ks (tonic) = 1.5  (Schor 1999 Table 1)
     #   Tf (phasic) = 5 s, Ts (tonic) = 20 s
-    K_phasic_verg:         float        = 1.0             # Kb (direct path); set to NI unit gain
-    K_verg:                float        = 1.25            # vergence integrator gain (was 2.5; halved to compensate
-                                                            # for the doubled disparity cascade delay so loop-gain·delay
-                                                            # product stays in a stable closed-loop range)
+    K_phasic_verg:         float        = 3.0             # Kb (direct path). Multiplies the disparity-velocity command
+                                                            # through tau_p so plant velocity at onset ≈ K_phasic_verg·disparity.
+                                                            # 3 lands symmetric main-sequence ~2× baseline without divergence
+                                                            # overshoot; structural ceiling from disparity LP + plant LP
+                                                            # cascades prevents reaching Zee 41–58 °/s peak from this knob alone.
+    K_verg:                float        = 2.5             # vergence integrator gain (Schor 1999 Kf). Combined with tau_verg=3 s
+                                                            # gives well-damped closed-loop without ringing; was 1.25 with tau_verg=5
+                                                            # (over-damped, too slow).
     K_verg_tonic:          float        = 1.5             # tonic vergence integrator gain (was K_verg_slow / Ks in Schor 1999)
-    tau_verg:              float        = 5.0             # vergence integrator TC (s) (was tau_verg_fast / Tf in Schor 1999)
+    tau_verg:              float        = 3.0             # vergence integrator TC (s); shortened from 5 s to push peak velocity
+                                                            # higher without inducing ringing. Schor 1999 Tf = 5 s but their
+                                                            # model lacked the explicit disparity cascade.
     tau_verg_tonic:        float        = 20.0            # tonic vergence integrator TC (s) (was tau_verg_slow / Ts in Schor 1999)
     tau_vp:                float        = 0.15            # legacy alias of tau_p; va.step uses brain_params.tau_p directly
     tonic_verg:            float        = 3.67            # tonic (brainstem) vergence baseline (deg); resting dark vergence

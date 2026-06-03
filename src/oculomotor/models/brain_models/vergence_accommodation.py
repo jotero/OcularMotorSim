@@ -200,8 +200,12 @@ def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
     # Vergence integrator (leaky)
     dx_v = brain_params.K_verg * verg_drive - x_verg_v / brain_params.tau_verg
 
-    # Direct (bypass) pathway: plant-compensation form (= NI's u_p = x + τ_p·u_vel)
-    direct_path_pos = brain_params.tau_p * verg_drive
+    # Direct (bypass) pathway: Robinson plant-compensation pulse (Schor Kb path).
+    #   u_phasic = K_phasic_verg · verg_drive            (velocity command, deg/s)
+    #   direct_path_pos = τ_p · u_phasic                  (position contribution, deg)
+    # Plant velocity at onset ≈ direct_path_pos / τ_p = K_phasic_verg · verg_drive,
+    # so K_phasic_verg directly sets the peak vergence velocity per unit disparity.
+    direct_path_pos = brain_params.K_phasic_verg * brain_params.tau_p * verg_drive
 
     # Cross-link: AC/A from accommodation (H-only, deg)
     tonic_setpoint = jnp.zeros(3).at[_AXIS_H].set(brain_params.tonic_verg)

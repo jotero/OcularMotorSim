@@ -2,7 +2,7 @@
 
 ## Shared analysis utilities — no redundant helpers
 
-`oculomotor/analysis.py` is the single source of truth for post-hoc signal extraction and plotting
+`src/oculomotor/analysis.py` is the single source of truth for post-hoc signal extraction and plotting
 helpers. **Never redefine these locally in a demo script or notebook cell:**
 
 | Function | What it gives you |
@@ -63,11 +63,15 @@ Saccade loop: `Retinal position error → retina + cyclopean → SG (Robinson lo
 
 Pursuit loop: `Retinal velocity error → retina + cyclopean → Pursuit integrator (Smith predictor) → NI + Plant`
 
-### Folder structure (`oculomotor/`)
+### Folder structure (`src/oculomotor/`)
+
+The package now lives under `src/` — imports are still `from oculomotor...`.
 
 ```
-oculomotor/
+src/oculomotor/
 ├── __init__.py                        __version__ from git describe --tags --always --dirty
+├── params.py                          Public re-export of BrainParams/SensoryParams/PlantParams
+├── analysis.py                        Post-hoc extraction helpers (vs_net, ni_net, extract_sg, …)
 ├── models/
 │   ├── sensory_models/                Peripheral sensors only — canal, otolith, retina geometry
 │   │   ├── canal.py                   Canal array SSM (Steinhausen, 6 canals, 12 states)
@@ -80,33 +84,47 @@ oculomotor/
 │   │                                   (198 states)
 │   ├── brain_models/                  Cortical computations — operate on already-delayed signals
 │   │   ├── perception_self_motion.py  VS + GE + HE unified observer (Laurens & Angelaki 2017)
-│   │   │                              + post-delay scene EC sub + magnitude/directional gates
-│   │   ├── perception_target.py       Target EC sub + gates + working memory (FEF/dlPFC layer)
+│   │   ├── perception_target.py       Target gates + working memory (FEF/dlPFC layer)
 │   │   ├── perception_cyclopean.py    Binocular fusion (NPC gate, OKR, dominance) on delayed
 │   │   │                              per-eye signals + brain LP smoothing (43 states).
-│   │   │                              perception_cyclopean.step → CyclopeanOut.
 │   │   ├── neural_integrator.py       NI leaky integrator + bilateral push-pull + null adapt
-│   │   ├── saccade_generator.py       Robinson local-feedback burst + OPN gate
-│   │   ├── pursuit.py                 Smooth pursuit leaky integrator + Smith predictor
-│   │   ├── tvor.py                    Translational VOR (vestibular + visual fusion)
-│   │   ├── vergence_accommodation.py  Vergence + accommodation (AC/A and CA/C cross-links)
+│   │   │                              (12 states: x_L + x_R + x_null + u_lp)
+│   │   ├── saccade_generator.py       Robinson local-feedback burst (20 states: e_held +
+│   │   │                              z_opn + z_acc + z_trig + z_fac/z_dep + EBN_L/R + IBN_L/R)
+│   │   ├── pursuit.py                 Smooth pursuit + Smith predictor (6 states)
+│   │   ├── tvor.py                    Translational VOR (stateless)
+│   │   ├── vergence_accommodation.py  Vergence + accommodation, AC/A + CA/C cross-links (11 states)
 │   │   ├── listing.py                 Listing's-law torsion corrections (smooth pathways)
-│   │   ├── final_common_pathway.py    Nucleus + nerve gain stages → 12 muscle activations
-│   │   ├── efference_copy.py          (legacy) — kept for backward compat; current EC handled
-│   │   │                              via cascade_lp_step blocks inside brain_model.py
-│   │   └── brain_model.py             Connector: cyclopean → target/self_motion perception →
-│   │                                   pursuit + SG + TVOR + NI + vergence/acc → motor_cmd
-│   │                                   (151 states)
+│   │   ├── final_common_pathway.py    14-state FCP: 12 MN dynamic states (tau_mn ~5 ms) +
+│   │   │                              MLF AIN→CN3_MR pathway. Separable lesions: g_nucleus,
+│   │   │                              g_mlf, g_nerve. Replaces old algebraic relu+clip.
+│   │   ├── cerebellum.py              EC delay cascades + flocculus (FL) NI extension +
+│   │   │                              paraflocculus (VPF) pursuit forward model.
+│   │   │                              Replaces the deleted efference_copy.py.
+│   │   ├── unified_brain.py           Experimental matrix-form rewrite of brain_model.step
+│   │   │                              (active experiment, not canonical).
+│   │   └── brain_model.py             Connector: cyclopean → perception → SG/pursuit/TVOR/NI
+│   │                                   → vergence/acc → FCP → cerebellum (EC).
+│   │                                   BrainState is a NamedTuple of sub-state NamedTuples —
+│   │                                   no flat array, no _IDX_* constants.
 │   ├── plant_models/
 │   │   ├── plant_model_first_order.py First-order plant (Robinson 1964) (3 states/eye)
+│   │   ├── accommodation_plant.py     Lens / ciliary muscle LP (1 state, tau_acc_plant ~0.156 s)
+│   │   ├── muscle_geometry.py         12-muscle pulling-direction matrix + M_NUCLEUS / M_NERVE_PROJ
 │   │   └── readout.py                 Eye position readout + rotation_matrix()
+│   ├── fitting/                       Gradient-based parameter fitting (loss + optimize)
 │   └── llm_pipeline/                  Natural-language → simulation pipeline
 │       ├── scenario.py                Pydantic schema (SimulationScenario, Patient, …)
+│       ├── patient_builder.py         YAML-driven Patient construction
 │       ├── runner.py                  Stimulus builder + simulator wiring + figure generator
 │       └── simulate.py                CLI entry point + Claude API call
 └── sim/
-    ├── simulator.py                   ODE wiring + simulate() entry point
-    └── stimuli.py                     Centralized stimulus generators
+    ├── simulator.py                   ODE wiring + simulate() entry point.
+    │                                   Brain step is swappable via set_brain_step()
+    │                                   (unified_brain.step is a drop-in alternative).
+    ├── kinematics.py                  KinematicTrajectory / TargetTrajectory builders
+    ├── stimuli.py                     Centralized stimulus generators
+    └── synthetic.py                   Synthetic-data helpers for fitting
 ```
 
 ### scripts/
@@ -131,45 +149,57 @@ scripts/
 
 ### State structure (binocular)
 
-The ODE state is a `SimState` NamedTuple with three groups (sizes after the
-per-eye-retina + cyclopean-fusion-in-brain refactor):
+`SimState` is a NamedTuple of three groups. The brain group is itself a `BrainState`
+NamedTuple of per-subsystem `State` NamedTuples — there is **no flat brain array
+and no `_IDX_*` slice constants** any more. Diffrax handles arbitrary PyTrees
+natively, so subsystems are accessed as attributes.
 
 ```
 SimState(
-    sensory (198):  [x_c (12) | x_oto (6) | x_retina_L (90) | x_retina_R (90)]
-                     canal      otolith     per-eye sharp     per-eye sharp
-                     _IDX_C     _IDX_OTO    _IDX_RETINA_L     _IDX_RETINA_R
-                                            (_IDX_VIS_L = _IDX_RETINA_L,  backward compat)
-                                            (_IDX_VIS   = full retina_L+R block)
-
-    brain   (151):  [self_motion (21) | NI (9) | SG (18) | pursuit (3) | va (11) |
-                      target_mem (4) | cyc_brain (43) | ec_scene (21) | ec_target (21)]
-                     _IDX_SELF_MOTION   = VS + GE + HE   (perception_self_motion)
-                     _IDX_NI            = bilateral NI + null
-                     _IDX_SG            = saccade generator
-                     _IDX_PURSUIT       = pursuit velocity memory
-                     _IDX_VA            = vergence + accommodation
-                     _IDX_TARGET_MEM    = perception_target memory (x_mem(3) + trust(1))
-                     _IDX_CYC_BRAIN     = perception_cyclopean brain LP block
-                     _IDX_EC_VEL_SCENE  = scene EC cascade (matches scene cascade shape)
-                     _IDX_EC_VEL_TARGET = target EC cascade (matches target_vel shape)
-
-    plant     (6):  [x_p_L (3) | x_p_R (3)]  — left/right eye rotation vectors (deg)
-                     _IDX_P_L    _IDX_P_R
+    sensory   : SensoryState   (198 states)
+    brain     : BrainState     (≈170 states; see breakdown)
+    plant     : PlantState     (6 states, plus accommodation 1 state)
 )
 ```
 
-`x_retina_<L|R>` sub-layout (per eye, sharp gamma cascade only — N=6 stages each):
+**Sensory** (198 states; same shape as before):
+```
+sensory: [x_c (12) | x_oto (6) | x_retina_L (90) | x_retina_R (90)]
+```
+`x_retina_<L|R>` (per eye, sharp gamma cascade, N=6 stages each):
 `[scene_angular_vel(18) | scene_linear_vel(18) | target_pos(18) | target_vel(18) |
   scene_visible(6) | target_visible(6) | defocus(6)]`
 
-`x_cyc_brain` sub-layout (post-fusion brain LP smoothing):
-`[scene_angular_vel(3 LP) | scene_linear_vel(3 LP) | target_pos(18 N-stage) |
-  target_vel(3 LP) | target_disparity(3 LP) | scene_visible(6 N-stage) |
-  target_visible(6 N-stage) | defocus(1 LP)]`
+**Brain** (nested NamedTuple — `BrainState`):
+```python
+BrainState(
+    pc:   pc.State    # 43  perception_cyclopean (binocular fusion + brain LP)
+    sm:   sm.State    # 21  self-motion observer (VS bilateral + GE + HE)
+    pt:   pt.State    #  4  target working memory  (x_mem(3) + trust(1))
+    sg:   sg.State    # 20  saccade generator (see saccade_generator.py)
+    pu:   pu.State    #  6  bilateral pursuit pops
+    va:   va.State    # 11  vergence (9) + accommodation (2)
+    ni:   ni.State    # 12  bilateral NI (x_L + x_R + x_null + u_lp)
+    fcp:  fcp.State   # 14  12 MN dynamic states + MLF AIN→CN3_MR
+    cb:   cb.State    # ≈42 EC scene + target delay cascades + sat-flag delays
+)
+```
+Subsystems are read directly as `brain_state.<sub>.<field>` — never via index
+slicing. `brain_model.N_STATES` is computed from sub-sums and kept only for
+legacy info; do not rely on a specific total.
+
+**Cross-subsystem reads in `brain_model.step` MUST go through the registries**
+(`Activations`, `Decoded`, `Weights` returned by `read_activations`,
+`decode_activations`, `read_weights`) — not via raw state field access from a
+different subsystem.
+
+**Plant** (6 eye states + 1 accommodation):
+```
+plant: [x_p_L (3) | x_p_R (3) | x_acc_plant (1)]
+```
 
 Cyclopean delayed signals are read via `perception_cyclopean.C_*` matrices on
-`brain[:, _IDX_CYC_BRAIN]` (NOT on sensory state — they live in brain now).
+`brain_state.pc` (NOT on sensory state).
 
 ### Params structure
 
@@ -189,22 +219,31 @@ class PlantParams(NamedTuple):
     tau_p
 
 class BrainParams(NamedTuple):
-    # Cortical + brainstem parameters.
-    tau_vs, tau_vs_pitch_frac, tau_vs_roll_frac, K_vs, K_vis, g_vis, b_vs, tau_vs_adapt,  # VS
-    tau_i, tau_p, tau_vis, b_ni, tau_ni_adapt,                    # NI
+    # Cortical + brainstem parameters (selected highlights — full list in brain_model.py):
+    tau_vs, tau_vs_pitch_frac, tau_vs_roll_frac, g_vor, b_vs, tau_vs_adapt,   # VS
+    tau_i, b_ni, tau_ni_adapt,                                    # NI
     tau_vis_sharp, tau_vis_smooth_motion, tau_vis_smooth_target_vel,
-    tau_vis_smooth_disparity, tau_vis_smooth_defocus, tau_brain_pos,    # brain-side LP TCs
+    tau_vis_smooth_disparity, tau_vis_smooth_defocus,             # brain-side LP TCs
     npc, div_max, vert_max, tors_max, eye_dominant,               # binocular fusion policy
-    v_crit_ec_gate, n_ec_gate, alpha_ec_dir, bias_ec_dir,         # post-delay EC gate
-    g_burst, e_sat_sac, k_sac, threshold_sac, ...                 # saccade generator
+    g_burst, e_sat_sac, k_sac, threshold_sac,                     # saccade generator
+    tau_fac, tau_dep, alpha_fac, alpha_dep, g_ibn_opn,            # BN facilitation/depression + IBN→OPN
+    saccadic_suppression_threshold, saccadic_suppression_steepness,  # cerebellar EC saccade gate
+    tau_mn,                                                       # motor neurons
+    g_nucleus, g_mlf_L, g_mlf_R, g_nerve,                         # FCP lesion knobs
+    K_cereb_fl, K_cereb_pu,                                       # cerebellar gains (FL + VPF)
     K_pursuit, K_phasic_pursuit, tau_pursuit,                     # pursuit
-    K_grav, K_gd, g_ocr, orbital_limit, alpha_reset, ...          # gravity / OCR / SG misc
+    tonic_verg, K_verg, K_verg_tonic, K_phasic_verg,              # vergence
+    aca_ratio, cac_ratio, tau_acc_fast, tau_acc_slow,             # accommodation + cross-coupling
+    K_grav, K_gd, g_ocr, orbital_limit                            # gravity / OCR
 
 class Params(NamedTuple):
-    sensory: SensoryParams
-    plant:   PlantParams
-    brain:   BrainParams
+    sensory: SensoryParams = SensoryParams()
+    plant:   PlantParams   = PlantParams()
+    brain:   BrainParams   = BrainParams()
 ```
+
+For a fully-defaulted Params (with `tonic_verg` derived from IPD), use
+`default_params()` from `oculomotor.sim.simulator`.
 
 Use `with_sensory(params, sigma_canal=2.0)` / `with_brain(params, tau_vs=15.0)` / `with_plant(params, tau_p=0.2)` to create modified copies.
 
@@ -275,31 +314,52 @@ Each behavior has a corresponding demo script and output figure.
 8. **Fixational eye movements** — canal noise filtered by VS/NI/plant; retinal position OU drift produces sparse corrective microsaccades; retinal velocity noise drives pursuit-like slow drift.
    - Demo: `scripts/bench_fixation.py` → `outputs/fixation.png`
 
-## Current status (2026-05-08)
+## Current status (2026-05-25)
 
-- **Working well**: VOR, VVOR, OKN/OKAN, saccades (main sequence, refractory, oblique), smooth pursuit (velocity-driven), efference copy slip cancellation, otolith LP adaptation, sensory noise system, fixational eye movements, OCR (ocular counter-rolling).
-- **Recent change (2026-05-08)**: visual pathway refactored — per-eye sharp gamma cascade now lives in `retina.step` (90 states/eye), and binocular fusion + brain LP smoothing moved into `brain_models/perception_cyclopean.py` (43 cyclopean brain LP states). `SensoryOutput` now bundles per-eye `RetinaOut`s; brain consumes a `CyclopeanOut` produced inside `brain_model.step`. Brain-side LP TCs and fusion-policy params (npc, div_max, vert_max, tors_max, eye_dominant, tau_vis_smooth_*) migrated from `SensoryParams` to `BrainParams`. Sensory state shrank 818→198, brain grew 108→151. Behavior preserved within ~1% on bench numbers.
-- **Recent change (2026-04-28)**: VS time constants now per-axis via scalar + two fractions. `tau_vs` (yaw, 20 s) is unchanged — all existing lesion code still works. New params: `tau_vs_pitch_frac=0.4` (→ 8 s pitch) and `tau_vs_roll_frac=0.15` (→ 3 s roll). Driven by physiological evidence (Raphan 1979, Dai 1991, Angelaki 1995). Roll decay at 3 s fixes torsion overshoot in OCR benchmarks. `with_brain(p, tau_vs=X)` still works — all axes scale together.
-- **Recent change (2026-04-18)**: NI expanded to bilateral push-pull architecture (9 states: x_L, x_R, x_null). Null adaptation added to both NI (`tau_ni_adapt=20s`) and VS (`tau_vs_adapt=600s`). Net output `x_L − x_R` identical to old scalar `x_ni` in healthy symmetric case. Models rebound nystagmus (NI) and extended OKAN / velocity storage adaptation (VS). Brain: 147→156 states; model total: 971→980. New BrainParams: `b_ni=0`, `tau_ni_adapt=20s`, `tau_vs_adapt=600s`.
-- **Recent change (prior session)**: VS expanded to bilateral push-pull architecture (6→9 states including x_null). Net output `x_L − x_R` identical to old scalar `x_vs` in healthy symmetric case — all existing demos/notebooks work unchanged (use `vs_net()` helper for extraction). New `b_vs` parameter (default 100 deg/s) sets VN resting bias.
-- **New notebook**: `notebooks/integrator_disorders.ipynb` — gaze-evoked nystagmus, rebound nystagmus (NI null adaptation), Bruns nystagmus, VS null / extended OKAN, PAN placeholder.
-- **Pending improvement**: Pursuit position sensitivity (`K_pursuit_pos` — see future work).
-- **Not yet debugged**: Gravity estimator (`gravity_estimator.py`) — partially validated (OCR benchmarks pass); torsion drift during static tilt being investigated. T-VOR debugging deferred until vergence is implemented.
-- **Next focus**: Complete OCR torsion debugging; then binocularity and vergence.
+- **Working well**: VOR, VVOR, OKN/OKAN, saccades (main sequence, refractory, oblique), smooth pursuit (velocity-driven + Smith predictor), otolith LP adaptation, sensory noise system, fixational eye movements, OCR, fixation hold / gaze-evoked nystagmus via NI null + flocculus, T-VOR (basic), accommodation (steps + AC/A + CA/C), binocular plant (L/R eyes), basic vergence steps.
+
+- **Architecture changes since last status (2026-05-08 → 2026-05-25)**:
+  - **Cerebellum module** ([`cerebellum.py`](src/oculomotor/models/brain_models/cerebellum.py)) — replaces the deleted `efference_copy.py`. Anatomical split: flocculus (FL) for NI gaze-holding extension, ventral paraflocculus (VPF) for pursuit forward model. Owns the EC scene + target delay cascades (they ARE the forward-model output). New gains `K_cereb_fl`, `K_cereb_pu`.
+  - **Motor neurons** ([`final_common_pathway.py`](src/oculomotor/models/brain_models/final_common_pathway.py)) — 14-state FCP: 12 MN dynamic states with `tau_mn ~5 ms`, MLF modelled as AIN MN→CN3_MR MN axon (frequency-selective conduction cap). Separable lesions `g_nucleus`, `g_mlf_L/R`, `g_nerve`. Models INO, ophthalmoplegia, palsies cleanly.
+  - **Saccade generator** ([`saccade_generator.py`](src/oculomotor/models/brain_models/saccade_generator.py)) — now 20 states with explicit EBN_L/R, IBN_L/R, OPN, smooth-trigger `z_trig`, and burst-neuron facilitation/depression (`z_fac`, `z_dep`). IBN→OPN direct inhibition (no Schmitt trigger). See `project_saccade_design.md`.
+  - **Saccadic suppression** — visual gate threshold/steepness on cerebellar EC during saccade (commit `0d09a28`). Used to tune the post-saccadic settling window.
+  - **Exact plant forward model** — explored inside cerebellum (commits `b8722b7`, `9c33f47`); current code rotates predicted velocity through `ec_pos = NI_net` rather than running a separate MN/plant copy, since Robinson pulse-step already cancels the plant LP to ~5 ms residual.
+  - **BrainState refactor** — brain state is now a NamedTuple of subsystem `State` NamedTuples (no flat array, no `_IDX_*` slice constants). Diffrax handles PyTrees natively.
+  - **Unified brain (experimental)** — [`unified_brain.py`](src/oculomotor/models/brain_models/unified_brain.py) is a matrix-form rewrite of `brain_model.step` aligned with `manuscript/unified_oculomotor_template.md`. Active experiment; **not the canonical brain**. Swap in via `simulator.set_brain_step(unified_brain.step)`.
+
+- **Active debugging (2026-05-25)** — explicitly flagged by user:
+  - **Post-saccadic oscillation** — small residual, cerebellum forward-model + suppression-gate combo has helped but not fully closed it. See `project_ec_pre_delay_tradeoff.md`.
+  - **Vergence saccades (SVBN burst)** — needs urgent debugging. `verg_copy` is currently labelled vestigial in [`vergence_accommodation.py`](src/oculomotor/models/brain_models/vergence_accommodation.py); confirm with user before reactivating.
+  - **General vergence tuning** — gains, TCs, AC/A and CA/C cross-coupling not yet validated against clinical data. Bench scripts: `bench_vergence.py`, `bench_clinical_vergence.py`.
+
+- **Next focus**: cerebellum / forward-model tuning, including the open post-saccadic oscillation and the vergence-saccades / general-vergence work above.
+
+## HTML docs and benchmarks — regen policy
+
+Three generated HTML pages live under `docs/`. Keep them in sync with code — but
+**do not run the full bench suite casually** (slow). See `project_docs_and_benchmarks.md`.
+
+| Page | Generator | Regen trigger |
+|---|---|---|
+| `docs/parameters.html` | `scripts/gen_parameters.py` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `docs/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
+| `docs/states.html` | `scripts/gen_states.py` | Any `State` NamedTuple gains/loses a field, any subsystem's `N_STATES` changes, or a new subsystem joins `BrainState`. |
+| `docs/index.html` (bench gallery) | `scripts/run_benchmarks.py` (figures + HTML) or `--html-only` (HTML only, reuses existing figures) | Run the **individual** `bench_<area>.py` for the area you changed, then `--html-only` to rebuild the index. Run the full suite only at milestones. |
+
+**For me (Claude):** if I touch any `*Params` field or any `State` / `N_STATES`, propose regenerating the matching HTML before declaring the task done — but ask before launching the full bench suite. Don't silently regenerate everything just to be tidy.
 
 ## Not yet implemented / pending (future work)
 
-- **Pursuit position sensitivity** — pursuit should be weakly driven by `pos_delayed` (retinal position error) in addition to `vel_delayed`, to correct steady-state position offsets. Add `K_pursuit_pos` gain term in `pursuit.step()`: `e_combined += K_pursuit_pos * pos_delayed`.
+- **Pursuit position sensitivity** — pursuit should be weakly driven by `pos_delayed` (retinal position error) in addition to `vel_delayed`, to correct steady-state position offsets. Add `K_pursuit_pos` gain term in `pursuit.step()`.
 
-- **Binocularity / vergence** — currently monocular. Next major development area. Requires separate L/R eye plants, vergence angle state, and disparity-driven vergence controller.
+- **Strabismus** — deferred. See `project_strabismus_plant.md`: needs 2nd-order biomechanical plant + nonlinear NI inverse before disconjugate misalignment can be modelled cleanly.
 
-- **Gravity estimator + T-VOR** — `gravity_estimator.py` is implemented but not validated. Debugging planned alongside vergence since translational VOR requires vergence angle to compute the correct compensatory eye movement (near targets need larger compensation than far targets).
+- **Gravity estimator + T-VOR** — partially validated (OCR benchmarks pass); torsion drift during static tilt still being investigated. T-VOR uses vergence angle for near-target compensation — should mature alongside vergence work.
 
-- **Listing's law** — torsional constraints not enforced.
+- **Listing's law** — torsional constraints not yet enforced on smooth pathways.
 
 - **Multiple plant models** — see design note below.
 
-- **Multiple brain models** — see design note below.
+- **Multiple brain models** — `unified_brain.py` is the current experimental alternative to `brain_model.py`. Plug in via `set_brain_step()`.
 
 ### Design note: swappable plants and brain models
 
@@ -325,12 +385,19 @@ Any plant implementing this contract (first-order, second-order, MJX-backed) is 
 **Brain model interface contract:**
 
 ```python
-def step(x_brain, sensory_out: SensoryOutput, brain_params) -> (dx_brain, motor_cmd):
-    # sensory_out fields: canal(6), slip_delayed(3), pos_delayed(3), target_in_vf(scalar),
-    #                     vel_delayed(3), f_otolith(3), scene_present, target_present
+def step(brain_state, sensory_out: SensoryOutput, brain_params, noise_acc=0.0) -> \
+        (dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc):
+    # brain_state : BrainState NamedTuple (PyTree of subsystem States)
+    # sensory_out : SensoryOutput (canal, otolith, retina_L: RetinaOut, retina_R: RetinaOut, …)
+    # nerves      : (12,) per-muscle nerve activations → plant
+    # ec_vel/pos  : version efference (head frame, deg/s and deg)
+    # ec_verg     : vergence efference (deg)
+    # u_acc       : accommodation neural command (D)
 ```
 
-Different brain architectures (Raphan-Cohen, Kalman, RL policy) swap in here. The sensory model and plant remain unchanged.
+Different brain architectures (Raphan-Cohen, Kalman, RL policy) swap in here via
+`simulator.set_brain_step(fn)`. `unified_brain.step` is the current alternative
+implementation matching this signature. The sensory model and plant remain unchanged.
 
 ## SSM module convention
 

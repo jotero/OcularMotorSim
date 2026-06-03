@@ -115,8 +115,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>OMSim — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-05-12 14:36</strong> &nbsp;|&nbsp;
-      Version: <strong>b8722b7-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-05-25 13:59</strong> &nbsp;|&nbsp;
+      Version: <strong>81ef8db-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\docs\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -1084,7 +1084,7 @@ tr:last-child { border-bottom: none; }
         <tbody>
         <tr>
           <td class="param-name">K_phasic_verg<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
-          <td><span class="default">1</span></td>
+          <td><span class="default">3</span></td>
           <td class="units">1/s</td>
           <td class="range-cell">[0, +∞]</td>
           <td class="desc-cell"><p>Direct phasic vergence gain. Provides the ~150–200 ms fast onset (Rashbass & Westheimer 1961), achieved via plant cancellation.</p><div class="refs">Rashbass & Westheimer (1961) J Physiol 159:339</div></td>
@@ -1094,7 +1094,7 @@ tr:last-child { border-bottom: none; }
 
         <tr>
           <td class="param-name">K_verg<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
-          <td><span class="default">1.25</span></td>
+          <td><span class="default">2.5</span></td>
           <td class="units">1/s</td>
           <td class="range-cell">[0, +∞]</td>
           <td class="desc-cell"><p>Vergence integrator gain. Static gain G = K·tau ≈ 8 matches Read & Schor (2022) Table 1. (Was K_verg_fast / Schor's Kf.)</p><div class="refs">Schor (1979) Vision Res 19:1359 · Hung & Semmlow (1980) · Read & Schor (2022) J Vision 22(9):4</div></td>
@@ -1114,7 +1114,7 @@ tr:last-child { border-bottom: none; }
 
         <tr>
           <td class="param-name">tau_verg<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
-          <td><span class="default">5</span></td>
+          <td><span class="default">3</span></td>
           <td class="units">s</td>
           <td class="range-cell">[0, +∞]</td>
           <td class="desc-cell"><p>Vergence integrator TC. Schor 1979 / Hung & Semmlow 1980: ≈ 5 s. Sub-second to ~2 s tracking. (Was tau_verg_fast / Schor's Tf.)</p></td>
