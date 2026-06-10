@@ -86,9 +86,13 @@ class BodySegment(BaseModel):
     rot_profile: Literal['constant', 'sinusoid', 'impulse'] = Field(
         default='constant',
         description=(
-            "'constant' — polynomial (vel₀·t + ½acc·t²). "
-            "'sinusoid' — vel(t)=A·sin(2πft), amplitude = rot_*_vel. "
-            "'impulse'  — brief trapezoidal pulse; peak = rot_*_vel, rise/fall = ramp_dur_s."
+            "'constant' — polynomial (vel₀·t + ½acc·t²). Use for VOR rotations, "
+            "positional maneuvers (Epley, Dix-Hallpike), tilts, and any movement ≥ 1 s. "
+            "'sinusoid' — vel(t)=A·sin(2πft), amplitude = rot_*_vel. Use for rotary chair. "
+            "'impulse'  — vHIT ONLY: brief trapezoidal pulse, peak = rot_*_vel, "
+            "rise/fall = ramp_dur_s (default 0.02 s). NEVER use for Epley/Dix-Hallpike/tilt "
+            "— those are slow constant-velocity movements. "
+            "Constraint: 2×ramp_dur_s < duration_s."
         )
     )
 
@@ -214,6 +218,13 @@ absent, so GEN is always visible with a leaky NI regardless of pursuit gain.
 
 Quick reference — typical cerebellar patient for GEN:
     K_cereb_fl=0, tau_i=4, K_cereb_pu=0  (or K_pursuit=0.2), tau_vs=5, K_vs=0.05
+
+canal_gains range is [0, 1] — paresis only
+-----------------------------------------------
+canal_gains models LOSS of canal sensitivity (0 = dead canal, 1 = intact).
+It CANNOT be set above 1.  Do NOT use it to model BPPV or canal hyperexcitability.
+For BPPV: leave canal_gains at default [1,1,1,1,1,1] — the pathology is mechanical
+(displaced otoconia), not a change in canal afferent sensitivity.
 """
 
 
@@ -367,6 +378,38 @@ class SimulationScenario(BaseModel):
     Horizontal gaze palsy (CN VI nucleus + conjugate MR, simulated):
         patient: {g_nucleus: [1,0,1,1,1,1,1,1,1,1,1,1],
                   g_nerve:   [1,1,1,1,1,1, 1,0,1,1,1,1]}      ← ABN_R=0, MR_R nerve=0
+
+    ## Positional maneuvers — ALWAYS use rot_profile: "constant" (never "impulse")
+
+    Dix-Hallpike right (provoke right posterior-canal BPPV):
+        head:   [{duration_s: 2,  rot_yaw_vel: 22.5},          ← turn head 45° right
+                 {duration_s: 0.5},                             ← brief hold
+                 {duration_s: 2,  rot_pitch_vel: -45},          ← lay back to supine (~90° pitch)
+                 {duration_s: 30}]                              ← hold: BPPV nystagmus window
+        visual: [{duration_s: 34.5, scene_present: true, target_present: true}]
+        patient: {}   ← BPPV = normal canals; do NOT change canal_gains
+
+    Epley maneuver (right posterior canal BPPV — full sequence):
+        head:   [{duration_s: 2,  rot_yaw_vel: 22.5},          ← turn head 45° right (step 1)
+                 {duration_s: 2,  rot_pitch_vel: -45},          ← Dix-Hallpike lay-back (step 2)
+                 {duration_s: 30},                              ← hold
+                 {duration_s: 2,  rot_yaw_vel: -45},            ← turn head 90° left (step 3)
+                 {duration_s: 30},                              ← hold
+                 {duration_s: 2,  rot_yaw_vel: -22.5,
+                                  rot_roll_vel: -45},           ← roll to nose-down left (step 4)
+                 {duration_s: 10},                              ← hold
+                 {duration_s: 2,  rot_pitch_vel: 45}]           ← sit up (step 5)
+        visual: [{duration_s: 80, scene_present: true, target_present: true}]
+        patient: {}   ← BPPV = structurally normal canals; canal_gains stay at default [1,1,1,1,1,1]
+        plot: {panels: ['head_velocity', 'eye_velocity', 'eye_position', 'canal_afferents']}
+
+    BPPV guidance
+    -------------
+    BPPV patients have NORMAL semicircular canals — the problem is displaced otoconia
+    (free-floating debris in the posterior canal lumen), not a neural lesion.
+    - canal_gains: leave at default [1,1,1,1,1,1] — DO NOT set any element > 1 or < 1
+    - The model does not simulate the mechanical canalith effect directly; it shows
+      the head-movement pattern and the VOR responses to that pattern.
     """
 
     description: str = Field(description="One-sentence plain-English description (used as figure title).")

@@ -12,16 +12,32 @@
   h1 { font-size: 1.2rem; margin-bottom: 6px; color: #fff; }
   p  { font-size: 0.8rem; color: #888; margin-bottom: 16px; }
   #canvas-wrap { width: 640px; height: 480px; border-radius: 10px;
-                 border: 1px solid #2a2d3a; overflow: hidden; }
+                 border: 1px solid #2a2d3a; overflow: hidden;
+                 position: relative; }
   canvas { width: 100%; height: 100%; display: block; }
+  #phase-overlay {
+    display: none;
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.68); color: #ddd;
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em;
+    padding: 5px 16px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.12);
+    white-space: nowrap; pointer-events: none; transition: color 0.15s, border-color 0.15s;
+  }
+  #phase-overlay.highlight { color: #ffd27a; border-color: rgba(255,210,122,0.45); }
   .controls { margin-top: 18px; display: flex; flex-direction: column;
               gap: 10px; width: 640px; }
   .row { display: flex; align-items: center; gap: 12px; }
   label { font-size: 0.82rem; color: #aaa; width: 140px; flex-shrink: 0; }
   input[type=range] { flex: 1; accent-color: #4a6cf7; }
+  select {
+    flex: 1; background: #22253a; border: 1px solid #2a2d3a; color: #ccc;
+    border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; outline: none;
+  }
+  select:focus { border-color: #4a6cf7; }
   .val { font-size: 0.82rem; color: #7ab3f7; width: 50px; text-align: right;
          font-family: monospace; }
-  .mode-row { display: flex; gap: 10px; margin-top: 6px; }
+  .mode-row { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
   button {
     background: #22253a; border: 1px solid #2a2d3a; color: #aaa;
     border-radius: 8px; padding: 7px 18px; cursor: pointer;
@@ -29,6 +45,12 @@
   }
   button:hover { background: #2a2e45; color: #ddd; border-color: #4a6cf7; }
   button.active { background: #4a6cf7; color: #fff; border-color: #4a6cf7; }
+  #strab-panel {
+    display: none; margin-top: 4px;
+    background: #151820; border: 1px solid #2a2d3a; border-radius: 8px;
+    padding: 12px 14px; gap: 10px; flex-direction: column;
+  }
+  #strab-panel .hint { font-size: 0.72rem; color: #556; line-height: 1.5; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -36,7 +58,10 @@
 <h1>Eye Movement Test — Ready Player Me Avatar</h1>
 <p>Isolated eye-bone control via Three.js · no simulation attached yet</p>
 
-<div id="canvas-wrap"><canvas id="c"></canvas></div>
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+  <div id="phase-overlay">Fusion — binocular fixation</div>
+</div>
 
 <div class="controls">
   <div class="row">
@@ -56,12 +81,40 @@
   </div>
 
   <div class="mode-row">
-    <button id="btn-still"  class="active" onclick="setMode('still')">Still</button>
-    <button id="btn-saccade"            onclick="setMode('saccade')">Saccade demo</button>
-    <button id="btn-nystagmus"          onclick="setMode('nystagmus')">Nystagmus demo</button>
-    <button id="btn-pursuit"            onclick="setMode('pursuit')">Pursuit demo</button>
-    <button id="btn-vergence"           onclick="setMode('vergence')">Vergence demo</button>
-    <button id="btn-reset"              onclick="resetCamera()" style="margin-left:auto">Reset view</button>
+    <button id="btn-still"     class="active" onclick="setMode('still')">Still</button>
+    <button id="btn-saccade"               onclick="setMode('saccade')">Saccade demo</button>
+    <button id="btn-nystagmus"             onclick="setMode('nystagmus')">Nystagmus demo</button>
+    <button id="btn-pursuit"               onclick="setMode('pursuit')">Pursuit demo</button>
+    <button id="btn-vergence"              onclick="setMode('vergence')">Vergence demo</button>
+    <button id="btn-cover"                 onclick="setMode('cover')">Cover test</button>
+  </div>
+  <div class="mode-row">
+    <button onclick="zoomCamera(0.8)">Zoom in</button>
+    <button onclick="zoomCamera(1.25)">Zoom out</button>
+    <button onclick="resetCamera()">Reset view</button>
+  </div>
+
+  <div id="strab-panel">
+    <div class="row">
+      <label>Strabismus type</label>
+      <select id="strab-type">
+        <option value="r-esotropia">Right esotropia (right eye in)</option>
+        <option value="r-exotropia">Right exotropia (right eye out)</option>
+        <option value="l-esotropia">Left esotropia (left eye in)</option>
+        <option value="l-exotropia">Left exotropia (left eye out)</option>
+        <option value="r-hypertropia">Right hypertropia (right eye up)</option>
+        <option value="l-hypertropia">Left hypertropia (left eye up)</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Deviation magnitude</label>
+      <input type="range" id="strab-dev" min="5" max="35" value="15" step="1">
+      <span class="val" id="strab-dev-v">15°</span>
+    </div>
+    <div class="hint">
+      Watch for the corrective refixation movement when the cover is removed —
+      that movement reveals the full deviation magnitude.
+    </div>
   </div>
 </div>
 
@@ -78,7 +131,7 @@ import * as THREE        from 'three';
 import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ── Scene setup ──────────────────────────────────────────────────────────────
+// ── Scene ─────────────────────────────────────────────────────────────────────
 const canvas   = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -92,11 +145,10 @@ const camera = new THREE.PerspectiveCamera(28, 640 / 480, 0.001, 10000);
 camera.position.set(0, 0, 1);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping  = true;
-controls.dampingFactor  = 0.08;
-controls.enablePan      = true;   // right-click drag to pan
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan     = true;
 
-// Lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 const key = new THREE.DirectionalLight(0xffffff, 1.4);
 key.position.set(1, 3, 2);
@@ -105,13 +157,65 @@ const fill = new THREE.DirectionalLight(0x8899ff, 0.4);
 fill.position.set(-2, 1, 1);
 scene.add(fill);
 
-// ── Load avatar ───────────────────────────────────────────────────────────────
+// ── Bones ─────────────────────────────────────────────────────────────────────
 let leftEyeBone  = null;
 let rightEyeBone = null;
-
-// Store rest rotations (set after model loads)
+let headBone     = null;
 let restL = null, restR = null;
 
+// ── Cover paddle ──────────────────────────────────────────────────────────────
+// All coords are in HEAD-BONE (Head_06) local space, read from the GLTF:
+//   LeftEye_08  t = [+0.0328, 0.1013, 0.1091]  relative to Head_06
+//   RightEye_09 t = [-0.0327, 0.1007, 0.1061]  relative to Head_06
+// +X = patient left = viewer right.  +Z = forward (face direction).
+const PAD = {
+  xOutR: -0.115,   // start/end off-screen (viewer-left, patient-right)
+  xInR:  -0.0327,  // centred over right eye
+  xInL:  +0.0328,  // centred over left eye
+  xOutL: +0.115,   // start/end off-screen (viewer-right, patient-left)
+  y:      0.1010,  // eye mid-height
+  // z is pushed well past the face surface.  Eyes are at z≈0.109; nose tip
+  // protrudes ~0.015 further; paddle needs to clear all face geometry.
+  z:      0.155,
+  w:      0.040,   // width  (~1 eye wide, like a real occluder paddle)
+  h:      0.095,   // height (tall/narrow — matches clinical paddle proportions)
+  d:      0.004,   // thickness
+};
+
+let paddle = null;  // THREE.Group — child of headBone
+
+function buildPaddle() {
+  if (!headBone) return;
+
+  // Body: warm red-orange (classic occluder colour)
+  const bodyGeo = new THREE.BoxGeometry(PAD.w, PAD.h, PAD.d);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xcc3600, roughness: 0.50, metalness: 0.05,
+    depthTest: false,   // always draw on top — same effect as the 2-D canvas
+  });                   // overlay used in the reference simulator
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.renderOrder = 999;
+
+  // Thin dark border around the body
+  const rimGeo = new THREE.BoxGeometry(PAD.w * 1.12, PAD.h * 1.04, PAD.d * 0.3);
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0x1a0800, depthTest: false,
+  });
+  const rim = new THREE.Mesh(rimGeo, rimMat);
+  rim.position.z = -PAD.d * 0.9;
+  rim.renderOrder = 998;
+
+  paddle = new THREE.Group();
+  paddle.add(rim);
+  paddle.add(body);
+  paddle.position.set(PAD.xOutR, PAD.y, PAD.z);
+  paddle.visible = false;
+
+  // Parent to the head bone — paddle automatically follows head movement.
+  headBone.add(paddle);
+}
+
+// ── Load avatar ───────────────────────────────────────────────────────────────
 const loader = new GLTFLoader();
 loader.load(
   'avatar/scene.gltf',
@@ -119,38 +223,37 @@ loader.load(
     const model = gltf.scene;
     scene.add(model);
 
-    // Walk the skeleton to find eye bones
     model.traverse(obj => {
       if (obj.isBone || obj.isObject3D) {
         if (obj.name === 'LeftEye_08')  leftEyeBone  = obj;
         if (obj.name === 'RightEye_09') rightEyeBone = obj;
+        if (obj.name === 'Head_06')     headBone     = obj;
       }
     });
 
     if (leftEyeBone && rightEyeBone) {
       restL = leftEyeBone.rotation.clone();
       restR = rightEyeBone.rotation.clone();
-      console.log('Eye bones found. Rest L:', restL, ' Rest R:', restR);
     } else {
       console.warn('Eye bones not found — check node names.');
     }
 
-    // Auto-fit camera to the model's actual bounding box
+    // Build cover paddle and attach it to the head bone
+    buildPaddle();
+
+    // Auto-fit camera to the model
     const box    = new THREE.Box3().setFromObject(model);
     const size   = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    console.log('Model bounding box — size:', size, ' center:', center);
 
-    // Aim at the top 15% of the model (face area)
     const faceY      = box.min.y + size.y * 0.93;
     const faceTarget = new THREE.Vector3(center.x, faceY, center.z);
+    const dist       = size.y * 0.18;
 
-    const dist = size.y * 0.18;
     camera.position.set(center.x, faceY, center.z + dist);
     camera.near = size.y * 0.001;
     camera.far  = size.y * 20;
     camera.updateProjectionMatrix();
-
     controls.target.copy(faceTarget);
     controls.update();
   },
@@ -158,23 +261,22 @@ loader.load(
   (err) => console.error('GLTF load error:', err)
 );
 
-// ── Eye rotation helper ───────────────────────────────────────────────────────
-// yawL, yawR, pitch all in degrees
-// Positive yaw = eye turns LEFT in world space (rightward gaze)
-// Positive pitch = eye turns UP
-function setEyeAngles(yawL_deg, yawR_deg, pitch_deg) {
+// ── Eye angle helpers ─────────────────────────────────────────────────────────
+// Positive yaw  = eye turns LEFT in world (= rightward gaze).
+// Positive pitch = eye turns UP.
+function setEyeAngles(yawL, yawR, pitch) {
   if (!leftEyeBone || !rightEyeBone) return;
-  const toRad = Math.PI / 180;
-  leftEyeBone.rotation.set(
-    restL.x + pitch_deg * toRad,
-    restL.y + yawL_deg  * toRad,
-    restL.z
-  );
-  rightEyeBone.rotation.set(
-    restR.x + pitch_deg * toRad,
-    restR.y + yawR_deg  * toRad,
-    restR.z
-  );
+  const r = Math.PI / 180;
+  leftEyeBone.rotation.set(restL.x + pitch * r, restL.y + yawL * r, restL.z);
+  rightEyeBone.rotation.set(restR.x + pitch * r, restR.y + yawR * r, restR.z);
+}
+
+// Separate pitch per eye (needed for hypertropia cover test).
+function setEyeAnglesFull(yawL, yawR, pitchL, pitchR) {
+  if (!leftEyeBone || !rightEyeBone) return;
+  const r = Math.PI / 180;
+  leftEyeBone.rotation.set(restL.x + pitchL * r, restL.y + yawL * r, restL.z);
+  rightEyeBone.rotation.set(restR.x + pitchR * r, restR.y + yawR * r, restR.z);
 }
 
 // ── Sliders ───────────────────────────────────────────────────────────────────
@@ -189,51 +291,185 @@ function sliderUpdate() {
   document.getElementById('yaw-v').textContent   = yaw.toFixed(1)  + '°';
   document.getElementById('pitch-v').textContent = pit.toFixed(1)  + '°';
   document.getElementById('verg-v').textContent  = verg.toFixed(1) + '°';
-  // Left eye: yaw + vergence/2 (converges inward = positive for left eye)
-  // Right eye: yaw - vergence/2
   setEyeAngles(yaw + verg / 2, yaw - verg / 2, pit);
 }
 sliderYaw.addEventListener('input', sliderUpdate);
 sliderPitch.addEventListener('input', sliderUpdate);
 sliderVerg.addEventListener('input', sliderUpdate);
 
-// ── Demo animations ───────────────────────────────────────────────────────────
+document.getElementById('strab-dev').addEventListener('input', function () {
+  document.getElementById('strab-dev-v').textContent = this.value + '°';
+});
+
+// ── Mode management ───────────────────────────────────────────────────────────
 let mode = 'still';
 let t0   = null;
 
-window.resetCamera = function() {
+// factor < 1 zooms in, factor > 1 zooms out.
+// Moves the camera along the current view axis toward/away from the orbit target.
+window.zoomCamera = function (factor) {
+  const dir = camera.position.clone().sub(controls.target);
+  const newLen = dir.length() * factor;
+  // Clamp: don't let the camera clip into the face or fly too far back
+  const clamped = Math.max(newLen, camera.near * 10);
+  dir.setLength(clamped);
+  camera.position.copy(controls.target).add(dir);
+  controls.update();
+};
+
+window.resetCamera = function () {
   const box    = new THREE.Box3().setFromObject(scene);
   const size   = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const faceY  = box.min.y + size.y * 0.93;
-  const target = new THREE.Vector3(center.x, faceY, center.z);
-  controls.target.copy(target);
+  controls.target.set(center.x, faceY, center.z);
   camera.position.set(center.x, faceY, center.z + size.y * 0.18);
   controls.update();
 };
 
-window.setMode = function(m) {
+window.setMode = function (m) {
   mode = m;
   t0   = null;
-  // Update button styles
-  ['still','saccade','nystagmus','pursuit','vergence'].forEach(id => {
+  ['still', 'saccade', 'nystagmus', 'pursuit', 'vergence', 'cover'].forEach(id => {
     document.getElementById('btn-' + id).classList.toggle('active', id === m);
   });
-  // Reset sliders when going manual
+  document.getElementById('strab-panel').style.display    = (m === 'cover') ? 'flex' : 'none';
+  document.getElementById('phase-overlay').style.display  = (m === 'cover') ? ''     : 'none';
+  if (paddle) paddle.visible = false;
   if (m === 'still') {
     sliderYaw.value = 0; sliderPitch.value = 0; sliderVerg.value = 0;
     sliderUpdate();
   }
 };
 
+// ── Cover test animation ──────────────────────────────────────────────────────
+//
+// All paddle X positions are in HEAD-BONE LOCAL space (see PAD constants above).
+//
+// Timeline (PERIOD = 11 s, loops):
+//   [ 0.0, 1.0 ]  Fusion — paddle off-screen viewer-left, both eyes straight
+//   [ 1.0, 1.5 ]  Paddle slides in from viewer-left → covers RIGHT eye
+//   [ 1.5, 4.5 ]  Right eye occluded — drifts to deviated position
+//   [ 4.5, 5.2 ]  Paddle sweeps right → LEFT eye  (right uncovered mid-sweep,
+//                  refixates visibly — the clinical sign!)
+//   [ 5.2, 8.0 ]  Left eye occluded — drifts to deviated position
+//   [ 8.0, 8.5 ]  Paddle slides off viewer-right
+//   [ 8.5,11.0 ]  Both uncovered, fusion restored
+
+function clamp01(t) { return t < 0 ? 0 : t > 1 ? 1 : t; }
+function lerp(a, b, t) { return a + (b - a) * clamp01(t); }
+function smooth(t) { t = clamp01(t); return t * t * (3 - 2 * t); }
+
+function runCoverTest(s) {
+  if (!paddle) return;
+
+  const type = document.getElementById('strab-type').value;
+  const dev  = parseFloat(document.getElementById('strab-dev').value);
+
+  // Deviation each eye drifts to when occluded.
+  // Sign convention (matches setEyeAngles):
+  //   yawL > 0 → left eye inward (convergent)   yawR < 0 → right eye inward (convergent)
+  //   pitch > 0 → eye upward
+  const devMap = {
+    'r-esotropia':   { lY: 0,    rY: -dev, lP: 0,    rP: 0   },
+    'r-exotropia':   { lY: 0,    rY: +dev, lP: 0,    rP: 0   },
+    'l-esotropia':   { lY: +dev, rY: 0,    lP: 0,    rP: 0   },
+    'l-exotropia':   { lY: -dev, rY: 0,    lP: 0,    rP: 0   },
+    'r-hypertropia': { lY: 0,    rY: 0,    lP: 0,    rP: +dev },
+    'l-hypertropia': { lY: 0,    rY: 0,    lP: +dev, rP: 0   },
+  };
+  const d = devMap[type] || { lY: 0, rY: 0, lP: 0, rP: 0 };
+
+  const t = s % 11;
+  let px = PAD.xOutR;
+  let lY = 0, rY = 0, lP = 0, rP = 0;
+  let label = '';
+  let hi    = false;
+
+  if (t < 1.0) {
+    // ── Fusion ────────────────────────────────────────────────────────────────
+    px = PAD.xOutR;
+    paddle.visible = false;
+    label = 'Fusion — binocular fixation';
+
+  } else if (t < 1.5) {
+    // ── Paddle enters from viewer-left, covers RIGHT eye ──────────────────────
+    paddle.visible = true;
+    px = lerp(PAD.xOutR, PAD.xInR, smooth((t - 1.0) / 0.5));
+    label = 'Covering right eye…';
+
+  } else if (t < 4.5) {
+    // ── Right eye occluded — drifts to its deviated position ─────────────────
+    paddle.visible = true;
+    px = PAD.xInR;
+    const drift = smooth((t - 1.5) / 0.9);
+    rY = lerp(0, d.rY, drift);
+    rP = lerp(0, d.rP, drift);
+    label = 'Right eye occluded — deviation develops';
+
+  } else if (t < 5.2) {
+    // ── Paddle sweeps from right eye → left eye ───────────────────────────────
+    // Right eye uncovery fraction (paddle passes it ~40% through sweep).
+    // Left eye coverage fraction (paddle reaches it ~65% through sweep).
+    paddle.visible = true;
+    const f = smooth((t - 4.5) / 0.7);
+    px = lerp(PAD.xInR, PAD.xInL, f);
+
+    const rUncov = clamp01((f - 0.40) / 0.45);
+    rY = lerp(d.rY, 0, smooth(rUncov));
+    rP = lerp(d.rP, 0, smooth(rUncov));
+
+    const lCov = clamp01((f - 0.65) / 0.35);
+    lY = lerp(0, d.lY, smooth(lCov));
+    lP = lerp(0, d.lP, smooth(lCov));
+
+    if (rUncov > 0.05 && rUncov < 0.95) { label = 'Right eye refixates!'; hi = true; }
+    else                                  { label = 'Alternating cover…'; }
+
+  } else if (t < 8.0) {
+    // ── Left eye occluded; right eye fixates straight ─────────────────────────
+    paddle.visible = true;
+    px = PAD.xInL;
+    const drift = smooth((t - 5.2) / 0.9);
+    lY = lerp(0, d.lY, drift);
+    lP = lerp(0, d.lP, drift);
+    label = 'Left eye occluded — deviation develops';
+
+  } else if (t < 8.5) {
+    // ── Paddle exits to viewer-right; left eye refixates ─────────────────────
+    paddle.visible = true;
+    const f = smooth((t - 8.0) / 0.5);
+    px = lerp(PAD.xInL, PAD.xOutL, f);
+
+    const lUncov = clamp01((f - 0.1) / 0.7);
+    lY = lerp(d.lY, 0, smooth(lUncov));
+    lP = lerp(d.lP, 0, smooth(lUncov));
+
+    if (lUncov > 0.05 && lUncov < 0.95) { label = 'Left eye refixates!'; hi = true; }
+    else                                  { label = 'Uncovering left eye…'; }
+
+  } else {
+    // ── Fusion restored ───────────────────────────────────────────────────────
+    paddle.visible = false;
+    px = PAD.xOutL;
+    label = 'Fusion restored';
+  }
+
+  paddle.position.set(px, PAD.y, PAD.z);
+  setEyeAnglesFull(lY, rY, lP, rP);
+
+  const el = document.getElementById('phase-overlay');
+  el.textContent = label;
+  el.classList.toggle('highlight', hi);
+}
+
+// ── Main demo dispatcher ──────────────────────────────────────────────────────
 function runDemo(elapsed) {
-  const s = elapsed / 1000;  // seconds
+  const s = elapsed / 1000;
 
   if (mode === 'saccade') {
-    // Staircase saccades: step every 0.6 s through [-20, -10, 0, 10, 20]
     const steps  = [-20, -10, 0, 10, 20, 10, 0, -10];
-    const period = 0.6;
-    const idx    = Math.floor(s / period) % steps.length;
+    const idx    = Math.floor(s / 0.6) % steps.length;
     const yaw    = steps[idx];
     setEyeAngles(yaw, yaw, 0);
     sliderYaw.value = yaw; sliderPitch.value = 0; sliderVerg.value = 0;
@@ -242,43 +478,39 @@ function runDemo(elapsed) {
     document.getElementById('verg-v').textContent  = '0.0°';
 
   } else if (mode === 'nystagmus') {
-    // Sawtooth: slow phase drifts left, fast phase resets right (VOR-like)
-    const cycleDur = 1.2;
-    const phase    = (s % cycleDur) / cycleDur;
-    let yaw;
-    if (phase < 0.85) {
-      yaw = -15 + phase / 0.85 * 30;   // slow drift: -15 → +15 deg
-    } else {
-      yaw = 15 - (phase - 0.85) / 0.15 * 30;  // fast reset
-    }
+    const phase = (s % 1.2) / 1.2;
+    const yaw   = phase < 0.85
+      ? -15 + phase / 0.85 * 30
+      : 15 - (phase - 0.85) / 0.15 * 30;
     setEyeAngles(yaw, yaw, 0);
     sliderYaw.value = yaw;
     document.getElementById('yaw-v').textContent = yaw.toFixed(1) + '°';
 
   } else if (mode === 'pursuit') {
-    // Sinusoidal smooth pursuit, 0.4 Hz
     const yaw = 18 * Math.sin(2 * Math.PI * 0.4 * s);
     const pit = 8  * Math.sin(2 * Math.PI * 0.2 * s);
     setEyeAngles(yaw, yaw, pit);
-    sliderYaw.value   = yaw; sliderPitch.value = pit;
+    sliderYaw.value = yaw; sliderPitch.value = pit;
     document.getElementById('yaw-v').textContent   = yaw.toFixed(1) + '°';
     document.getElementById('pitch-v').textContent = pit.toFixed(1) + '°';
 
   } else if (mode === 'vergence') {
-    // Vergence oscillation: eyes converge and diverge
     const verg = 12 * Math.sin(2 * Math.PI * 0.3 * s);
     setEyeAngles(verg / 2, -verg / 2, 0);
     sliderVerg.value = verg;
     document.getElementById('verg-v').textContent = verg.toFixed(1) + '°';
+
+  } else if (mode === 'cover') {
+    runCoverTest(s);
   }
 }
 
 // ── Render loop ───────────────────────────────────────────────────────────────
-function animate(timestamp) {
+function animate(ts) {
   requestAnimationFrame(animate);
   if (mode !== 'still') {
-    if (t0 === null) t0 = timestamp;
-    runDemo(timestamp - t0);
+    if (t0 === null) t0 = ts;
+    runDemo(ts - t0);
   }
   controls.update();
   renderer.render(scene, camera);

@@ -242,6 +242,9 @@
         <input type="range" id="scrubber" min="0" max="100" value="0"
                oninput="onScrub(this.value)">
         <span id="time-display">0.0 / 0.0 s</span>
+        <button class="secondary" onclick="window.zoomAvatar && zoomAvatar(0.8)"  title="Zoom in">Zoom in</button>
+        <button class="secondary" onclick="window.zoomAvatar && zoomAvatar(1.25)" title="Zoom out">Zoom out</button>
+        <button class="secondary" onclick="window.resetAvatarCamera && resetAvatarCamera()" title="Reset view">Reset view</button>
       </div>
     </div>
 
@@ -558,6 +561,9 @@ let rightEyeBone = null;
 let headBone     = null;
 let restL = null, restR = null, restHead = null;
 let coverMeshL   = null, coverMeshR = null;
+let _camTarget       = null;   // eye midpoint — both cameras look here
+let _worldCamInitPos = null;   // initial positions saved at load time for reset
+let _headCamInitPos  = null;
 
 const AVATAR_PATH = 'avatar/scene.gltf';
 
@@ -598,6 +604,11 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   worldCam.position.set(eyeMid.x, eyeMid.y, eyeMid.z + size.y * 0.26);
   worldCam.lookAt(eyeMid);
   worldCam.near = near; worldCam.far = far; worldCam.updateProjectionMatrix();
+
+  // Store initial camera state so zoom/reset always work from a known baseline.
+  _camTarget       = eyeMid.clone();
+  _worldCamInitPos = worldCam.position.clone();
+  _headCamInitPos  = headCam.position.clone();
 
   // Build procedural eye-cover patches — black disc parented to the model
   // root (acts as head bone) so they stay head-fixed: the eyeball rotates
@@ -692,7 +703,7 @@ function applyFrame(fi) {
     headBone.rotation.set(
       restHead.x - Hd[1] * DEG,   // pitch
       restHead.y - Hd[0] * DEG,   // yaw
-      restHead.z
+      restHead.z + Hd[2] * DEG    // roll
     );
   }
 
@@ -768,6 +779,28 @@ window._avatarOnScrub = function(val) {
   _frame = val; _lastRafTs = null;
   applyFrame(val);
   updateTimeDisplay(val);
+};
+
+// ── Camera zoom / reset ───────────────────────────────────────────────────────
+// factor < 1 → zoom in (move closer).  factor > 1 → zoom out.
+// Both cameras move together so the split-view stays proportional.
+window.zoomAvatar = function(factor) {
+  if (!_camTarget) return;
+  [worldCam, headCam].forEach(cam => {
+    const dir = cam.position.clone().sub(_camTarget);
+    const clamped = Math.max(dir.length() * factor, cam.near * 10);
+    dir.setLength(clamped);
+    cam.position.copy(_camTarget).add(dir);
+    cam.lookAt(_camTarget);
+  });
+};
+
+window.resetAvatarCamera = function() {
+  if (!_camTarget || !_worldCamInitPos || !_headCamInitPos) return;
+  worldCam.position.copy(_worldCamInitPos);
+  headCam.position.copy(_headCamInitPos);
+  worldCam.lookAt(_camTarget);
+  headCam.lookAt(_camTarget);
 };
 
 // ── Render loop (scissor split) ───────────────────────────────────────────────
