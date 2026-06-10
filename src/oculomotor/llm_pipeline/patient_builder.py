@@ -114,12 +114,14 @@ def _make_list_validator(rng: list, length: int | None):
     def _check(v):
         if length is not None and len(v) != length:
             raise ValueError(f'must be a list of length {length}, got {len(v)}')
-        for i, x in enumerate(v):
+        result = []
+        for x in v:
             if lo is not None and x < lo:
-                raise ValueError(f'index {i}: {x} < {lo}')
+                x = lo
             if hi is not None and x > hi:
-                raise ValueError(f'index {i}: {x} > {hi}')
-        return v
+                x = hi
+            result.append(x)
+        return result
     return _check
 
 

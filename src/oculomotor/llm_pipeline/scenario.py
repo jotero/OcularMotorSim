@@ -137,13 +137,19 @@ class BodySegment(BaseModel):
             raise ValueError(f'|rot_vel|={abs(v)} > 1200 deg/s is physiologically unrealistic')
         return v
 
-    @model_validator(mode='after')
-    def _check_impulse_geometry(self):
-        if self.rot_profile == 'impulse' and 2 * self.ramp_dur_s >= self.duration_s:
-            raise ValueError(
-                f'impulse: 2×ramp_dur_s ({2*self.ramp_dur_s:.3f} s) must be < '
-                f'duration_s ({self.duration_s} s). Increase duration_s.')
-        return self
+    @model_validator(mode='before')
+    @classmethod
+    def _fix_impulse_geometry(cls, data):
+        # Auto-correct: if impulse geometry is violated (ramp too long) or
+        # duration >= 1 s (positional maneuver, not vHIT), switch to constant.
+        if isinstance(data, dict) and data.get('rot_profile') == 'impulse':
+            dur  = data.get('duration_s', 1.0)
+            ramp = data.get('ramp_dur_s', 0.02)
+            if 2 * ramp >= dur or dur >= 1.0:
+                data = dict(data)
+                data['rot_profile'] = 'constant'
+                data.pop('ramp_dur_s', None)
+        return data
 
 
 # ── Visual flags ───────────────────────────────────────────────────────────────

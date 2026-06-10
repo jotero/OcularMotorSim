@@ -218,6 +218,17 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
     cb_ec_target    = np.array(cb.ec_target)                  # (T, 3) delayed target EC
     cb_ec_scene     = np.array(cb.ec_scene)                   # (T, 3) delayed scene  EC
 
+    # ── Canal afferents (all 6 channels) ────────────────────────────────────
+    from oculomotor.models.sensory_models.canal import FLOOR as _F, _SOFTNESS as _K
+    try:
+        from scipy.special import softplus as _sp
+    except ImportError:
+        def _sp(x):
+            return np.where(x > 30, x, np.log1p(np.exp(np.clip(x, -500, 30))))
+    _x2 = np.array(states.sensory.canal.x2)   # (T, 6)
+    _k, _f = float(_K), float(_F)
+    canal_aff = -_f + _sp(_k*(_x2+_f))/_k + _sp(_k*(_x2-_f))/_k   # (T, 6), 0 at rest
+
     return dict(
         eye_pos        = version,          # conjugate version — used by most panels
         eye_pos_L      = eye_pos_L,        # per-eye: left
@@ -227,6 +238,7 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         eye_vel        = w_eye,
         w_est          = w_est,
         x_ni           = x_ni,
+        canal_aff      = canal_aff,        # (T, 6) afferent deviation from rest
         x_pursuit      = x_pursuit,
         e_pos_delayed  = e_pos_delayed,
         u_burst        = u_burst,
@@ -284,7 +296,7 @@ _PANEL_LABELS = {
     'head_velocity':     'Head velocity (deg/s)',
     'gaze_error':        'Gaze error (deg)',
     'retinal_error':     'Retinal position error (deg)',
-    'canal_afferents':   'Velocity storage (deg/s)',
+    'canal_afferents':   'Canal afferents (dev. from rest, deg/s)',
     'velocity_storage':  'Velocity storage (deg/s)',
     'neural_integrator': 'Neural integrator (deg)',
     'saccade_burst':     'Saccade burst (deg/s)',
@@ -372,9 +384,11 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'head_velocity':
-        ax.plot(t, hv[:, 0], color=_C['head'], lw=1.2, label='Head velocity (yaw)')
-        if hv.shape[1] > 1 and np.any(hv[:, 1] != 0):
-            ax.plot(t, hv[:, 1], color=_C['burst'], lw=1.0, ls='--', label='pitch')
+        ax.plot(t, hv[:, 0], color=_C['head'],   lw=1.2, label='Yaw')
+        if hv.shape[1] > 1 and np.any(np.abs(hv[:, 1]) > 0.5):
+            ax.plot(t, hv[:, 1], color=_C['burst'], lw=1.0, ls='--', label='Pitch')
+        if hv.shape[1] > 2 and np.any(np.abs(hv[:, 2]) > 0.5):
+            ax.plot(t, hv[:, 2], color='#4ab55e', lw=1.0, ls=':', label='Roll')
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'gaze_error':
@@ -389,6 +403,17 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
     elif panel_name == 'velocity_storage':
         ax.plot(t, sig['w_est'][:, 0], color=_C['vs'], lw=1.2, label='Velocity storage (yaw)')
         ax.legend(fontsize=6, loc='upper right')
+
+    elif panel_name == 'canal_afferents':
+        # [LHC, LAC, LPC, RHC, RAC, RPC] — LARP pair (LAC/RPC) bold
+        _CA_COLS  = ['#4a90e2', '#5bab5b', '#e2724a', '#a0c4f0', '#90cc90', '#e05050']
+        _CA_NAMES = ['LHC', 'LAC', 'LPC', 'RHC', 'RAC', 'RPC']
+        ca = sig['canal_aff']   # (T, 6)
+        for i, (name, col) in enumerate(zip(_CA_NAMES, _CA_COLS)):
+            lw = 1.6 if name in ('RPC', 'LAC') else 0.75
+            ax.plot(t, ca[:, i], color=col, lw=lw, label=name)
+        ax.legend(fontsize=6, loc='upper right', ncol=6)
+        ax.set_ylabel('Canal afferents (dev. from rest, deg/s)', fontsize=8)
 
     elif panel_name == 'neural_integrator':
         ax.plot(t, sig['x_ni'][:, 0], color=_C['ni'], lw=1.2, label='Neural integrator (yaw)')
