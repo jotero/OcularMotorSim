@@ -164,7 +164,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
     allow_methods=['GET', 'POST', 'DELETE'],
-    allow_headers=['Content-Type', 'X-Admin-Token'],
+    allow_headers=['Content-Type', 'X-Admin-Token', 'ngrok-skip-browser-warning'],
 )
 
 
