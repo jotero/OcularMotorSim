@@ -4,6 +4,11 @@
 
 $ErrorActionPreference = 'Stop'
 
+# Shared, non-OneDrive data dir so dev (8001) and stable (8000) use one database
+# (avoids OneDrive corrupting the actively-written log). Both start scripts set
+# the SAME path.
+$env:OCULOMOTOR_OUTPUTS = Join-Path $env:USERPROFILE 'oculomotor_outputs'
+
 $root    = $PSScriptRoot
 $stable  = Join-Path (Split-Path $root -Parent) 'om-stable'
 $python  = Join-Path $root '.venv\Scripts\python.exe'

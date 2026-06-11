@@ -14,7 +14,10 @@ import json
 import os
 from pathlib import Path
 
-_OUTPUTS_DIR = Path(__file__).parent.parent / 'outputs'
+# Mirror server.py: honor OCULOMOTOR_OUTPUTS so the admin reads/writes the same
+# (shared, non-OneDrive) data dir the server uses.
+_OUTPUTS_DIR = Path(os.environ.get('OCULOMOTOR_OUTPUTS') or (Path(__file__).parent.parent / 'outputs'))
+_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 _LOG_FILE    = _OUTPUTS_DIR / 'simulation_log.csv'
 _OUT_FILE    = _OUTPUTS_DIR / 'admin.html'
 

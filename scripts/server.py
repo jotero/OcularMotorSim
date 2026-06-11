@@ -58,8 +58,12 @@ with open(_SCHEMA_PATH, encoding='utf-8') as _f:
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-_OUTPUTS_DIR = Path(__file__).parent.parent / 'outputs'
-_OUTPUTS_DIR.mkdir(exist_ok=True)
+# Data directory. Defaults to <repo>/outputs, but set OCULOMOTOR_OUTPUTS to a
+# shared, NON-OneDrive path so the dev (8001) and stable (8000) servers use one
+# database. (OneDrive syncing an actively-written outputs/ corrupts the log —
+# orphaned sidecars, vanished CSV rows.)
+_OUTPUTS_DIR = Path(os.environ.get('OCULOMOTOR_OUTPUTS') or (Path(__file__).parent.parent / 'outputs'))
+_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 _FIGURES_DIR = _OUTPUTS_DIR / 'server_figures'
 _FIGURES_DIR.mkdir(exist_ok=True)
