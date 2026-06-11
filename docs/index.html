@@ -197,6 +197,26 @@
     flex: 1; text-align: center; font-size: 0.7rem; color: #555;
     text-transform: uppercase; letter-spacing: 0.08em;
   }
+  /* Per-viewport zoom overlays */
+  .zoom-overlay {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 3px; z-index: 10;
+  }
+  #zoom-world { left: 6px; }
+  #zoom-eye   { right: 6px; }
+  .zoom-overlay button {
+    width: 22px; height: 22px; padding: 0; line-height: 1;
+    background: rgba(255,255,255,0.82); border: 1px solid #bbb;
+    border-radius: 4px; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; color: #444;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .zoom-overlay button:hover { background: #fff; border-color: #4a6cf7; color: #4a6cf7; }
+  .zoom-overlay .zoom-label {
+    text-align: center; font-size: 0.58rem; color: #888;
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1px;
+  }
 </style>
 </head>
 <body>
@@ -236,15 +256,24 @@
           <span>World view</span>
           <span>Head-fixed</span>
         </div>
+        <!-- Head (world) view zoom — left edge, split mode only -->
+        <div id="zoom-world" class="zoom-overlay" style="display:none">
+          <div class="zoom-label">head</div>
+          <button onclick="window.zoomWorldCam && zoomWorldCam(0.85)" title="Zoom in head view">+</button>
+          <button onclick="window.zoomWorldCam && zoomWorldCam(1/0.85)" title="Zoom out head view">−</button>
+        </div>
+        <!-- Eye (head-fixed) view zoom — right edge, always shown -->
+        <div id="zoom-eye" class="zoom-overlay">
+          <div class="zoom-label">eye</div>
+          <button onclick="window.zoomEyeCam && zoomEyeCam(0.85)" title="Zoom in eye view">+</button>
+          <button onclick="window.zoomEyeCam && zoomEyeCam(1/0.85)" title="Zoom out eye view">−</button>
+        </div>
       </div>
       <div id="playback-bar">
         <button id="play-btn" onclick="togglePlay()" title="Play / Pause">▶</button>
         <input type="range" id="scrubber" min="0" max="100" value="0"
                oninput="onScrub(this.value)">
         <span id="time-display">0.0 / 0.0 s</span>
-        <button class="secondary" onclick="window.zoomAvatar && zoomAvatar(0.8)"  title="Zoom in">Zoom in</button>
-        <button class="secondary" onclick="window.zoomAvatar && zoomAvatar(1.25)" title="Zoom out">Zoom out</button>
-        <button class="secondary" onclick="window.resetAvatarCamera && resetAvatarCamera()" title="Reset view">Reset view</button>
       </div>
     </div>
 
@@ -749,11 +778,13 @@ window.loadEyeTrajectory = function(traj) {
     console.log(`Cover data: L=${sumL} frames covered, R=${sumR} frames covered.`);
   }
 
-  // Show/hide world-view label + divider
+  // Show/hide world-view label, divider, and head zoom buttons
   const labels = document.querySelectorAll('.avatar-labels span');
   if (labels[0]) labels[0].style.display = _headMoves ? '' : 'none';
   const wrap = document.querySelector('.avatar-wrap');
   if (wrap) wrap.classList.toggle('single-view', !_headMoves);
+  const zwEl = document.getElementById('zoom-world');
+  if (zwEl) zwEl.style.display = _headMoves ? 'flex' : 'none';
 
   document.getElementById('play-btn').textContent = '▶';
   document.getElementById('scrubber').max         = traj.n_frames - 1;
@@ -781,19 +812,19 @@ window._avatarOnScrub = function(val) {
   updateTimeDisplay(val);
 };
 
-// ── Camera zoom / reset ───────────────────────────────────────────────────────
+// ── Camera zoom — independent per viewport ────────────────────────────────────
 // factor < 1 → zoom in (move closer).  factor > 1 → zoom out.
-// Both cameras move together so the split-view stays proportional.
-window.zoomAvatar = function(factor) {
+function _zoomCam(cam, factor) {
   if (!_camTarget) return;
-  [worldCam, headCam].forEach(cam => {
-    const dir = cam.position.clone().sub(_camTarget);
-    const clamped = Math.max(dir.length() * factor, cam.near * 10);
-    dir.setLength(clamped);
-    cam.position.copy(_camTarget).add(dir);
-    cam.lookAt(_camTarget);
-  });
-};
+  const dir = cam.position.clone().sub(_camTarget);
+  dir.setLength(Math.max(dir.length() * factor, cam.near * 10));
+  cam.position.copy(_camTarget).add(dir);
+  cam.lookAt(_camTarget);
+}
+window.zoomWorldCam = function(factor) { _zoomCam(worldCam, factor); };
+window.zoomEyeCam   = function(factor) { _zoomCam(headCam,  factor); };
+// legacy alias so any external code calling zoomAvatar still works
+window.zoomAvatar = function(factor) { _zoomCam(worldCam, factor); _zoomCam(headCam, factor); };
 
 window.resetAvatarCamera = function() {
   if (!_camTarget || !_worldCamInitPos || !_headCamInitPos) return;
