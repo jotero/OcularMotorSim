@@ -176,6 +176,16 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     cover_L = ((spL < 0.5) & (tpL < 0.5) & ((spR > 0.5) | (tpR > 0.5))).astype(int)[::step]
     cover_R = ((spR < 0.5) & (tpR < 0.5) & ((spL > 0.5) | (tpL > 0.5))).astype(int)[::step]
 
+    # Cyclopean eye position + velocity for interactive chart
+    ep_full = (np.array(sim_data.get('eye_pos_L', sim_data['eye_pos'])) +
+               np.array(sim_data.get('eye_pos_R', sim_data['eye_pos']))) / 2.0
+    ev_full = np.gradient(ep_full, dt_orig, axis=0)
+    ep_ds   = ep_full[::step]
+    ev_ds   = ev_full[::step]
+
+    def _ds(arr):
+        return [round(float(v), 2) for v in arr]
+
     return dict(
         fps        = fps,
         n_frames   = int(len(t_ds)),
@@ -185,6 +195,18 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
         head    = [[round(float(v), 2) for v in row] for row in head_ds.tolist()],
         cover_L = cover_L.tolist(),
         cover_R = cover_R.tolist(),
+        # Signals for interactive Plotly chart
+        signals = dict(
+            t          = _ds(t_ds),
+            eye_pos_yaw   = _ds(ep_ds[:, 0]),
+            eye_pos_pitch = _ds(ep_ds[:, 1]),
+            eye_pos_roll  = _ds(ep_ds[:, 2]),
+            eye_vel_yaw   = _ds(ev_ds[:, 0]),
+            eye_vel_pitch = _ds(ev_ds[:, 1]),
+            head_yaw   = _ds(head_ds[:, 0]),
+            head_pitch = _ds(head_ds[:, 1]),
+            head_roll  = _ds(head_ds[:, 2]),
+        ),
     )
 
 

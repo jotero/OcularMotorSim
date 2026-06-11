@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OculomotorSim</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -148,6 +149,21 @@
   }
   .avatar-wrap.single-view::after { display: none; }
 
+  /* Interactive signal chart */
+  #chart-section {
+    display: none; margin-top: 16px;
+    border: 1px solid #e0e2ea; border-radius: 10px; overflow: hidden;
+    background: #fff;
+  }
+  #chart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; background: #f9fafc; border-bottom: 1px solid #e0e2ea;
+    font-size: 0.78rem; color: #555;
+  }
+  #chart-header strong { color: #1a1a2e; font-size: 0.82rem; }
+  #chart-hint { font-size: 0.72rem; color: #999; font-style: italic; }
+  #chart-div { width: 100%; }
+
   /* Patient-changes table — mirrors parameters.html styling but inlined here */
   .param-table { width: 100%; border-collapse: collapse; background: #fff;
                  border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px; }
@@ -280,6 +296,15 @@
     <!-- Simulation plot -->
     <img id="plot" src="" alt="Simulation plot"
          style="width:100%;border-radius:8px;border:1px solid #2a2d3a;margin-top:20px;">
+
+    <!-- Interactive signal chart -->
+    <div id="chart-section">
+      <div id="chart-header">
+        <span><strong>Interactive signals</strong> — click to seek avatar &nbsp;·&nbsp; drag to zoom &nbsp;·&nbsp; double-click to reset</span>
+        <span id="chart-hint">hover for values</span>
+      </div>
+      <div id="chart-div"></div>
+    </div>
 
     <!-- Patient parameter changes — populated from RunResponse.patient_changes -->
     <div id="patient-changes-section" style="display:none;margin-top:18px;">
@@ -426,6 +451,7 @@ async function run() {
       });
       window.loadEyeTrajectory(data.eye_trajectories[0]);
       renderPatientChanges(data.eye_trajectories[0].patient_changes || []);
+      if (window._renderInteractiveChart) window._renderInteractiveChart(data.eye_trajectories);
     } else if (data.eye_trajectory && typeof window.loadEyeTrajectory === 'function') {
       // Single mode: no tabs
       avatarTabs.innerHTML = '';
@@ -433,6 +459,7 @@ async function run() {
       document.getElementById('avatar-section').style.display = 'block';
       window.loadEyeTrajectory(data.eye_trajectory);
       renderPatientChanges(data.patient_changes || []);
+      if (window._renderInteractiveChart) window._renderInteractiveChart(data.eye_trajectory);
     } else {
       renderPatientChanges(data.patient_changes || []);
     }
@@ -540,6 +567,157 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) run();
   });
 });
+
+// ── Interactive signal chart (Plotly) ─────────────────────────────────────────
+
+const CHART_COLORS = {
+  eye_yaw:   '#2166ac',
+  eye_pitch: '#d6604d',
+  eye_roll:  '#8e44ad',
+  eye_vel_y: '#41b3a3',
+  eye_vel_p: '#e67e22',
+  head_yaw:  '#555555',
+  head_pitch:'#888888',
+  head_roll: '#aaaaaa',
+};
+
+// Chart layout template — shared by all renders
+function _chartLayout(duration_s, nPanels) {
+  const panelH = 160;
+  const totalH = nPanels * panelH + 60;
+  const domain = n => [(n * panelH + 40) / totalH, ((n + 1) * panelH + 30) / totalH];
+
+  const layout = {
+    height: totalH,
+    margin: { l: 58, r: 20, t: 28, b: 36 },
+    paper_bgcolor: '#fff',
+    plot_bgcolor:  '#fafbfd',
+    showlegend: true,
+    legend: { orientation: 'h', x: 0, y: 1.02, xanchor: 'left', font: { size: 11 } },
+    font: { family: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', size: 11 },
+    hovermode: 'x unified',
+    // Time cursor line — updated during playback
+    shapes: [{
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: 0, x1: 0, y0: 0, y1: 1,
+      line: { color: '#4a6cf7', width: 1.5, dash: 'dot' },
+    }],
+  };
+
+  // Build per-panel axes
+  for (let i = 0; i < nPanels; i++) {
+    const ax = i === 0 ? '' : (i + 1);
+    const dom = [i / nPanels, (i + 1) / nPanels - 0.02];
+    layout[`xaxis${ax}`] = {
+      domain: [0, 1], range: [0, duration_s],
+      showticklabels: i === nPanels - 1,
+      title: i === nPanels - 1 ? { text: 'Time (s)', font: { size: 11 } } : undefined,
+      zeroline: false, showgrid: true, gridcolor: '#eef',
+    };
+    layout[`yaxis${ax}`] = {
+      domain: dom, zeroline: true, zerolinecolor: '#ccc', zerolinewidth: 1,
+      showgrid: true, gridcolor: '#eef', automargin: true,
+    };
+  }
+  return layout;
+}
+
+let _chartDuration = 0;
+
+// Build traces + layout for a single scenario's signals
+function _buildTraces(sig, label, opacity) {
+  const lbl = label ? ` (${label})` : '';
+  const op  = opacity ?? 1;
+  const traces = [];
+
+  // Panel 0 — eye position
+  traces.push(
+    { x: sig.t, y: sig.eye_pos_yaw,   name: `Horiz${lbl}`, line: { color: CHART_COLORS.eye_yaw,   width: 1.5 }, opacity: op, xaxis: 'x', yaxis: 'y' },
+    { x: sig.t, y: sig.eye_pos_pitch, name: `Vert${lbl}`,  line: { color: CHART_COLORS.eye_pitch, width: 1.5 }, opacity: op, xaxis: 'x', yaxis: 'y' },
+    { x: sig.t, y: sig.eye_pos_roll,  name: `Tors${lbl}`,  line: { color: CHART_COLORS.eye_roll,  width: 1.2, dash: 'dot' }, opacity: op, xaxis: 'x', yaxis: 'y' },
+  );
+
+  // Panel 1 — eye velocity
+  traces.push(
+    { x: sig.t, y: sig.eye_vel_yaw,   name: `Vel-H${lbl}`, line: { color: CHART_COLORS.eye_vel_y, width: 1.3 }, opacity: op, xaxis: 'x2', yaxis: 'y2' },
+    { x: sig.t, y: sig.eye_vel_pitch, name: `Vel-V${lbl}`, line: { color: CHART_COLORS.eye_vel_p, width: 1.3 }, opacity: op, xaxis: 'x2', yaxis: 'y2' },
+  );
+
+  // Panel 2 — head velocity (only when head moves)
+  const headMoves = sig.head_yaw.some(v => Math.abs(v) > 1) ||
+                    sig.head_pitch.some(v => Math.abs(v) > 1) ||
+                    sig.head_roll.some(v => Math.abs(v) > 1);
+  if (headMoves) {
+    traces.push(
+      { x: sig.t, y: sig.head_yaw,   name: `Head-Yaw${lbl}`,   line: { color: CHART_COLORS.head_yaw,   width: 1.2 }, opacity: op, xaxis: 'x3', yaxis: 'y3' },
+      { x: sig.t, y: sig.head_pitch, name: `Head-Pitch${lbl}`, line: { color: CHART_COLORS.head_pitch, width: 1.2 }, opacity: op, xaxis: 'x3', yaxis: 'y3' },
+      { x: sig.t, y: sig.head_roll,  name: `Head-Roll${lbl}`,  line: { color: CHART_COLORS.head_roll,  width: 1.2, dash: 'dot' }, opacity: op, xaxis: 'x3', yaxis: 'y3' },
+    );
+  }
+
+  return { traces, headMoves };
+}
+
+window._renderInteractiveChart = function(trajOrTrajs) {
+  const sec = document.getElementById('chart-section');
+  const div = document.getElementById('chart-div');
+  if (!sec || !div || typeof Plotly === 'undefined') return;
+
+  const trajs  = Array.isArray(trajOrTrajs) ? trajOrTrajs : [trajOrTrajs];
+  const multi  = trajs.length > 1;
+  const first  = trajs[0];
+  if (!first || !first.signals) { sec.style.display = 'none'; return; }
+
+  _chartDuration = first.duration_s;
+
+  // Check if any scenario has head movement
+  const anyHeadMoves = trajs.some(tr =>
+    tr.signals && (tr.signals.head_yaw.some(v => Math.abs(v) > 1) ||
+                   tr.signals.head_pitch.some(v => Math.abs(v) > 1))
+  );
+  const nPanels = anyHeadMoves ? 3 : 2;
+
+  // Build all traces
+  let allTraces = [];
+  trajs.forEach((tr, i) => {
+    if (!tr.signals) return;
+    const { traces } = _buildTraces(tr.signals, multi ? (tr.label || `S${i+1}`) : null,
+                                    multi ? (i === 0 ? 1 : 0.55) : 1);
+    allTraces = allTraces.concat(traces);
+  });
+
+  const layout = _chartLayout(first.duration_s, nPanels);
+  // Y-axis labels
+  layout.yaxis.title  = { text: 'Eye pos (°)', font: { size: 10 } };
+  layout.yaxis2.title = { text: 'Eye vel (°/s)', font: { size: 10 } };
+  if (nPanels === 3) layout.yaxis3.title = { text: 'Head pos (°)', font: { size: 10 } };
+
+  Plotly.react(div, allTraces, layout, {
+    responsive: true, displayModeBar: true,
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d'],
+    displaylogo: false,
+  });
+
+  // Click → seek avatar
+  div.on('plotly_click', evt => {
+    if (!evt.points || !evt.points.length) return;
+    const t   = evt.points[0].x;
+    const traj = window._currentTraj || first;
+    const fi  = Math.round(t * traj.fps);
+    const clamped = Math.max(0, Math.min(fi, traj.n_frames - 1));
+    if (window._avatarOnScrub) window._avatarOnScrub(clamped);
+    document.getElementById('scrubber').value = clamped;
+  });
+
+  sec.style.display = 'block';
+};
+
+// Update the time cursor line during playback
+window._chartSetCursor = function(t) {
+  const div = document.getElementById('chart-div');
+  if (!div || !div.data || !div.data.length) return;
+  Plotly.relayout(div, { 'shapes[0].x0': t, 'shapes[0].x1': t });
+};
 </script>
 
 <!-- ── Three.js module script ─────────────────────────────────────────────── -->
@@ -587,8 +765,9 @@ scene.add(new THREE.DirectionalLight(0x8899ff, 0.4)).position.set(-2, 1, 1);
 // ── Avatar ────────────────────────────────────────────────────────────────────
 let leftEyeBone  = null;
 let rightEyeBone = null;
-let headBone     = null;
-let restL = null, restR = null, restHead = null;
+let headBone     = null;   // Head_06  — neck pivot, used for small rotations
+let spineBone    = null;   // Spine2_04 — upper thorax, used for large body repositioning
+let restL = null, restR = null, restHead = null, restSpine = null;
 let coverMeshL   = null, coverMeshR = null;
 let _camTarget       = null;   // eye midpoint — both cameras look here
 let _worldCamInitPos = null;   // initial positions saved at load time for reset
@@ -603,16 +782,16 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   model.traverse(obj => {
     if (obj.name === 'LeftEye_08')  leftEyeBone  = obj;
     if (obj.name === 'RightEye_09') rightEyeBone = obj;
+    if (obj.name === 'Head_06')     headBone     = obj;
+    if (obj.name === 'Spine2_04')   spineBone    = obj;
   });
 
-  // Rotate the whole model for head/body movement — avoids neck artifacts
-  headBone = model;
-
-  if (leftEyeBone)  restL    = leftEyeBone.rotation.clone();
-  if (rightEyeBone) restR    = rightEyeBone.rotation.clone();
-  restHead = model.rotation.clone();
-  console.log('Bones found — leftEye:', !!leftEyeBone, 'rightEye:', !!rightEyeBone);
-  console.log('restHead:', restHead);
+  if (leftEyeBone)  restL     = leftEyeBone.rotation.clone();
+  if (rightEyeBone) restR     = rightEyeBone.rotation.clone();
+  if (headBone)     restHead  = headBone.rotation.clone();
+  if (spineBone)    restSpine = spineBone.rotation.clone();
+  console.log('Bones found — leftEye:', !!leftEyeBone, 'rightEye:', !!rightEyeBone,
+              'head:', !!headBone, 'spine2:', !!spineBone);
 
   // Use actual eye bone world positions for precise camera targeting
   const box  = new THREE.Box3().setFromObject(model);
@@ -708,6 +887,19 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
 // ── Bone application ──────────────────────────────────────────────────────────
 const DEG = Math.PI / 180;
 
+// Anatomical rotation limits (degrees).
+// Head: cervical spine range of motion — used to compute a per-trajectory scale
+//       factor so the full motion shape is preserved (no freezing at a wall).
+// Eye:  hard clamp so the iris never disappears behind the fixed eyelid geometry.
+const HEAD_LIM = { yaw: 80, pitch: 75, roll: 45 };
+const EYE_LIM  = { yaw: 45, pitch: 35, roll: 15 };
+const clamp = (v, lim) => Math.max(-lim, Math.min(lim, v));
+
+// Per-trajectory head scale factors — recomputed each time a trajectory loads.
+// Each axis is scaled down uniformly if its peak exceeds the anatomical limit,
+// keeping timing and shape intact while eliminating the frozen-at-wall look.
+let _headScale = { yaw: 1, pitch: 1, roll: 1 };
+
 // eye_pos in simulation = head-fixed plant state [yaw, pitch, roll] deg
 // head_pos              = integrated head velocity [yaw, pitch, roll] deg
 function applyFrame(fi) {
@@ -716,23 +908,24 @@ function applyFrame(fi) {
   const R = _traj.right[fi];
 
   leftEyeBone.rotation.set(
-    restL.x - L[1] * DEG,   // pitch
-    restL.y - L[0] * DEG,   // yaw
-    restL.z
+    restL.x - clamp(L[1], EYE_LIM.pitch) * DEG,   // pitch
+    restL.y - clamp(L[0], EYE_LIM.yaw)   * DEG,   // yaw
+    restL.z - clamp(L[2], EYE_LIM.roll)  * DEG    // torsion
   );
   rightEyeBone.rotation.set(
-    restR.x - R[1] * DEG,
-    restR.y - R[0] * DEG,
-    restR.z
+    restR.x - clamp(R[1], EYE_LIM.pitch) * DEG,
+    restR.y - clamp(R[0], EYE_LIM.yaw)   * DEG,
+    restR.z - clamp(R[2], EYE_LIM.roll)  * DEG
   );
 
-  // Head rotation for world view (applied before left render, removed before right)
-  if (headBone && _traj.head) {
+  // Head rotation — scaled to cervical spine limits, applied to Head_06 only.
+  // _headScale is pre-computed per trajectory so motion shape is fully preserved.
+  if (headBone && restHead && _traj.head) {
     const Hd = _traj.head[fi];
     headBone.rotation.set(
-      restHead.x - Hd[1] * DEG,   // pitch
-      restHead.y - Hd[0] * DEG,   // yaw
-      restHead.z + Hd[2] * DEG    // roll
+      restHead.x - Hd[1] * _headScale.pitch * DEG,   // pitch
+      restHead.y - Hd[0] * _headScale.yaw   * DEG,   // yaw
+      restHead.z + Hd[2] * _headScale.roll  * DEG    // roll
     );
   }
 
@@ -758,6 +951,25 @@ window.loadEyeTrajectory = function(traj) {
   _traj    = traj;
   _frame   = 0;
   _playing = false;
+  window._currentTraj = traj;
+
+  // Compute per-axis head scale so peak never exceeds anatomical limit.
+  // Scale < 1 only when the trajectory's own peak exceeds the limit.
+  if (traj.head && traj.head.length) {
+    let mY = 0, mP = 0, mR = 0;
+    for (const h of traj.head) {
+      mY = Math.max(mY, Math.abs(h[0]));
+      mP = Math.max(mP, Math.abs(h[1]));
+      mR = Math.max(mR, Math.abs(h[2]));
+    }
+    _headScale = {
+      yaw:   mY > HEAD_LIM.yaw   ? HEAD_LIM.yaw   / mY : 1,
+      pitch: mP > HEAD_LIM.pitch ? HEAD_LIM.pitch / mP : 1,
+      roll:  mR > HEAD_LIM.roll  ? HEAD_LIM.roll  / mR : 1,
+    };
+  } else {
+    _headScale = { yaw: 1, pitch: 1, roll: 1 };
+  }
 
   // Detect meaningful head movement (any axis > 1 deg peak displacement)
   _headMoves = false;
@@ -886,6 +1098,7 @@ function animate(ts) {
       applyFrame(fi);
       document.getElementById('scrubber').value = fi;
       updateTimeDisplay(fi);
+      if (window._chartSetCursor) window._chartSetCursor(fi / _traj.fps);
     }
     _lastRafTs = ts;
   }
