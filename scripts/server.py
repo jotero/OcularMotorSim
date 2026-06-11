@@ -394,29 +394,13 @@ async def run_endpoint(req: RunRequest):
         timing = {'total_ms': round(ms_total), 'llm_ms': round(ms_llm),
                   'sim_ms': round(ms_sim)}
 
-        # Log
         timestamp = datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z'
-        _append_log({
-            'timestamp':   timestamp,
-            'run_id':      run_id,
-            'version':     _SIM_VERSION,
-            'prompt':      req.description,
-            'mode':        mode,
-            'title':       title,
-            'figure_file': str(fig_path),
-            'looks_correct': '',
-            'feedback':    '',
-            'favorite':    '',
-            'note':        '',
-            'ms_total':    timing['total_ms'],
-            'ms_llm':      timing['llm_ms'],
-            'ms_sim':      timing['sim_ms'],
-        })
+        eye_traj  = _build_eye_trajectory(sim_data) if mode == 'single' else None
 
-        eye_traj = _build_eye_trajectory(sim_data) if mode == 'single' else None
-
-        # Persist the full record (metadata + plot spec) so the run can be
-        # brought back to the website and re-rendered client-side later.
+        # Persist the full record (metadata + plot spec) FIRST, so the data
+        # sidecar exists on disk BEFORE _append_log regenerates admin.html
+        # (gen_admin flags runs whose sidecar is missing). Writing the log first
+        # made every fresh run show as "no data" until the next mutation.
         _write_run_json(run_id, {
             'run_id':          run_id,
             'timestamp':       timestamp,
@@ -438,6 +422,25 @@ async def run_endpoint(req: RunRequest):
             # Full LLM output (the structured scenario/comparison the model
             # produced, incl. narrative + every stimulus/patient/plot field).
             'detail':          detail,
+        })
+
+        # Append the log row (this regenerates admin.html) AFTER the sidecar
+        # exists, so the new run is correctly shown as having data.
+        _append_log({
+            'timestamp':   timestamp,
+            'run_id':      run_id,
+            'version':     _SIM_VERSION,
+            'prompt':      req.description,
+            'mode':        mode,
+            'title':       title,
+            'figure_file': str(fig_path),
+            'looks_correct': '',
+            'feedback':    '',
+            'favorite':    '',
+            'note':        '',
+            'ms_total':    timing['total_ms'],
+            'ms_llm':      timing['llm_ms'],
+            'ms_sim':      timing['sim_ms'],
         })
 
         return RunResponse(
