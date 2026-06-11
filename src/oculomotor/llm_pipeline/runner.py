@@ -605,22 +605,283 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
     )
 
 
+# ── Library-agnostic plot spec (for client-side rendering) ────────────────────
+#
+# The server emits a renderer-neutral JSON description of each figure so the
+# browser can draw zoomable, interactive panels (uPlot/Plotly/etc.) without
+# re-deriving any panel logic.  The matplotlib PNG path is unchanged and remains
+# the fallback for panels not yet ported to the client.
+#
+# Spec shape::
+#
+#   {"run_id", "title", "mode", "version", "t": [...],
+#    "panels": [
+#       {"name", "ylabel", "ylabel_right"?, "ymin_span"?, "type": "lines"|"gantt",
+#        "hlines": [{"y", "color", "style"}],
+#        "shading": [[t0, t1], ...],            # dark-period gray spans
+#        "traces":  [{"label", "color", "style", "axis": "left"|"right", "y": [...]}],
+#        "lanes":   [...]                       # only for type == "gantt"
+#       }, ... ]}
+#
+# Per-trace ``y`` arrays are downsampled (capped at _MAX_SPEC_POINTS) and rounded;
+# non-finite samples become ``null`` so the client draws a gap.
+
+_MAX_SPEC_POINTS = 4000
+
+
+def _stride_for(n: int, max_points: int = _MAX_SPEC_POINTS) -> int:
+    """Stride that caps an n-sample trace at ``max_points`` for transport."""
+    return max(1, int(np.ceil(n / max_points)))
+
+
+def _jlist(arr, stride: int, col: int = 0, ndigits: int = 4) -> list:
+    """Downsample + round one column of a (T,3) or (T,) array to a JSON list.
+
+    Non-finite values (NaN/inf) become ``None`` (renders as a gap client-side).
+    """
+    a = np.asarray(arr)
+    if a.ndim == 2:
+        a = a[:, col]
+    out = []
+    for v in a[::stride]:
+        fv = float(v)
+        out.append(round(fv, ndigits) if np.isfinite(fv) else None)
+    return out
+
+
+def _dark_spans(t: np.ndarray, sp: np.ndarray) -> list:
+    """List of [t0, t1] spans where the scene is dark (sp < 0.5)."""
+    spans, in_seg, t0 = [], False, 0.0
+    for i in range(len(t)):
+        if sp[i] < 0.5 and not in_seg:
+            t0, in_seg = float(t[i]), True
+        elif sp[i] >= 0.5 and in_seg:
+            spans.append([round(t0, 4), round(float(t[i]), 4)])
+            in_seg = False
+    if in_seg:
+        spans.append([round(t0, 4), round(float(t[-1]), 4)])
+    return spans
+
+
+def _binary_segments(t: np.ndarray, flag: np.ndarray, stride: int) -> list:
+    """Runs of a binary flag as [t0, t1, state] (state = 1/0) — for gantt lanes."""
+    segs, i0 = [], 0
+    cur = bool(flag[0] > 0.5)
+    for i in range(1, len(flag)):
+        v = bool(flag[i] > 0.5)
+        if v != cur:
+            segs.append([round(float(t[i0]), 4), round(float(t[i]), 4), int(cur)])
+            i0, cur = i, v
+    segs.append([round(float(t[i0]), 4), round(float(t[-1]), 4), int(cur)])
+    return segs
+
+
+# Panels rendered as bespoke matplotlib (not yet ported to the client renderer).
+# The client shows the PNG fallback for these.
+_PNG_ONLY_PANELS = {'visual_flags'}
+
+# Velocity / derivative panels that enforce a minimum visible y-range.
+_YMIN_SPAN_PANELS = {
+    'eye_velocity', 'head_velocity', 'saccade_burst', 'pursuit_drive',
+    'target_velocity', 'scene_velocity', 'cerebellum_pursuit', 'cerebellum_vor',
+}
+
+
+def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
+                scenario: SimulationScenario, stride: int) -> dict:
+    """Build the renderer-agnostic spec for one panel (mirrors _draw_panel)."""
+    spec = {
+        'name':    panel,
+        'ylabel':  _PANEL_LABELS.get(panel, panel),
+        'type':    'lines',
+        'hlines':  [],
+        'shading': [],
+        'traces':  [],
+    }
+    if panel in _YMIN_SPAN_PANELS:
+        spec['ymin_span'] = 5.0
+
+    # Shared quantities (same as _draw_panel)
+    ep   = sig['eye_pos']
+    ev   = sig['eye_vel']
+    ep_d = sig['e_pos_delayed']
+    hv = np.array(stim_kw['head_vel_array'])
+    pt = np.array(stim_kw['p_target_array'])
+    vt = np.array(stim_kw['v_target_array'])
+    vs = np.array(stim_kw['v_scene_array'])
+    sp  = np.maximum(np.array(stim_kw['scene_present_L_array']),
+                     np.array(stim_kw['scene_present_R_array']))
+    tpL = np.array(stim_kw['target_present_L_array'])
+    tpR = np.array(stim_kw['target_present_R_array'])
+    tp_combined = np.maximum(tpL, tpR)
+    target_yaw_deg = np.degrees(np.arctan(pt[:, 0]))
+    dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
+    head_angle = np.cumsum(hv[:, 0]) * dt_val
+    head_moves = np.max(np.abs(head_angle)) > 2.0
+
+    def tr(label, color, y, style='-', axis='left'):
+        spec['traces'].append({'label': label, 'color': color, 'style': style,
+                               'axis': axis, 'y': _jlist(y, stride)})
+
+    if panel != 'visual_flags':
+        spec['hlines'].append({'y': 0, 'color': _C['zero'], 'style': '--'})
+        if (sp < 0.5).any():
+            spec['shading'] = _dark_spans(t, sp)
+
+    if panel == 'eye_position':
+        spec['ylabel'] = 'Eye / target position (deg)'
+        ep_L, ep_R = sig['eye_pos_L'], sig['eye_pos_R']
+        bino_spread = np.max(np.abs(ep_L[:, 0] - ep_R[:, 0]))
+        if bino_spread > 0.5:
+            tr('L eye (head)' if head_moves else 'L eye', '#2166ac', ep_L[:, 0])
+            tr('R eye (head)' if head_moves else 'R eye', '#d6604d', ep_R[:, 0])
+        else:
+            tr('Eye (head frame)' if head_moves else 'Eye position', _C['eye'], ep[:, 0])
+        if head_moves:
+            tr('Gaze (world)', _C['head'], ep[:, 0] + head_angle, style='--')
+        tr('Target (visible)', _C['target'],
+           np.where(tp_combined > 0.5, target_yaw_deg, np.nan))
+        if (tp_combined < 0.5).any():
+            tr('Target (absent)', _C['target'],
+               np.where(tp_combined < 0.5, target_yaw_deg, np.nan), style='--')
+
+    elif panel == 'eye_velocity':
+        tr('Eye vel', _C['eye'], ev[:, 0])
+        tr('Head vel', _C['head'], hv[:, 0], style=':')
+        if np.any(np.abs(vs[:, 0]) > 0.5):
+            tr('Scene vel', '#8c510a', vs[:, 0], style='--')
+
+    elif panel == 'head_velocity':
+        tr('Head velocity (yaw)', _C['head'], hv[:, 0])
+        if hv.shape[1] > 1 and np.any(hv[:, 1] != 0):
+            tr('pitch', _C['burst'], hv[:, 1], style='--')
+
+    elif panel == 'gaze_error':
+        tr('Gaze error', _C['error'], ep[:, 0] + head_angle)
+
+    elif panel == 'retinal_error':
+        tr('Retinal position error (yaw)', _C['error'], ep_d[:, 0])
+
+    elif panel == 'velocity_storage':
+        tr('Velocity storage (yaw)', _C['vs'], sig['w_est'][:, 0])
+
+    elif panel == 'neural_integrator':
+        tr('Neural integrator (yaw)', _C['ni'], sig['x_ni'][:, 0])
+
+    elif panel == 'saccade_burst':
+        tr('Saccade burst (yaw)', _C['burst'], sig['u_burst'][:, 0])
+
+    elif panel == 'pursuit_drive':
+        tr('Pursuit integrator', _C['pursuit'], sig['x_pursuit'][:, 0])
+
+    elif panel == 'refractory':
+        tr('z_acc (accumulator)', _C['ref'], sig['z_acc'])
+        tr('z_trig (trigger IBN)', '#d62728', sig['z_trig'], style='--')
+        spec['hlines'] += [{'y': 1.0, 'color': '#000000', 'style': '--'},
+                           {'y': 0.0, 'color': '#000000', 'style': '-'}]
+
+    elif panel == 'vergence':
+        spec['ylabel'] = 'Vergence angle (deg)'
+        tr('Vergence angle', '#1b7837', sig['vergence'][:, 0])
+        tr('Vergence integrator', '#762a83', sig['x_verg'][:, 0], style=':')
+        tonic_val = scenario.patient.tonic_verg
+        if abs(tonic_val) > 0.1:
+            spec['hlines'].append({'y': round(float(tonic_val), 3),
+                                   'color': '#ff8c00', 'style': '--',
+                                   'label': f'Tonic verg ({tonic_val:+.1f}°)'})
+
+    elif panel == 'cerebellum_pursuit':
+        spec['ylabel'] = 'Cerebellum — pursuit (deg/s)'
+        spec['ylabel_right'] = 'sacc. supp. gate'
+        tr('VPF EC drive (vpf_drive)', '#1f78b4', sig['cb_vpf_drive'][:, 0])
+        tr('pred_err (slip+EC)', '#7b3294', sig['cb_pred_err'][:, 0], style=':')
+        tr('sacc. supp. gate', '#999999', sig['cb_sat_target'], style='--', axis='right')
+
+    elif panel == 'cerebellum_vor':
+        spec['ylabel'] = 'Cerebellum — VOR/OKR (deg/s)'
+        spec['ylabel_right'] = 'sacc. supp. gate'
+        tr('FL NI leak-cancel (fl_drive)', '#33a02c', sig['cb_fl_drive'][:, 0])
+        tr('FL OKR EC (fl_okr_drive)', '#1f78b4', sig['cb_fl_okr_drive'][:, 0], style='-.')
+        tr('NU gravity dump (nu_drive)', '#e31a1c', sig['cb_nu_drive'][:, 0], style=':')
+        if np.any(np.abs(sig['cb_fl_vs_drive'][:, 0]) > 1e-3):
+            tr('FL VS leak-cancel', '#6a3d9a', sig['cb_fl_vs_drive'][:, 0], style='--')
+        tr('sacc. supp. gate', '#999999', sig['cb_sat_scene'], style='--', axis='right')
+
+    elif panel == 'target_position':
+        spec['ylabel'] = 'Target position (deg)'
+        tr('Target yaw', _C['target'], target_yaw_deg)
+        tp_pitch = np.degrees(np.arctan(pt[:, 1]))
+        if np.any(np.abs(tp_pitch) > 0.5):
+            tr('Target pitch', _C['burst'], tp_pitch, style='--')
+
+    elif panel == 'target_velocity':
+        tr('Target vel yaw', _C['target'], vt[:, 0])
+        if np.any(np.abs(vt[:, 1]) > 0.5):
+            tr('Target vel pitch', _C['burst'], vt[:, 1], style='--')
+
+    elif panel == 'scene_velocity':
+        tr('Scene vel yaw', '#8c510a', vs[:, 0])
+        if np.any(np.abs(vs[:, 1]) > 0.5):
+            tr('Scene vel pitch', '#bf812d', vs[:, 1], style='--')
+
+    elif panel == 'visual_flags':
+        # Gantt timeline — emit lanes for the client (also kept as PNG fallback).
+        spec['type'] = 'gantt'
+        spec['ylabel'] = 'Visual context'
+        bino = bool(np.any(tpL != tpR))
+        lanes = [('Scene', sp, 'LIT', 'DARK', '#4dac26')]
+        if not bino:
+            lanes.append(('Target', tp_combined, 'TARGET ON', 'no target', '#e08214'))
+        else:
+            lanes.append(('L eye target', tpL, 'ON', 'covered', '#2166ac'))
+            lanes.append(('R eye target', tpR, 'ON', 'covered', '#d6604d'))
+        spec['lanes'] = [
+            {'label': lbl, 'color_on': c_on, 'on_label': on_l, 'off_label': off_l,
+             'segments': _binary_segments(t, flag, stride)}
+            for (lbl, flag, on_l, off_l, c_on) in lanes
+        ]
+        if np.any(np.abs(vs[:, 0]) > 0.5):
+            spec['scene_vel'] = _jlist(vs[:, 0], stride)
+
+    return spec
+
+
+def _build_plot_spec(t_array: np.ndarray, sig: dict, stim_kw: dict,
+                     scenario: SimulationScenario) -> dict:
+    """Build the full library-agnostic plot spec for a single scenario run."""
+    t = np.asarray(t_array)
+    stride = _stride_for(len(t))
+    return {
+        'mode':  'single',
+        'title': scenario.plot.title or scenario.description,
+        't':     [round(float(v), 4) for v in t[::stride]],
+        'panels': [
+            _panel_spec(p, t, sig, stim_kw, scenario, stride)
+            for p in scenario.plot.panels
+        ],
+    }
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def run_scenario(scenario: SimulationScenario, output_path: str | None = None,
-                 return_data: bool = False) -> plt.Figure | tuple[plt.Figure, dict]:
+                 return_data: bool = False, return_spec: bool = False):
     """Run a SimulationScenario end-to-end and return a matplotlib Figure.
 
     Args:
         scenario:    Fully populated SimulationScenario object.
         output_path: If given, save figure to this path (PNG/SVG/PDF).
-        return_data: If True, return (fig, sim_data_dict) instead of just fig.
+        return_data: If True, include sim_data_dict in the return.
                      sim_data_dict keys: t, eye_pos, eye_vel, head_vel,
                      scene_vel, target_vel — all numpy arrays.
+        return_spec: If True, include the library-agnostic plot spec (dict) for
+                     client-side rendering in the return.
 
     Returns:
-        fig                      when return_data=False (default)
-        (fig, sim_data_dict)     when return_data=True
+        fig                              when return_data=False, return_spec=False
+        (fig, sim_data_dict)             when return_data=True, return_spec=False
+        (fig, plot_spec)                 when return_data=False, return_spec=True
+        (fig, sim_data_dict, plot_spec)  when both are True
     """
     # Build stimulus and params
     stim_kw = _build_stimulus(scenario)
@@ -661,9 +922,12 @@ def run_scenario(scenario: SimulationScenario, output_path: str | None = None,
         fig.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"Saved → {output_path}")
 
+    out = [fig]
     if return_data:
-        return fig, _build_sim_data(t_array, sig, stim_kw)
-    return fig
+        out.append(_build_sim_data(t_array, sig, stim_kw))
+    if return_spec:
+        out.append(_build_plot_spec(t_array, sig, stim_kw, scenario))
+    return tuple(out) if len(out) > 1 else fig
 
 
 # ── Comparison ────────────────────────────────────────────────────────────────
@@ -769,22 +1033,109 @@ def _build_comparison_figure(
     return fig
 
 
+def _build_comparison_spec(
+    results: list[tuple[np.ndarray, dict, dict]],
+    comparison: SimulationComparison,
+) -> dict:
+    """Library-agnostic plot spec for a comparison (N series overlaid per panel).
+
+    Mirrors _build_comparison_figure.  Each series is resampled onto a single
+    shared (downsampled) time grid so the client can draw all traces on one x.
+    """
+    # Shared time grid from the longest series, downsampled for transport.
+    t_long = max((t for t, _, _ in results), key=len)
+    stride = _stride_for(len(t_long))
+    t_shared = np.asarray(t_long)[::stride]
+
+    labels = [s.description for s in comparison.scenarios]
+
+    def interp(t_src, y_src):
+        y = np.interp(t_shared, np.asarray(t_src), np.asarray(y_src))
+        return [round(float(v), 4) if np.isfinite(v) else None for v in y]
+
+    panel_specs = []
+    for panel in comparison.panels:
+        traces, hlines = [], [{'y': 0, 'color': _C['zero'], 'style': '--'}]
+        for idx, (t, sig, stim_kw) in enumerate(results):
+            color = _COMPARE_COLORS[idx % len(_COMPARE_COLORS)]
+            style = _COMPARE_STYLES[idx % len(_COMPARE_STYLES)]
+            label = labels[idx]
+            ep, ev = sig['eye_pos'], sig['eye_vel']
+            hv = np.array(stim_kw['head_vel_array'])
+            pt = np.array(stim_kw['p_target_array'])
+            dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
+            head_angle = np.cumsum(hv[:, 0]) * dt_val
+            head_moves = np.max(np.abs(head_angle)) > 2.0
+
+            def add(lbl, y, c=color, s=style):
+                traces.append({'label': lbl, 'color': c, 'style': s,
+                               'axis': 'left', 'y': interp(t, y)})
+
+            if panel == 'eye_position':
+                add(f'{label} (head)' if head_moves else label, ep[:, 0])
+                if head_moves:
+                    add(f'{label} (world)', ep[:, 0] + head_angle, s='-')
+                if idx == 0:
+                    add('Target', np.degrees(np.arctan(pt[:, 0])), c=_C['target'], s=':')
+            elif panel == 'eye_velocity':
+                add(label, ev[:, 0])
+                if idx == 0:
+                    add('Head vel', hv[:, 0], c=_C['head'], s=':')
+            elif panel == 'head_velocity':
+                if idx == 0:
+                    add('Head vel', hv[:, 0], c=_C['head'], s='-')
+            elif panel == 'velocity_storage':
+                add(label, sig['w_est'][:, 0])
+            elif panel == 'neural_integrator':
+                add(label, sig['x_ni'][:, 0])
+            elif panel == 'saccade_burst':
+                add(label, sig['u_burst'][:, 0])
+            elif panel == 'pursuit_drive':
+                add(label, sig['x_pursuit'][:, 0])
+            elif panel == 'refractory':
+                add(label, sig['z_acc'])
+            elif panel == 'vergence':
+                add(label, sig['vergence'][:, 0])
+            elif panel == 'gaze_error':
+                add(label, ep[:, 0] + head_angle)
+            elif panel == 'retinal_error':
+                add(label, sig['e_pos_delayed'][:, 0])
+
+        ps = {'name': panel, 'ylabel': _PANEL_LABELS.get(panel, panel),
+              'type': 'lines', 'hlines': hlines, 'shading': [], 'traces': traces}
+        if panel in _YMIN_SPAN_PANELS:
+            ps['ymin_span'] = 5.0
+        panel_specs.append(ps)
+
+    return {
+        'mode':   'comparison',
+        'title':  comparison.title,
+        't':      [round(float(v), 4) for v in t_shared],
+        'panels': panel_specs,
+    }
+
+
 def run_comparison(
     comparison: SimulationComparison,
     output_path: str | None = None,
     return_data: bool = False,
-) -> 'plt.Figure | tuple[plt.Figure, list[dict]]':
+    return_spec: bool = False,
+):
     """Run all scenarios in a SimulationComparison and overlay them on one figure.
 
     Args:
         comparison:  Fully populated SimulationComparison object.
         output_path: If given, save figure to this path.
-        return_data: If True, return (fig, sim_data_list) where sim_data_list is
-                     one dict per scenario (same format as run_scenario return_data).
+        return_data: If True, include sim_data_list (one dict per scenario,
+                     same format as run_scenario return_data) in the return.
+        return_spec: If True, include the combined library-agnostic plot spec
+                     (single dict overlaying all scenarios) in the return.
 
     Returns:
-        fig                       when return_data=False (default)
-        (fig, sim_data_list)      when return_data=True
+        fig                              when return_data=False, return_spec=False
+        (fig, sim_data_list)             when return_data=True, return_spec=False
+        (fig, plot_spec)                 when return_data=False, return_spec=True
+        (fig, sim_data_list, plot_spec)  when both are True
     """
     results       = []
     sim_data_list = []
@@ -824,6 +1175,9 @@ def run_comparison(
         fig.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"Saved → {output_path}")
 
+    out = [fig]
     if return_data:
-        return fig, sim_data_list
-    return fig
+        out.append(sim_data_list)
+    if return_spec:
+        out.append(_build_comparison_spec(results, comparison))
+    return tuple(out) if len(out) > 1 else fig

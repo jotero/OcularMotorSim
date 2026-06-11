@@ -11,12 +11,21 @@ Then open http://localhost:8000 in your browser.
 import os
 import io
 import csv
+import json
+import time
 import uuid
 import base64
 import argparse
+import mimetypes
 import traceback
 import datetime
 from pathlib import Path
+
+# Serve .js (incl. ES modules like avatar.js) with a JavaScript MIME type.
+# On Windows the registry often maps .js → text/plain, which browsers REJECT
+# for `<script type="module">` (strict MIME checking) — breaking the 3D avatar.
+mimetypes.add_type('text/javascript', '.js')
+mimetypes.add_type('text/javascript', '.mjs')
 
 
 from dotenv import load_dotenv
@@ -27,7 +36,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -55,12 +64,24 @@ _OUTPUTS_DIR.mkdir(exist_ok=True)
 _FIGURES_DIR = _OUTPUTS_DIR / 'server_figures'
 _FIGURES_DIR.mkdir(exist_ok=True)
 
+# Per-run JSON sidecars: metadata + library-agnostic plot spec for client-side
+# rendering.  The CSV below remains the lightweight queryable index.
+_DATA_DIR = _OUTPUTS_DIR / 'data'
+_DATA_DIR.mkdir(exist_ok=True)
+
 _LOG_FILE = _OUTPUTS_DIR / 'simulation_log.csv'
 
 _LOG_COLUMNS = [
     'timestamp', 'run_id', 'version', 'prompt', 'mode', 'title',
     'figure_file', 'looks_correct', 'feedback',
+    'favorite', 'note',                    # admin: curate the gallery + tag runs
+    'ms_total', 'ms_llm', 'ms_sim',        # timing (debug): whole request / LLM / sim
 ]
+
+# Optional shared secret guarding the admin mutation endpoints (delete / favorite
+# / note).  If ADMIN_TOKEN is set in the environment, those endpoints require a
+# matching X-Admin-Token header; if unset, they are open (local-dev convenience).
+_ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', '').strip()
 
 
 # ── In-memory state ───────────────────────────────────────────────────────────
@@ -99,6 +120,40 @@ def _rewrite_log() -> None:
     _gen_admin(list(_log_entries.values()))
 
 
+# ── Per-run JSON sidecars (metadata + plot spec) ──────────────────────────────
+
+def _data_path(run_id: str) -> Path:
+    return _DATA_DIR / f'{run_id}.json'
+
+
+def _write_run_json(run_id: str, payload: dict) -> None:
+    """Persist a run's metadata + plot spec to outputs/data/<run_id>.json."""
+    with open(_data_path(run_id), 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False)
+
+
+def _read_run_json(run_id: str) -> dict | None:
+    """Load a persisted run sidecar, overlaying the latest feedback from the log."""
+    p = _data_path(run_id)
+    if not p.exists():
+        return None
+    with open(p, encoding='utf-8') as f:
+        payload = json.load(f)
+    # Keep mutable fields live: prefer the current log values over the snapshot.
+    row = _log_entries.get(run_id)
+    if row:
+        payload['looks_correct'] = row.get('looks_correct', payload.get('looks_correct', ''))
+        payload['feedback']      = row.get('feedback', payload.get('feedback', ''))
+        payload['favorite']      = _truthy(row.get('favorite'))
+        payload['note']          = row.get('note', payload.get('note', ''))
+    return payload
+
+
+def _truthy(v) -> bool:
+    """Interpret a CSV/string flag as a boolean."""
+    return str(v).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 # ── FastAPI app ────────────────────────────────────────────────────────────────
 
 app = FastAPI(title='OculomotorSim')
@@ -108,13 +163,29 @@ app = FastAPI(title='OculomotorSim')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
-    allow_methods=['GET', 'POST'],
-    allow_headers=['Content-Type'],
+    allow_methods=['GET', 'POST', 'DELETE'],
+    allow_headers=['Content-Type', 'X-Admin-Token'],
 )
 
-# Load any existing log at startup and write a fresh admin page
+
+@app.middleware('http')
+async def _force_js_mime(request, call_next):
+    """Force a JS MIME type on .js/.mjs responses.
+
+    Belt-and-suspenders over mimetypes.add_type: browsers reject
+    `<script type="module">` served as text/plain (which Windows' registry
+    often returns for .js), which silently breaks the 3D avatar module.
+    """
+    response = await call_next(request)
+    path = request.url.path
+    if path.endswith('.js') or path.endswith('.mjs'):
+        response.headers['content-type'] = 'text/javascript; charset=utf-8'
+    return response
+
+# Load any existing log at startup, normalize it to the current columns
+# (older logs predate favorite/note/timing), and write a fresh admin page.
 _load_log()
-_gen_admin(list(_log_entries.values()))
+_rewrite_log()
 
 
 # ── Request / response models ─────────────────────────────────────────────────
@@ -134,6 +205,7 @@ class RunResponse(BaseModel):
     eye_trajectory:   dict | None = None   # single mode: one trajectory
     eye_trajectories: list | None = None   # comparison mode: one per scenario (with 'label' field)
     patient_changes:  list | None = None   # single mode: list of changed parameters w/ metadata
+    plot_spec:        dict | None = None   # library-agnostic spec for client-side rendering
 
 
 class FeedbackRequest(BaseModel):
@@ -266,10 +338,14 @@ async def run_endpoint(req: RunRequest):
     """LLM decides single simulation or comparison; runs and returns the figure."""
     run_id = str(uuid.uuid4())
     try:
+        _t0 = time.perf_counter()
         result = call_llm(req.description, model=req.model)
+        ms_llm = (time.perf_counter() - _t0) * 1000.0
+        _t1 = time.perf_counter()
 
         if isinstance(result, SimulationComparison):
-            fig, cmp_sim_data_list = run_comparison(result, return_data=True)
+            fig, cmp_sim_data_list, plot_spec = run_comparison(
+                result, return_data=True, return_spec=True)
             title = result.title
             mode  = 'comparison'
             detail = result.model_dump()
@@ -284,12 +360,15 @@ async def run_endpoint(req: RunRequest):
                     eye_trajectories.append(traj)
             patient_changes = None   # per-scenario, attached on each entry
         else:
-            fig, sim_data = run_scenario(result, return_data=True)
+            fig, sim_data, plot_spec = run_scenario(
+                result, return_data=True, return_spec=True)
             title            = result.description
             mode             = 'single'
             detail           = result.model_dump()
             eye_trajectories = []
             patient_changes  = _build_patient_changes(result.patient)
+
+        ms_sim = (time.perf_counter() - _t1) * 1000.0   # sim + plotting + spec
 
         # Save figure to disk
         fig_name = f'{run_id}.png'
@@ -307,9 +386,14 @@ async def run_endpoint(req: RunRequest):
         if sim_data is not None:
             _sim_cache[run_id] = sim_data
 
+        ms_total = (time.perf_counter() - _t0) * 1000.0
+        timing = {'total_ms': round(ms_total), 'llm_ms': round(ms_llm),
+                  'sim_ms': round(ms_sim)}
+
         # Log
+        timestamp = datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z'
         _append_log({
-            'timestamp':   datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+            'timestamp':   timestamp,
             'run_id':      run_id,
             'version':     _SIM_VERSION,
             'prompt':      req.description,
@@ -318,6 +402,38 @@ async def run_endpoint(req: RunRequest):
             'figure_file': str(fig_path),
             'looks_correct': '',
             'feedback':    '',
+            'favorite':    '',
+            'note':        '',
+            'ms_total':    timing['total_ms'],
+            'ms_llm':      timing['llm_ms'],
+            'ms_sim':      timing['sim_ms'],
+        })
+
+        eye_traj = _build_eye_trajectory(sim_data) if mode == 'single' else None
+
+        # Persist the full record (metadata + plot spec) so the run can be
+        # brought back to the website and re-rendered client-side later.
+        _write_run_json(run_id, {
+            'run_id':          run_id,
+            'timestamp':       timestamp,
+            'version':         _SIM_VERSION,
+            'prompt':          req.description,
+            'mode':            mode,
+            'title':           title,
+            'narrative':       detail.get('narrative', ''),
+            'figure_rel':      f'server_figures/{fig_name}',
+            'looks_correct':   '',
+            'feedback':        '',
+            'favorite':        False,
+            'note':            '',
+            'timing':          timing,
+            'patient_changes': patient_changes,
+            'eye_trajectory':  eye_traj,
+            'eye_trajectories': eye_trajectories if mode == 'comparison' else None,
+            'plot_spec':       plot_spec,
+            # Full LLM output (the structured scenario/comparison the model
+            # produced, incl. narrative + every stimulus/patient/plot field).
+            'detail':          detail,
         })
 
         return RunResponse(
@@ -327,9 +443,10 @@ async def run_endpoint(req: RunRequest):
             detail_json      = detail,
             run_id           = run_id,
             version          = _SIM_VERSION,
-            eye_trajectory   = _build_eye_trajectory(sim_data) if mode == 'single' else None,
+            eye_trajectory   = eye_traj,
             eye_trajectories = eye_trajectories if mode == 'comparison' else None,
             patient_changes  = patient_changes,
+            plot_spec        = plot_spec,
         )
 
     except Exception as e:
@@ -346,6 +463,141 @@ async def feedback_endpoint(req: FeedbackRequest):
     _log_entries[req.run_id]['feedback']      = req.comment
     _rewrite_log()
     return {'status': 'ok'}
+
+
+# ── Admin: curate the database (favorite / note / delete) ─────────────────────
+#
+# These mutate the request database.  If ADMIN_TOKEN is set in the server's
+# environment, they require a matching X-Admin-Token header; otherwise they are
+# open (local-dev convenience).  The admin page is intended to be used locally,
+# not from the public site.
+
+class FavoriteRequest(BaseModel):
+    run_id:   str
+    favorite: bool
+
+
+class NoteRequest(BaseModel):
+    run_id: str
+    note:   str = ''
+
+
+def _check_admin(token: str | None) -> None:
+    if _ADMIN_TOKEN and (token or '') != _ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail='Admin token required.')
+
+
+def _patch_run_json(run_id: str, **fields) -> None:
+    """Update selected fields in a run's sidecar (keeps it consistent with the log)."""
+    p = _data_path(run_id)
+    if not p.exists():
+        return
+    with open(p, encoding='utf-8') as f:
+        payload = json.load(f)
+    payload.update(fields)
+    with open(p, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False)
+
+
+@app.post('/admin/favorite')
+async def admin_favorite(req: FavoriteRequest,
+                         x_admin_token: str | None = Header(default=None)):
+    """Mark/unmark a run as a favorite (favorites are what the gallery shows)."""
+    _check_admin(x_admin_token)
+    if req.run_id not in _log_entries:
+        raise HTTPException(status_code=404, detail='run_id not found')
+    _log_entries[req.run_id]['favorite'] = 'True' if req.favorite else ''
+    _rewrite_log()
+    _patch_run_json(req.run_id, favorite=req.favorite)
+    return {'status': 'ok', 'favorite': req.favorite}
+
+
+@app.post('/admin/note')
+async def admin_note(req: NoteRequest,
+                     x_admin_token: str | None = Header(default=None)):
+    """Attach a free-text note/tag to a run."""
+    _check_admin(x_admin_token)
+    if req.run_id not in _log_entries:
+        raise HTTPException(status_code=404, detail='run_id not found')
+    _log_entries[req.run_id]['note'] = req.note
+    _rewrite_log()
+    _patch_run_json(req.run_id, note=req.note)
+    return {'status': 'ok', 'note': req.note}
+
+
+@app.delete('/runs/{run_id}')
+async def admin_delete(run_id: str,
+                       x_admin_token: str | None = Header(default=None)):
+    """Delete a run entirely: log row + data sidecar + figure + cached data."""
+    _check_admin(x_admin_token)
+    if run_id not in _log_entries:
+        raise HTTPException(status_code=404, detail='run_id not found')
+    _log_entries.pop(run_id, None)
+    _sim_cache.pop(run_id, None)
+    try:
+        _data_path(run_id).unlink(missing_ok=True)
+    except Exception:
+        pass
+    try:
+        (_FIGURES_DIR / f'{run_id}.png').unlink(missing_ok=True)
+    except Exception:
+        pass
+    _rewrite_log()
+    return {'status': 'deleted', 'run_id': run_id}
+
+
+@app.get('/runs')
+async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool = False):
+    """Return the index of past runs (newest first) for browsing.
+
+    Only runs with a persisted data sidecar are listed — those can be
+    re-rendered client-side via /run/{run_id}/data.  Same backend the public
+    site already calls for /run, so the static frontend can browse the database
+    cross-origin (CORS is open).
+
+    The public gallery calls this with ``favorites_only=true`` so only curated
+    runs are shown; the admin calls it without filters to see everything.
+    """
+    rows = []
+    for run_id, row in _log_entries.items():
+        if not _data_path(run_id).exists():
+            continue
+        lc  = row.get('looks_correct', '')
+        fav = _truthy(row.get('favorite'))
+        if correct_only and lc not in ('True', 'correct'):
+            continue
+        if favorites_only and not fav:
+            continue
+        rows.append({
+            'run_id':        run_id,
+            'timestamp':     row.get('timestamp', ''),
+            'prompt':        row.get('prompt', ''),
+            'title':         row.get('title', ''),
+            'mode':          row.get('mode', ''),
+            'version':       row.get('version', ''),
+            'looks_correct': lc,
+            'favorite':      fav,
+            'note':          row.get('note', ''),
+            'ms_total':      row.get('ms_total', ''),
+            'ms_llm':        row.get('ms_llm', ''),
+            'ms_sim':        row.get('ms_sim', ''),
+        })
+    rows.sort(key=lambda r: r['timestamp'], reverse=True)
+    return JSONResponse(rows)
+
+
+@app.get('/run/{run_id}/data')
+async def run_data_endpoint(run_id: str):
+    """Return a persisted run (metadata + library-agnostic plot spec).
+
+    Used by the website/admin to re-render a past request client-side without
+    the matplotlib PNG.  404 if the run has no sidecar (e.g. pre-dates this
+    feature — fall back to the stored figure).
+    """
+    payload = _read_run_json(run_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail='No data for this run_id.')
+    return JSONResponse(payload)
 
 
 @app.get('/download/{run_id}')
