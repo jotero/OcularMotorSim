@@ -179,6 +179,8 @@ tr.hidden {{ display: none; }}
 }}
 .note-box:focus {{ border-color: #2563eb; }}
 .adm-saved {{ font-size: 0.72rem; color: #16a34a; }}
+.adm-warn {{ font-size: 0.72rem; color: #b45309; background: #fffbeb;
+  border: 1px solid #fde68a; border-radius: 6px; padding: 6px 9px; }}
 .fav-star {{ color: #f0b429; }}
 .timing-val {{ font-family: monospace; font-size: 0.72rem; color: #475569; }}
 .adm-narrative {{ font-size: 0.84rem; color: #334155; line-height: 1.55;
@@ -363,6 +365,7 @@ function selectRow(idx, tr) {{
       <button class="adm-btn danger" onclick="deleteRun('${{r.run_id}}')">🗑 Delete</button>
       <span class="adm-saved" id="admSaved"></span>
     </div>
+    ${{r.has_sidecar ? '' : '<div class="adm-warn">No interactive data (older run) - favoriting will NOT show it in the gallery. Re-run it on this server to generate data.</div>'}}
     <textarea class="note-box" id="noteBox" placeholder="Note / tag…">${{esc(r.note || '')}}</textarea>
     <div><button class="adm-btn" onclick="saveNote('${{r.run_id}}')">Save note</button></div>
   `;
