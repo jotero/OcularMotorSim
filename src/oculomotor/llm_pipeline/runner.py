@@ -302,6 +302,28 @@ _PANEL_LABELS = {
 }
 
 
+# Plotted 3-D signals are [yaw(H), pitch(V), roll(T)] in deg or deg/s. Show the
+# V/T channels only when they actually move, so horizontal demos stay clean but
+# vertical / torsional movements are no longer dropped from the traces.
+_AXIS_TAG   = ('H', 'V', 'T')
+_AXIS_STYLE = ('-', '--', ':')
+
+
+def _active_axes(arr3, thresh: float):
+    """Column indices of a (T,3) signal that move (peak |·| > thresh).
+
+    Yaw (0) is always kept (a flat horizontal reference); pitch (1) and roll (2)
+    are added only when their peak excursion exceeds ``thresh``.
+    """
+    a = np.asarray(arr3)
+    axes = [0]
+    if a.ndim == 2:
+        for i in (1, 2):
+            if a.shape[1] > i and float(np.max(np.abs(a[:, i]))) > thresh:
+                axes.append(i)
+    return axes
+
+
 def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
                 stim_kw: dict, scenario: SimulationScenario):
     """Draw one signal panel onto ax."""
@@ -322,9 +344,20 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
     tpL = np.array(stim_kw['target_present_L_array'])              # (T,)
     tpR = np.array(stim_kw['target_present_R_array'])              # (T,)
 
-    target_yaw_deg = np.degrees(np.arctan(pt[:, 0]))
+    target_yaw_deg   = np.degrees(np.arctan(pt[:, 0]))
+    target_pitch_deg = np.degrees(np.arctan(pt[:, 1]))
+    tgt_v = float(np.max(np.abs(target_pitch_deg))) > 1.0
 
     tp_combined = np.maximum(tpL, tpR)
+
+    def _ax_axes(label, color, sig3, thresh, lw=1.2):
+        """Plot H (+ V/T when active) for a (T,3) signal."""
+        axes = _active_axes(sig3, thresh)
+        multi = len(axes) > 1
+        for i in axes:
+            ax.plot(t, np.asarray(sig3)[:, i], color=color, lw=lw,
+                    ls=('-' if i == 0 else _AXIS_STYLE[i]),
+                    label=(f'{label} {_AXIS_TAG[i]}' if multi else label))
 
     # Visual-flags panels don't need a zero line; all others do
     if panel_name != 'visual_flags':
@@ -346,9 +379,10 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
             lbl_R = 'R eye (head)' if head_moves else 'R eye'
             ax.plot(t, ep_L[:, 0], color='#2166ac', lw=1.2, label=lbl_L)
             ax.plot(t, ep_R[:, 0], color='#d6604d', lw=1.2, label=lbl_R)
+            if float(np.max(np.abs(ep[:, 1]))) > 1.0:   # conjugate vertical, if any
+                ax.plot(t, ep[:, 1], color=_C['eye'], lw=1.0, ls='--', label='Eye V')
         else:
-            lbl_eye = 'Eye (head frame)' if head_moves else 'Eye position'
-            ax.plot(t, ep[:, 0], color=_C['eye'], lw=1.2, label=lbl_eye)
+            _ax_axes('Eye (head frame)' if head_moves else 'Eye', _C['eye'], ep, 1.0)
 
         if head_moves:
             gaze = ep[:, 0] + head_angle
@@ -356,50 +390,56 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
 
         # Target: solid when visible, dashed+faded when absent
         ax.plot(t, np.where(tp_combined > 0.5, target_yaw_deg, np.nan),
-                color=_C['target'], lw=1.2, ls='-', label='Target (visible)')
+                color=_C['target'], lw=1.2, ls='-', label='Target (visible)' + (' H' if tgt_v else ''))
         if (tp_combined < 0.5).any():
             ax.plot(t, np.where(tp_combined < 0.5, target_yaw_deg, np.nan),
                     color=_C['target'], lw=0.8, ls='--', alpha=0.4, label='Target (absent)')
+        if tgt_v:
+            ax.plot(t, np.where(tp_combined > 0.5, target_pitch_deg, np.nan),
+                    color=_C['target'], lw=1.0, ls=':', label='Target (visible) V')
         ax.legend(fontsize=6, loc='upper right')
         ax.set_ylabel('Eye / target position (deg)', fontsize=8)
 
     elif panel_name == 'eye_velocity':
-        ax.plot(t, ev[:, 0],  color=_C['eye'],  lw=1.2, label='Eye vel')
-        ax.plot(t, hv[:, 0],  color=_C['head'], lw=1.0, ls=':', label='Head vel')
+        _ax_axes('Eye vel', _C['eye'], ev, 5.0)
+        ax.plot(t, hv[:, 0], color=_C['head'], lw=1.0, ls=':', label='Head vel')
+        if hv.shape[1] > 1 and float(np.max(np.abs(hv[:, 1]))) > 5.0:
+            ax.plot(t, hv[:, 1], color=_C['head'], lw=1.0, ls=':', label='Head vel V')
         # Scene velocity as reference when OKR is relevant
         if np.any(np.abs(vs[:, 0]) > 0.5):
             ax.plot(t, vs[:, 0], color='#8c510a', lw=0.9, ls='--', alpha=0.7, label='Scene vel')
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'head_velocity':
-        ax.plot(t, hv[:, 0], color=_C['head'], lw=1.2, label='Head velocity (yaw)')
-        if hv.shape[1] > 1 and np.any(hv[:, 1] != 0):
-            ax.plot(t, hv[:, 1], color=_C['burst'], lw=1.0, ls='--', label='pitch')
+        _ax_axes('Head velocity', _C['head'], hv, 2.0)
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'gaze_error':
-        gaze = ep[:, 0] + np.cumsum(hv[:, 0]) * (t[1] - t[0])
-        ax.plot(t, gaze, color=_C['error'], lw=1.2, label='Gaze error')
+        dt_v = t[1] - t[0] if len(t) > 1 else 0.001
+        ax.plot(t, ep[:, 0] + np.cumsum(hv[:, 0]) * dt_v, color=_C['error'], lw=1.2, label='Gaze error H')
+        gaze_v = ep[:, 1] + np.cumsum(hv[:, 1]) * dt_v
+        if float(np.max(np.abs(gaze_v))) > 1.0:
+            ax.plot(t, gaze_v, color=_C['error'], lw=1.0, ls='--', label='Gaze error V')
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'retinal_error':
-        ax.plot(t, ep_d[:, 0], color=_C['error'], lw=1.2, label='Retinal position error (yaw)')
+        _ax_axes('Retinal position error', _C['error'], ep_d, 1.0)
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'velocity_storage':
-        ax.plot(t, sig['w_est'][:, 0], color=_C['vs'], lw=1.2, label='Velocity storage (yaw)')
+        _ax_axes('Velocity storage', _C['vs'], sig['w_est'], 2.0)
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'neural_integrator':
-        ax.plot(t, sig['x_ni'][:, 0], color=_C['ni'], lw=1.2, label='Neural integrator (yaw)')
+        _ax_axes('Neural integrator', _C['ni'], sig['x_ni'], 1.0)
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'saccade_burst':
-        ax.plot(t, sig['u_burst'][:, 0], color=_C['burst'], lw=1.2, label='Saccade burst (yaw)')
+        _ax_axes('Saccade burst', _C['burst'], sig['u_burst'], 5.0)
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'pursuit_drive':
-        ax.plot(t, sig['x_pursuit'][:, 0], color=_C['pursuit'], lw=1.2, label='Pursuit integrator')
+        _ax_axes('Pursuit integrator', _C['pursuit'], sig['x_pursuit'], 2.0)
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'refractory':
@@ -714,7 +754,9 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
     tpL = np.array(stim_kw['target_present_L_array'])
     tpR = np.array(stim_kw['target_present_R_array'])
     tp_combined = np.maximum(tpL, tpR)
-    target_yaw_deg = np.degrees(np.arctan(pt[:, 0]))
+    target_yaw_deg   = np.degrees(np.arctan(pt[:, 0]))
+    target_pitch_deg = np.degrees(np.arctan(pt[:, 1]))
+    tgt_v = float(np.max(np.abs(target_pitch_deg))) > 1.0
     dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
     head_angle = np.cumsum(hv[:, 0]) * dt_val
     head_moves = np.max(np.abs(head_angle)) > 2.0
@@ -722,6 +764,14 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
     def tr(label, color, y, style='-', axis='left'):
         spec['traces'].append({'label': label, 'color': color, 'style': style,
                                'axis': axis, 'y': _jlist(y, stride)})
+
+    def tr_axes(label, color, sig3, thresh, axis='left'):
+        """Emit H (+ V/T when active) traces for a (T,3) signal."""
+        axes = _active_axes(sig3, thresh)
+        multi = len(axes) > 1
+        for i in axes:
+            tr(f'{label} {_AXIS_TAG[i]}' if multi else label, color,
+               sig3[:, i], style=('-' if i == 0 else _AXIS_STYLE[i]), axis=axis)
 
     if panel != 'visual_flags':
         spec['hlines'].append({'y': 0, 'color': _C['zero'], 'style': '--'})
@@ -735,44 +785,52 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         if bino_spread > 0.5:
             tr('L eye (head)' if head_moves else 'L eye', '#2166ac', ep_L[:, 0])
             tr('R eye (head)' if head_moves else 'R eye', '#d6604d', ep_R[:, 0])
+            if float(np.max(np.abs(ep[:, 1]))) > 1.0:   # conjugate vertical, if any
+                tr('Eye V', _C['eye'], ep[:, 1], style='--')
         else:
-            tr('Eye (head frame)' if head_moves else 'Eye position', _C['eye'], ep[:, 0])
+            tr_axes('Eye (head frame)' if head_moves else 'Eye', _C['eye'], ep, 1.0)
         if head_moves:
             tr('Gaze (world)', _C['head'], ep[:, 0] + head_angle, style='--')
-        tr('Target (visible)', _C['target'],
+        tr('Target (visible)' + (' H' if tgt_v else ''), _C['target'],
            np.where(tp_combined > 0.5, target_yaw_deg, np.nan))
         if (tp_combined < 0.5).any():
             tr('Target (absent)', _C['target'],
                np.where(tp_combined < 0.5, target_yaw_deg, np.nan), style='--')
+        if tgt_v:
+            tr('Target (visible) V', _C['target'],
+               np.where(tp_combined > 0.5, target_pitch_deg, np.nan), style=':')
 
     elif panel == 'eye_velocity':
-        tr('Eye vel', _C['eye'], ev[:, 0])
+        tr_axes('Eye vel', _C['eye'], ev, 5.0)
         tr('Head vel', _C['head'], hv[:, 0], style=':')
+        if hv.shape[1] > 1 and float(np.max(np.abs(hv[:, 1]))) > 5.0:
+            tr('Head vel V', _C['head'], hv[:, 1], style=':')
         if np.any(np.abs(vs[:, 0]) > 0.5):
             tr('Scene vel', '#8c510a', vs[:, 0], style='--')
 
     elif panel == 'head_velocity':
-        tr('Head velocity (yaw)', _C['head'], hv[:, 0])
-        if hv.shape[1] > 1 and np.any(hv[:, 1] != 0):
-            tr('pitch', _C['burst'], hv[:, 1], style='--')
+        tr_axes('Head velocity', _C['head'], hv, 2.0)
 
     elif panel == 'gaze_error':
-        tr('Gaze error', _C['error'], ep[:, 0] + head_angle)
+        head_angle_v = np.cumsum(hv[:, 1]) * dt_val
+        tr('Gaze error H', _C['error'], ep[:, 0] + head_angle)
+        if float(np.max(np.abs(ep[:, 1] + head_angle_v))) > 1.0:
+            tr('Gaze error V', _C['error'], ep[:, 1] + head_angle_v, style='--')
 
     elif panel == 'retinal_error':
-        tr('Retinal position error (yaw)', _C['error'], ep_d[:, 0])
+        tr_axes('Retinal position error', _C['error'], ep_d, 1.0)
 
     elif panel == 'velocity_storage':
-        tr('Velocity storage (yaw)', _C['vs'], sig['w_est'][:, 0])
+        tr_axes('Velocity storage', _C['vs'], sig['w_est'], 2.0)
 
     elif panel == 'neural_integrator':
-        tr('Neural integrator (yaw)', _C['ni'], sig['x_ni'][:, 0])
+        tr_axes('Neural integrator', _C['ni'], sig['x_ni'], 1.0)
 
     elif panel == 'saccade_burst':
-        tr('Saccade burst (yaw)', _C['burst'], sig['u_burst'][:, 0])
+        tr_axes('Saccade burst', _C['burst'], sig['u_burst'], 5.0)
 
     elif panel == 'pursuit_drive':
-        tr('Pursuit integrator', _C['pursuit'], sig['x_pursuit'][:, 0])
+        tr_axes('Pursuit integrator', _C['pursuit'], sig['x_pursuit'], 2.0)
 
     elif panel == 'refractory':
         tr('z_acc (accumulator)', _C['ref'], sig['z_acc'])
