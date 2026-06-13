@@ -20,9 +20,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-llm    = ["anthropic", "pydantic", "python-dotenv"]   # oculomotor.llm_pipeline
-server = ["fastapi", "uvicorn"]                        # oculomotor.server
-all    = ["oculomotor[llm,server]"]                    # dev: pip install -e ".[all]"
+llm    = ["anthropic", "pydantic", "python-dotenv", "pyyaml"]   # oculomotor.llm_pipeline
+server = ["fastapi", "uvicorn", "pyyaml"]                        # oculomotor.server
+all    = ["oculomotor[llm,server]"]                              # dev: pip install -e ".[all]"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"oculomotor.schema" = ["*.yaml"]   # bundle the schema yamls with the package

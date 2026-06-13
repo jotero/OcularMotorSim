@@ -8,7 +8,7 @@ Submodules
 prompt          The system prompt sent to Claude (edit here to tune interpretation)
 interpret       NL description → SimulationScenario via the Claude API (call_llm)
 scenario        Pydantic schema (SimulationScenario, SimulationComparison, Patient)
-patient_builder Patient params built from schema/parameters_schema.yaml
+patient_builder Patient params built from oculomotor/schema/parameters_schema.yaml
 run             SimulationScenario → stimulus + simulator wiring + figure (run_scenario)
 cli             Command-line entry point (main)
 """

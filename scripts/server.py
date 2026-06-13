@@ -51,8 +51,9 @@ from gen_admin import generate as _gen_admin
 
 # YAML schema used to enrich patient-change diffs with anatomy / disorders.
 import yaml as _yaml
-_SCHEMA_PATH = Path(__file__).parent.parent / 'schema' / 'parameters_schema.yaml'
-with open(_SCHEMA_PATH, encoding='utf-8') as _f:
+from importlib.resources import files as _files
+_SCHEMA_PATH = _files('oculomotor.schema') / 'parameters_schema.yaml'
+with _SCHEMA_PATH.open(encoding='utf-8') as _f:
     _PARAM_SCHEMA = _yaml.safe_load(_f) or {}
 
 

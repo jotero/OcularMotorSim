@@ -68,10 +68,10 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
       - Run via console script `oculomotor-server` or `uvicorn oculomotor.server:app`.
       - `server.ps1`: replace `scripts\server.py` invocation accordingly (dev + stable worktree).
       - `server.py` imports `gen_admin` (a report) → becomes `from oculomotor.reports import …`.
-- [ ] **2.2 `schema/*.yaml` → `src/oculomotor/schema/`** as package-data (`importlib.resources`).
-      - Repoint the 4 readers (`reports/gen_parameters`, `server`, `pipeline/patient_builder`, `pipeline/scenario`).
-      - This **removes the `patient_builder` parent-walk leak** (reads its own package data).
-      - Add `package-data`/`include-package-data` to `pyproject.toml` so the yaml ships.
+- [x] **2.2 `schema/*.yaml` → `src/oculomotor/schema/`** as package-data (`importlib.resources`). DONE.
+      - Repointed readers `patient_builder`, `server`, `gen_parameters`, `gen_states` via `importlib.resources.files`.
+      - **Removed the `patient_builder` parent-walk leak** (reads its own package data); verified.
+      - `pyproject.toml`: added `[tool.setuptools.package-data] "oculomotor.schema"=["*.yaml"]` + `pyyaml` to extras.
 - [ ] **2.3 `scripts/bench_*` → `src/oculomotor/benchmarks/`** (incl. `bench_utils`, `bench_clinical_utils`).
       - Figure OUTPUT still goes to the `web/` cache; only the *code* moves.
 - [ ] **2.4 generators/orchestrators → `src/oculomotor/reports/`**

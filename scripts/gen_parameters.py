@@ -2,7 +2,7 @@
 
 Reads ``BrainParams``, ``SensoryParams``, ``PlantParams`` (canonical Python
 source of truth for defaults), pairs each field with the inline source-code
-comment, optionally enriches each field from ``schema/parameters_schema.yaml``
+comment, optionally enriches each field from ``oculomotor/schema/parameters_schema.yaml``
 (human-curated descriptions, anatomy, references, disorder tags), and emits a
 single HTML document.
 
@@ -363,7 +363,7 @@ def _build_html(brain_fields, sensory_fields, plant_fields, schema_path,
     if missing_keys:
         warn += (
             f'<div class="warning"><b>{len(missing_keys)} fields lack schema entries</b> '
-            'and are flagged TODO below. Add to <code>schema/parameters_schema.yaml</code> '
+            'and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> '
             'to provide rich descriptions, anatomy, and disorder tags.</div>'
         )
     if stale_keys:
@@ -455,8 +455,9 @@ def _build_html(brain_fields, sensory_fields, plant_fields, schema_path,
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    from importlib.resources import files
     repo_root  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    schema_yml = os.path.join(repo_root, "schema", "parameters_schema.yaml")
+    schema_yml = str(files("oculomotor.schema") / "parameters_schema.yaml")
     out_path   = os.path.join(repo_root, "web", "parameters.html")
 
     schema, schema_path = _load_schema(schema_yml)

@@ -1,6 +1,6 @@
 """Generate web/states.html — anatomical state / activation directory.
 
-Layered on schema/states_schema.yaml.  Sister page to parameters.html: groups
+Layered on oculomotor/schema/states_schema.yaml.  Sister page to parameters.html: groups
 each model state slice + key derived signal by anatomical subsystem,
 showing shape, units, anatomy, description, and references.
 
@@ -19,8 +19,9 @@ from pathlib import Path
 import yaml
 
 
+from importlib.resources import files as _files
 _REPO = Path(__file__).resolve().parent.parent
-_YAML = _REPO / 'schema' / 'states_schema.yaml'
+_YAML = _files('oculomotor.schema') / 'states_schema.yaml'
 _HTML = _REPO / 'web' / 'states.html'
 
 
@@ -111,7 +112,7 @@ tr:last-child { border-bottom: none; }
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _load_schema():
-    with open(_YAML, encoding='utf-8') as f:
+    with _YAML.open(encoding='utf-8') as f:
         return yaml.safe_load(f) or {}
 
 
@@ -332,7 +333,7 @@ def _build_html(by_class):
   <h1>Model states &amp; activations</h1>
   <div class="meta">
     {n_total} entries · {n_llm} LLM-plottable ·
-    Source: <code>schema/states_schema.yaml</code> ·
+    Source: <code>oculomotor/schema/states_schema.yaml</code> ·
     Companion to <a href="parameters.html">parameters.html</a>.
   </div>
   <p style="font-size:13px;color:#444;margin-bottom:18px;">

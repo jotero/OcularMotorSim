@@ -347,7 +347,7 @@ Three generated HTML pages live under `web/`. Keep them in sync with code — bu
 
 | Page | Generator | Regen trigger |
 |---|---|---|
-| `web/parameters.html` | `scripts/gen_parameters.py` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `schema/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
+| `web/parameters.html` | `scripts/gen_parameters.py` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `oculomotor/schema/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
 | `web/states.html` | `scripts/gen_states.py` | Any `State` NamedTuple gains/loses a field, any subsystem's `N_STATES` changes, or a new subsystem joins `BrainState`. |
 | `web/index.html` (bench gallery) | `scripts/run_benchmarks.py` (figures + HTML) or `--html-only` (HTML only, reuses existing figures) | Run the **individual** `bench_<area>.py` for the area you changed, then `--html-only` to rebuild the index. Run the full suite only at milestones. |
 
