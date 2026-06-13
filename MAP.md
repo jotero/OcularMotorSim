@@ -13,10 +13,10 @@
 |---|---|---|
 | **The model** | [src/oculomotor/](src/oculomotor/) | JAX simulation: sensory → brain → plant. Per-module detail in [CLAUDE.md](CLAUDE.md). |
 | **Architecture & conventions** | [CLAUDE.md](CLAUDE.md) | The deep reference: state layout, SSM contract, signal flow, units. |
-| **Benches** | [scripts/](scripts/) `bench_*.py` | One script per behavior (VOR, saccades, pursuit, vergence, gravity, …). |
+| **Benches** | [benchmarks/](src/oculomotor/benchmarks/) `bench_*.py` | One per behavior; run `python -m oculomotor.benchmarks.bench_<area>`. |
 | **Theory / the "why"** | [manuscript/](manuscript/) + a few [docs/](docs/) notes | The scientific arguments behind the design (see §3). |
 | **Benchmarks & generated docs** | [docs/](docs/) | Spec ([BENCHMARKS.md](docs/BENCHMARKS.md)), gallery + parameters/states HTML. |
-| **LLM pipeline & server** | [llm_pipeline/](src/oculomotor/llm_pipeline/), [server.py](scripts/server.py) | Plain-English → simulation; web app + request DB. |
+| **LLM pipeline & server** | [llm_pipeline/](src/oculomotor/llm_pipeline/), [server/](src/oculomotor/server/) | Plain-English → simulation; web app + request DB. Run: `.\server.ps1 dev`. |
 | **Active plans & logs** | root `*.md` | [REORG_PLAN.md](REORG_PLAN.md) (target repo layout + packaging model), [EXPERIMENTS.md](EXPERIMENTS.md), [OVAR_DIAGNOSIS_NOTES.md](OVAR_DIAGNOSIS_NOTES.md). |
 | **Claude's working memory** | mirrored in §4 | Bug history + design rationale I carry across sessions. |
 

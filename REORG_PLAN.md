@@ -64,10 +64,10 @@ and `scratch/` (debug).
 
 Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
 
-- [ ] **2.1 `scripts/server.py` → `src/oculomotor/server/`** (e.g. `server/app.py`, `server/__init__.py`).
-      - Run via console script `oculomotor-server` or `uvicorn oculomotor.server:app`.
-      - `server.ps1`: replace `scripts\server.py` invocation accordingly (dev + stable worktree).
-      - `server.py` imports `gen_admin` (a report) → becomes `from oculomotor.reports import …`.
+- [x] **2.1 `scripts/server.py` → `src/oculomotor/server/`** (`app.py` + `admin.py` + `__init__`/`__main__`). DONE.
+      - `gen_admin` → `server/admin.py` (server-coupled, not reports). Env-driven paths: `OCULOMOTOR_DATA`
+        (default `<checkout>/data`), `OCULOMOTOR_WEB` (default `<checkout>/web`); self-locate via `parents[3]`.
+      - Run `python -m oculomotor.server` / console `oculomotor-server`. Verified: dev serves frontend (200).
 - [x] **2.2 `schema/*.yaml` → `src/oculomotor/schema/`** as package-data (`importlib.resources`). DONE.
       - Repointed readers `patient_builder`, `server`, `gen_parameters`, `gen_states` via `importlib.resources.files`.
       - **Removed the `patient_builder` parent-walk leak** (reads its own package data); verified.
@@ -82,8 +82,12 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
         hacks removed; `run_benchmarks` imports `gen_parameters` via `oculomotor.reports`. Verified imports.
       - **Excluded:** `gen_admin` (server-coupled → moves with `server`); `run_recovery` (a fitting
         experiment, not a cache builder → `scratch`/fitting later). Both remain in `scripts/` for now.
-- [ ] **2.5 `scripts/simulate.py` shim** → console script `oculomotor-simulate` → `llm_pipeline.cli:main`
-      (or `python -m oculomotor.llm_pipeline.cli`). Then `scripts/` is empty → remove it.
+- [x] **2.5 retire `scripts/`** — DONE. Removed `simulate.py` shim (use `oculomotor-simulate` /
+      `python -m oculomotor.llm_pipeline.cli`); moved `run_recovery.py` → `scratch/`. `scripts/` deleted.
+      Console scripts added to `pyproject.toml`: `oculomotor-server`, `oculomotor-simulate`.
+- [x] **Deploy wiring** — `server.ps1` rewritten: `dev` = main venv / live; `stable` = `om-stable`
+      worktree's OWN venv (frozen model, isolated from dev); `make-stable` snapshots + (re)installs the
+      worktree venv (`pip install -e ".[all]"`) + copies `.env` + deploys `web/`. Stable is now *truly* frozen.
 
 ---
 
@@ -91,9 +95,10 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
 
 - [x] **`scratch/`** — moved all `diag_*` + `_*` (22 files), tracked, + `scratch/README.md`. DONE.
       (Kept the dead `*2/*3` duplicates for now — prune later.)
-- [ ] **`data/`** (was empty) — becomes the request-DB home, gitignored. Server reads `OCULOMOTOR_DATA`
-      (default `<repo>/data`). Dev and stable get separate DBs (separate dirs); override to unify if wanted.
-      *(Pending the server move / deploy-path decision.)*
+- [x] **`data/`** — DONE. The request-DB home (gitignored). Server reads `OCULOMOTOR_DATA`
+      (default `<checkout>/data`). Dev and stable get separate DBs by construction (separate checkouts);
+      override `OCULOMOTOR_DATA` to relocate (e.g. off OneDrive) or unify. **NOTE:** the old shared
+      `~/oculomotor_outputs` DB is no longer read — copy it into `data/` if you want the prior history.
 - [x] **`papers/` → `references/`** — DONE (pure rename, no code refs).
 - [ ] **`docs/`** now free — optional human-docs home (could absorb `OVAR_DIAGNOSIS_NOTES.md`,
       `EXPERIMENTS.md`, `web/cerebellum.md`, `web/plant_compensation.md` — the last is referenced by

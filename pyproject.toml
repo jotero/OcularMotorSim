@@ -24,6 +24,10 @@ llm    = ["anthropic", "pydantic", "python-dotenv", "pyyaml"]   # oculomotor.llm
 server = ["fastapi", "uvicorn", "pyyaml"]                        # oculomotor.server
 all    = ["oculomotor[llm,server]"]                              # dev: pip install -e ".[all]"
 
+[project.scripts]
+oculomotor-server   = "oculomotor.server:main"          # = python -m oculomotor.server
+oculomotor-simulate = "oculomotor.llm_pipeline.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

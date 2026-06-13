@@ -4,33 +4,27 @@
 =====================================================================================
 
  USAGE:   .\server.ps1 <command>
-          .\server.ps1            (no command → shows this help)
+          .\server.ps1            (no command shows help)
 
  COMMANDS:
-   dev           Start the DEV server on http://localhost:8001 from THIS working
-                 directory (live, uncommitted code). Use while developing.
+   dev           Start the DEV server on http://localhost:8001 using THIS checkout's
+                 venv (live code). Serves this checkout's web/ + data/.
+   stable        Start the STABLE server on http://localhost:8000 from the ..\om-stable
+                 worktree using ITS OWN venv = the FROZEN snapshot (frozen model, web, data).
+                 Run 'make-stable' first to create/refresh it.
+   make-stable   Snapshot HEAD onto the 'stable' branch in the worktree, (re)install the
+                 frozen package into the worktree's own venv, copy .env, then optionally
+                 deploy web/ to the public website repo.
+   help          Show this help.
 
-   stable        Start the STABLE server on http://localhost:8000 from the
-                 'om-stable' git worktree - i.e. whatever you last snapshotted
-                 with 'make-stable'. Creates/refreshes the worktree automatically.
-                 Requires a 'stable' branch (run 'make-stable' first).
-
-   make-stable   Snapshot the current HEAD onto the 'stable' branch (this is what
-                 'stable' will serve), then OPTIONALLY deploy web/ (the frontend)
-                 to the public website repo via robocopy.
-
-   help          Show this help. (Default when no command is given.)
-
- ALIASES:        start_dev = dev   |   start_stable = stable   |   make_stable = make-stable
+ ALIASES:        start_dev=dev | start_stable=stable | make_stable=make-stable
 
  NOTES:
-   * Dev (8001) and stable (8000) share ONE database via
-       $env:OCULOMOTOR_OUTPUTS = <USERPROFILE>\oculomotor_outputs
-     This is deliberately OUTSIDE OneDrive - OneDrive syncing an actively-written
-     log corrupts it (orphaned sidecars, vanished CSV rows).
-   * The stable worktree lives next to this repo at ..\om-stable.
-   * The website deploy copies web/ into ..\om-lab-website\sim, then you commit
-     + push from that repo to publish.
+   * dev and stable have SEPARATE databases: each serves its own checkout's data/
+     (the package self-locates via OCULOMOTOR_DATA / OCULOMOTOR_WEB, default <checkout>/{data,web}).
+     So dev experiments never pollute the public stable gallery.
+   * stable runs the worktree's OWN venv, so the frozen model code is truly isolated from dev.
+   * Website deploy copies the frozen web/ into ..\om-lab-website\sim, then you commit + push there.
 =====================================================================================
 #>
 
@@ -40,10 +34,9 @@ $ErrorActionPreference = 'Stop'
 
 # ── Shared paths / config ────────────────────────────────────────────────────
 $root            = $PSScriptRoot
-$python          = Join-Path $root '.venv\Scripts\python.exe'
-$serverPy        = 'scripts\server.py'
-$dataDir         = Join-Path $env:USERPROFILE 'oculomotor_outputs'   # shared, non-OneDrive
+$mainPython      = Join-Path $root '.venv\Scripts\python.exe'
 $stableWorktree  = Join-Path (Split-Path $root -Parent) 'om-stable'
+$stablePython    = Join-Path $stableWorktree '.venv\Scripts\python.exe'
 $websiteDest     = 'D:\OneDrive\UC Berkeley\OMlab - JOM\Code\om-lab-website\sim'
 
 function Show-Usage {
@@ -54,53 +47,42 @@ server.ps1 - Oculomotor simulator server management
   USAGE:  .\server.ps1 <command>      (no command shows this help)
 
   COMMANDS
-    dev           Start the DEV server on http://localhost:8001 from THIS working
-                  directory (live, uncommitted code). Use while developing.
-    stable        Start the STABLE server on http://localhost:8000 from the
-                  ..\om-stable worktree (whatever you last saved with make-stable).
-                  Creates/refreshes the worktree. Needs a 'stable' branch first.
-    make-stable   Snapshot current HEAD onto the 'stable' branch, then optionally
-                  deploy web/ (the frontend) to ..\om-lab-website\sim via robocopy.
+    dev           DEV server, http://localhost:8001 (this checkout's venv = live code).
+    stable        STABLE server, http://localhost:8000 (..\om-stable worktree's OWN venv =
+                  frozen snapshot: frozen model + web + data). Run make-stable first.
+    make-stable   Snapshot HEAD -> stable branch in the worktree, (re)install the frozen
+                  package into the worktree venv, copy .env, optionally deploy web/.
     help          Show this help.
 
   ALIASES   start_dev=dev | start_stable=stable | make_stable=make-stable
 
   NOTES
-    * Dev (8001) + stable (8000) share ONE database via
-        $env:OCULOMOTOR_OUTPUTS = <USERPROFILE>\oculomotor_outputs
-      (deliberately OUTSIDE OneDrive - OneDrive corrupts the live log).
-    * Stable worktree: ..\om-stable   Website deploy dest: ..\om-lab-website\sim
+    * dev and stable have SEPARATE databases (each checkout's data/). Override with
+      $env:OCULOMOTOR_DATA / $env:OCULOMOTOR_WEB.
+    * stable uses the worktree's own venv -> its model code is frozen, isolated from dev.
+    * Website deploy dest: ..\om-lab-website\sim
 
 '@
 }
 
 function Start-Dev {
-    $env:OCULOMOTOR_OUTPUTS = $dataDir
-    Write-Host 'Starting DEV server on http://localhost:8001'
-    Write-Host "Data dir: $env:OCULOMOTOR_OUTPUTS"
-    & $python -X utf8 (Join-Path $root $serverPy) --port 8001
+    Write-Host 'Starting DEV server (live code) on http://localhost:8001'
+    & $mainPython -X utf8 -m oculomotor.server --port 8001
 }
 
 function Start-Stable {
-    $env:OCULOMOTOR_OUTPUTS = $dataDir
-
     if (-not (git branch --list stable)) {
-        Write-Host "No stable version saved yet. Run '.\server.ps1 make-stable' first." -ForegroundColor Yellow
+        Write-Host "No stable snapshot yet. Run '.\server.ps1 make-stable' first." -ForegroundColor Yellow
         exit 1
     }
-
-    if (Test-Path $stableWorktree) {
-        Write-Host 'Updating stable worktree...'
-        git -C $stableWorktree reset --hard stable 2>$null
-    } else {
-        Write-Host "Creating stable worktree at $stableWorktree ..."
-        git worktree add $stableWorktree stable
+    if (-not (Test-Path $stablePython)) {
+        Write-Host "Stable worktree venv missing. Run '.\server.ps1 make-stable' first." -ForegroundColor Yellow
+        exit 1
     }
-
     $ver = git -C $stableWorktree rev-parse --short HEAD
-    Write-Host "Starting STABLE server (commit $ver) on http://localhost:8000"
+    Write-Host "Starting STABLE server (frozen commit $ver) on http://localhost:8000"
     Write-Host 'Ctrl-C to stop.'
-    & $python -X utf8 (Join-Path $stableWorktree $serverPy) --port 8000
+    & $stablePython -X utf8 -m oculomotor.server --port 8000
 }
 
 function Invoke-MakeStable {
@@ -112,23 +94,37 @@ function Invoke-MakeStable {
         if ((Read-Host) -ne 'y') { exit 0 }
     }
 
+    # 1. Snapshot HEAD onto the stable branch, checked out in the worktree.
     if (Test-Path $stableWorktree) {
-        # Branch is checked out in the worktree - reset it there directly.
         Push-Location $stableWorktree
         git reset --hard "$(git -C "$root" rev-parse HEAD)"
         Pop-Location
     } else {
         git branch -f stable HEAD
+        git worktree add $stableWorktree stable
     }
-
     Write-Host "Stable branch updated to $short"
-    Write-Host "Run '.\server.ps1 stable' to serve it on port 8000"
 
-    # ── Optional: deploy the frontend (web/) to the public website repo ──────
+    # 2. Ensure the worktree has its OWN venv + editable install = frozen code, isolated from dev.
+    if (-not (Test-Path $stablePython)) {
+        Write-Host 'Creating stable venv (one-time; downloads deps)...' -ForegroundColor Cyan
+        & $mainPython -m venv (Join-Path $stableWorktree '.venv')
+    }
+    Write-Host 'Installing frozen package into the stable venv...'
+    Push-Location $stableWorktree
+    & $stablePython -m pip install -e ".[all]" --quiet
+    Pop-Location
+
+    # 3. Copy .env (gitignored, absent from the worktree) so stable has API keys.
+    $mainEnv = Join-Path $root '.env'
+    if (Test-Path $mainEnv) { Copy-Item $mainEnv (Join-Path $stableWorktree '.env') -Force }
+
+    Write-Host "Run '.\server.ps1 stable' to serve the frozen snapshot on port 8000"
+
+    # 4. Optional: deploy the frozen frontend (web/) to the public website repo.
     Write-Host ''
     Write-Host 'Deploy the simulator frontend to the website repo too? (y/n) ' -NoNewline
     if ((Read-Host) -eq 'y') {
-        # Prefer the stable worktree's web/ (the snapshot just made); fall back to local web/.
         $srcWeb = Join-Path $stableWorktree 'web'
         if (-not (Test-Path $srcWeb)) { $srcWeb = Join-Path $root 'web' }
 

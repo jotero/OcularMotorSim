@@ -138,21 +138,16 @@ src/oculomotor/
     └── synthetic.py                   Synthetic-data helpers for fitting
 ```
 
-### scripts/
+### Running things (scripts/ has been retired)
 
-During the reorg most of `scripts/` has moved into the package. Current `scripts/` holds only the
-server cluster:
-```
-scripts/
-├── server.py               FastAPI web server (+ gen_admin.py) — moves → oculomotor/server/ (pending deploy-path decision)
-├── simulate.py             Thin shim → oculomotor.llm_pipeline.cli.main()
-└── run_recovery.py         Parameter-recovery experiment (→ scratch/ or fitting later)
-```
-Moved into the package (run as modules):
-- **Benchmarks** → `oculomotor/benchmarks/` — `python -m oculomotor.benchmarks.bench_<area>`
+Everything runnable now lives in the package and runs as a module (or console script):
+- **Server** → `.\server.ps1 dev` (port 8001, live) / `.\server.ps1 stable` (port 8000, frozen worktree venv);
+  or directly `python -m oculomotor.server [--port N]`. (See `server.ps1` / the Web-server section below.)
+- **LLM CLI** → `python -m oculomotor.llm_pipeline.cli "<scenario>"` (or the `oculomotor-simulate` console script).
+- **Benchmarks** → `python -m oculomotor.benchmarks.bench_<area>`
   (vor_okr, saccades, pursuit, fixation, vergence, accommodation, gravity, listing, tvor, experiments,
   bench_clinical[_cerebellum|_cn_palsies|_ni_vs|_saccades|_vergence|_vestibular]). Figures → `web/` cache.
-- **Report/cache builders** → `oculomotor/reports/` — `python -m oculomotor.reports.<name>`
+- **Report/cache builders** → `python -m oculomotor.reports.<name>`
   (gen_parameters, gen_states, run_benchmarks, run_clinical_benchmarks, freeze_reference, sweep_occlusion, block_diagram).
 
 Debug/diagnostic scripts (`diag_*`, `_*`) live in **`scratch/`** (tracked, unmaintained — see `scratch/README.md`).
@@ -524,25 +519,28 @@ Evaluation order within one ODE step:
 
 The `oculomotor/llm_pipeline/` package converts a plain-English scenario description into a simulation
 and figure using the Claude API. Flow: `cli` → `interpret` (sends `prompt` to Claude) → `scenario` →
-`patient_builder` → `run`. The Claude prompt lives in `prompt.py`. `scripts/simulate.py` is a thin shim
-into `cli.main()`.
+`patient_builder` → `run`. The Claude prompt lives in `prompt.py`. The CLI entry is `cli.main()`
+(console script `oculomotor-simulate`, or `python -m oculomotor.llm_pipeline.cli`).
 
 ### Usage
 
 ```bash
-# Requires ANTHROPIC_API_KEY to be set in the environment
-python -X utf8 scripts/simulate.py "healthy subject making a 20 deg saccade to the right"
-python -X utf8 scripts/simulate.py "patient with left vestibular neuritis doing a head impulse test"
-python -X utf8 scripts/simulate.py --dry-run "OKN: 30 deg/s full-field scene motion for 20 s then OKAN"
-python -X utf8 scripts/simulate.py --json path/to/scenario.json   # skip LLM, load JSON directly
-python -X utf8 scripts/simulate.py --show "..."                   # display figure interactively
+# Requires ANTHROPIC_API_KEY (in the environment or .env)
+python -X utf8 -m oculomotor.llm_pipeline.cli "healthy subject making a 20 deg saccade to the right"
+python -X utf8 -m oculomotor.llm_pipeline.cli "patient with left vestibular neuritis doing a head impulse test"
+python -X utf8 -m oculomotor.llm_pipeline.cli --dry-run "OKN: 30 deg/s full-field scene motion for 20 s then OKAN"
+python -X utf8 -m oculomotor.llm_pipeline.cli --json path/to/scenario.json   # skip LLM, load JSON directly
+python -X utf8 -m oculomotor.llm_pipeline.cli --show "..."                   # display figure interactively
+# (or: oculomotor-simulate "...")
 ```
 
 ### Web server
 
 ```bash
-python -X utf8 scripts/server.py          # http://localhost:8000
-python -X utf8 scripts/server.py --host 0.0.0.0 --port 8000
+.\server.ps1 dev                          # http://localhost:8001 (live)  — recommended
+.\server.ps1 stable                       # http://localhost:8000 (frozen worktree venv)
+# or directly:
+python -X utf8 -m oculomotor.server --port 8000 [--host 0.0.0.0]
 ```
 
 Features:
