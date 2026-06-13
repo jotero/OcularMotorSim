@@ -17,7 +17,7 @@
 | **Theory / the "why"** | [manuscripts/](manuscripts/) + a few [docs/](docs/) notes | The scientific arguments behind the design (see §3). |
 | **Benchmarks & generated docs** | [docs/](docs/) | Spec ([BENCHMARKS.md](docs/BENCHMARKS.md)), gallery + parameters/states HTML. |
 | **LLM pipeline & server** | [llm_pipeline/](src/oculomotor/llm_pipeline/), [server/](src/oculomotor/server/) | Plain-English → simulation; web app + request DB. Run: `.\server.ps1 dev`. |
-| **Active plans & logs** | root `*.md` | [REORG_PLAN.md](REORG_PLAN.md) (target repo layout + packaging model), [EXPERIMENTS.md](EXPERIMENTS.md), [OVAR_DIAGNOSIS_NOTES.md](manuscripts/OVAR_DIAGNOSIS_NOTES.md). |
+| **Plans & logs** | [EXPERIMENTS.md](EXPERIMENTS.md), [manuscripts/OVAR_DIAGNOSIS_NOTES.md](manuscripts/OVAR_DIAGNOSIS_NOTES.md) | Experiment log + open OVAR diagnosis notes. |
 | **Claude's working memory** | mirrored in §4 | Bug history + design rationale I carry across sessions. |
 
 ---
