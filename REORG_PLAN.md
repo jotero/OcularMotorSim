@@ -32,8 +32,9 @@ ClaudeOculomotorJax/
 │   └── schema/                         config/schemas as PACKAGE-DATA   ← from top-level schema/
 ├── web/                       L4  served site: client shell + generated cache, TOGETHER, tracked
 ├── scratch/                   debug-only scripts (all diag_* and _*)    ← from scripts/
-├── data/                      request DB — gitignored (OneDrive risk accepted; via OCULOMOTOR_DATA)
-├── outputs/                   other generated run artifacts (gitignored)
+├── server_data/               server request DB (figures + sidecars + log + admin.html) — gitignored
+│                              (one folder; OneDrive risk accepted; via OCULOMOTOR_DATA)
+├── outputs/                   CLI/dev figure dumps (gitignored)
 ├── tests/  manuscripts/  references/   (references = renamed papers/)
 ├── docs/                      (optional) real human docs — design notes, MAP
 └── root: pyproject.toml LICENSE CLAUDE.md MAP.md REORG_PLAN.md server.ps1
@@ -66,7 +67,7 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
 
 - [x] **2.1 `scripts/server.py` → `src/oculomotor/server/`** (`app.py` + `admin.py` + `__init__`/`__main__`). DONE.
       - `gen_admin` → `server/admin.py` (server-coupled, not reports). Env-driven paths: `OCULOMOTOR_DATA`
-        (default `<checkout>/data`), `OCULOMOTOR_WEB` (default `<checkout>/web`); self-locate via `parents[3]`.
+        (default `<checkout>/server_data`), `OCULOMOTOR_WEB` (default `<checkout>/web`); self-locate via `parents[3]`.
       - Run `python -m oculomotor.server` / console `oculomotor-server`. Verified: dev serves frontend (200).
 - [x] **2.2 `schema/*.yaml` → `src/oculomotor/schema/`** as package-data (`importlib.resources`). DONE.
       - Repointed readers `patient_builder`, `server`, `gen_parameters`, `gen_states` via `importlib.resources.files`.
@@ -95,10 +96,11 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
 
 - [x] **`scratch/`** — moved all `diag_*` + `_*` (22 files), tracked, + `scratch/README.md`. DONE.
       (Kept the dead `*2/*3` duplicates for now — prune later.)
-- [x] **`data/`** — DONE. The request-DB home (gitignored). Server reads `OCULOMOTOR_DATA`
-      (default `<checkout>/data`). Dev and stable get separate DBs by construction (separate checkouts);
-      override `OCULOMOTOR_DATA` to relocate (e.g. off OneDrive) or unify. **NOTE:** the old shared
-      `~/oculomotor_outputs` DB is no longer read — copy it into `data/` if you want the prior history.
+- [x] **`server_data/`** — DONE. ONE server-DB folder (figures + sidecars + log + admin.html), gitignored.
+      Server reads `OCULOMOTOR_DATA` (default `<checkout>/server_data`). Dev and stable get separate DBs
+      by construction (separate checkouts); override `OCULOMOTOR_DATA` to relocate (e.g. off OneDrive) or unify.
+      Consolidated the old split `outputs/` (DB) + `data/` into `server_data/`; untracked 171 server figures +
+      admin.html from git. `outputs/` is now CLI/dev figures only. Old `~/oculomotor_outputs` not auto-migrated.
 - [x] **`papers/` → `references/`** — DONE (pure rename, no code refs).
 - [x] **`manuscript/` → `manuscripts/`** — DONE; `OVAR_DIAGNOSIS_NOTES.md` moved into it (it's notes/writing).
 - [ ] **`docs/`** now free — optional human-docs home (could absorb

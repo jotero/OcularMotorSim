@@ -64,11 +64,11 @@ with _SCHEMA_PATH.open(encoding='utf-8') as _f:
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-# Request database. Each checkout owns its own data/ (this checkout's repo root),
-# so dev (main checkout) and stable (om-stable worktree) get SEPARATE databases.
+# Request database — ONE folder per checkout: server_data/ (figures, sidecars, log, admin.html).
+# Each checkout owns its own, so dev (main) and stable (om-stable worktree) get SEPARATE DBs.
 # Override with OCULOMOTOR_DATA (e.g. to a non-OneDrive path — OneDrive syncing an
 # actively-written log can corrupt it: orphaned sidecars, vanished CSV rows).
-_DATA_ROOT = Path(os.environ.get('OCULOMOTOR_DATA') or (_REPO_ROOT / 'data'))
+_DATA_ROOT = Path(os.environ.get('OCULOMOTOR_DATA') or (_REPO_ROOT / 'server_data'))
 _DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
 _FIGURES_DIR = _DATA_ROOT / 'server_figures'

@@ -11,10 +11,11 @@ __pycache__/
 dist/
 build/
 
-# Outputs and data (generated artifacts)
+# Outputs (CLI/dev figure dumps) and the server request database
 outputs/*.png
 outputs/*.csv
-data/
+outputs/server_figures/
+server_data/
 
 # Jupyter checkpoints
 .ipynb_checkpoints/

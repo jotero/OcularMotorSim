@@ -17,7 +17,7 @@ from pathlib import Path
 # Mirror app.py: resolve the same data/ dir (OCULOMOTOR_DATA, else this checkout's
 # repo-root data/) so the admin reads/writes the server's database.
 _REPO_ROOT   = Path(__file__).resolve().parents[3]   # server → oculomotor → src → repo
-_DATA_ROOT   = Path(os.environ.get('OCULOMOTOR_DATA') or (_REPO_ROOT / 'data'))
+_DATA_ROOT   = Path(os.environ.get('OCULOMOTOR_DATA') or (_REPO_ROOT / 'server_data'))
 _DATA_ROOT.mkdir(parents=True, exist_ok=True)
 _LOG_FILE    = _DATA_ROOT / 'simulation_log.csv'
 _OUT_FILE    = _DATA_ROOT / 'admin.html'
