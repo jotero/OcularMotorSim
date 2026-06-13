@@ -110,7 +110,11 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
       ```
       - Optional-dep modules (`llm_pipeline`, `server`) guard their imports so the bare model installs clean.
       - The "pure model" = `oculomotor.models` + `oculomotor.sim` + `oculomotor.analysis` with core deps only.
-- [ ] `version = "0.1.0"` is dead → `dynamic = ["version"]` (real version from `git describe` in `__init__.py`).
+      - **DONE:** deps split into core + `[llm]`/`[server]`/`[all]` extras; build verified. Console
+        `[project.scripts]` deferred until `server`/`cli` modules move (§2). Dev install: `pip install -e ".[all]"`.
+- [x] Keep static `version = "0.1.0"` (the PEP 440 *build* version). NOT dead — `oculomotor.__version__`
+      (git-describe string, e.g. `5030944-dirty`) is the *runtime* version and is NOT PEP 440, so it
+      can't be the package version. They legitimately coexist. (Confirmed: dynamic attr build fails on it.)
 - [ ] Remaining leak: `llm_pipeline/cli.py` still parent-walks to `outputs/`. Optional: make `out_dir` an arg.
       (`__init__.py` `git describe` — benign, leave.)
 

@@ -4,8 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oculomotor"
-version = "0.1.0"
+version = "0.1.0"                      # PEP 440 build version. (Runtime oculomotor.__version__
+                                       # is a git-describe string for logging — a different thing.)
 requires-python = ">=3.10"
+
+# Core deps = the differentiable model ONLY (models, sim, analysis, fitting).
+# The LLM pipeline and web server are optional extras so a bare install stays light.
 dependencies = [
     "jax",
     "jaxlib",
@@ -13,12 +17,12 @@ dependencies = [
     "optax",
     "matplotlib",
     "numpy",
-    "pydantic",
-    "anthropic",
-    "fastapi",
-    "uvicorn",
-    "python-dotenv",
 ]
+
+[project.optional-dependencies]
+llm    = ["anthropic", "pydantic", "python-dotenv"]   # oculomotor.llm_pipeline
+server = ["fastapi", "uvicorn"]                        # oculomotor.server
+all    = ["oculomotor[llm,server]"]                    # dev: pip install -e ".[all]"
 
 [tool.setuptools.packages.find]
 where = ["src"]
