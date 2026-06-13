@@ -1,4 +1,8 @@
-"""Loss functions for VOR parameter fitting."""
+"""Loss functions for VOR parameter fitting.
+
+⚠️ OBSOLETE — uses a flat `theta` dict + the old `simulate(theta, t, head_vel)` signature
+(pre-NamedTuple, VOR-only). Won't run against the current model. See fitting/__init__.py.
+"""
 
 import jax
 import jax.numpy as jnp

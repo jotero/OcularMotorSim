@@ -118,7 +118,8 @@ src/oculomotor/
 │   │   ├── accommodation_plant.py     Lens / ciliary muscle LP (1 state, tau_acc_plant ~0.156 s)
 │   │   ├── muscle_geometry.py         12-muscle pulling-direction matrix + M_NUCLEUS / M_NERVE_PROJ
 │   │   └── readout.py                 Eye position readout + rotation_matrix()
-│   ├── fitting/                       Gradient-based parameter fitting (loss + optimize)
+│   ├── fitting/                       Gradient-based fitting (loss + optimize) — ⚠️ OBSOLETE (VOR-only,
+│   │                                   pre-NamedTuple; rewrite before use — see fitting/__init__.py)
 │   └── llm_pipeline/                  Natural-language → simulation pipeline
 │       ├── prompt.py                  The system prompt sent to Claude (edit to tune interpretation)
 │       ├── interpret.py               NL description → SimulationScenario via Claude API (call_llm)

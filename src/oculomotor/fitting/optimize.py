@@ -1,5 +1,8 @@
 """Parameter recovery / fitting pipeline.
 
+⚠️ OBSOLETE — depends on the stale `fitting/loss.py` (flat-dict theta, old simulate
+signature, VOR-only). Won't run against the current model. See fitting/__init__.py.
+
 Primary method: scipy L-BFGS-B with JAX gradients (~100 evaluations to converge).
 Secondary method: Adam gradient descent (kept for diagnostic/trajectory plotting).
 """
