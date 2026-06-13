@@ -34,7 +34,7 @@ ClaudeOculomotorJax/
 ├── scratch/                   debug-only scripts (all diag_* and _*)    ← from scripts/
 ├── data/                      request DB — gitignored (OneDrive risk accepted; via OCULOMOTOR_DATA)
 ├── outputs/                   other generated run artifacts (gitignored)
-├── tests/  manuscript/  references/   (references = renamed papers/)
+├── tests/  manuscripts/  references/   (references = renamed papers/)
 ├── docs/                      (optional) real human docs — design notes, MAP
 └── root: pyproject.toml LICENSE CLAUDE.md MAP.md REORG_PLAN.md server.ps1
 ```
@@ -100,7 +100,8 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
       override `OCULOMOTOR_DATA` to relocate (e.g. off OneDrive) or unify. **NOTE:** the old shared
       `~/oculomotor_outputs` DB is no longer read — copy it into `data/` if you want the prior history.
 - [x] **`papers/` → `references/`** — DONE (pure rename, no code refs).
-- [ ] **`docs/`** now free — optional human-docs home (could absorb `OVAR_DIAGNOSIS_NOTES.md`,
+- [x] **`manuscript/` → `manuscripts/`** — DONE; `OVAR_DIAGNOSIS_NOTES.md` moved into it (it's notes/writing).
+- [ ] **`docs/`** now free — optional human-docs home (could absorb
       `EXPERIMENTS.md`, `web/cerebellum.md`, `web/plant_compensation.md` — the last is referenced by
       `final_common_pathway.py:100`, update if moved).
 

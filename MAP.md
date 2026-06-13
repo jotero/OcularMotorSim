@@ -14,10 +14,10 @@
 | **The model** | [src/oculomotor/](src/oculomotor/) | JAX simulation: sensory → brain → plant. Per-module detail in [CLAUDE.md](CLAUDE.md). |
 | **Architecture & conventions** | [CLAUDE.md](CLAUDE.md) | The deep reference: state layout, SSM contract, signal flow, units. |
 | **Benches** | [benchmarks/](src/oculomotor/benchmarks/) `bench_*.py` | One per behavior; run `python -m oculomotor.benchmarks.bench_<area>`. |
-| **Theory / the "why"** | [manuscript/](manuscript/) + a few [docs/](docs/) notes | The scientific arguments behind the design (see §3). |
+| **Theory / the "why"** | [manuscripts/](manuscripts/) + a few [docs/](docs/) notes | The scientific arguments behind the design (see §3). |
 | **Benchmarks & generated docs** | [docs/](docs/) | Spec ([BENCHMARKS.md](docs/BENCHMARKS.md)), gallery + parameters/states HTML. |
 | **LLM pipeline & server** | [llm_pipeline/](src/oculomotor/llm_pipeline/), [server/](src/oculomotor/server/) | Plain-English → simulation; web app + request DB. Run: `.\server.ps1 dev`. |
-| **Active plans & logs** | root `*.md` | [REORG_PLAN.md](REORG_PLAN.md) (target repo layout + packaging model), [EXPERIMENTS.md](EXPERIMENTS.md), [OVAR_DIAGNOSIS_NOTES.md](OVAR_DIAGNOSIS_NOTES.md). |
+| **Active plans & logs** | root `*.md` | [REORG_PLAN.md](REORG_PLAN.md) (target repo layout + packaging model), [EXPERIMENTS.md](EXPERIMENTS.md), [OVAR_DIAGNOSIS_NOTES.md](manuscripts/OVAR_DIAGNOSIS_NOTES.md). |
 | **Claude's working memory** | mirrored in §4 | Bug history + design rationale I carry across sessions. |
 
 ---
@@ -32,7 +32,7 @@ movements, otolith adaptation, sensory noise, gaze holding, accommodation, binoc
 **🔧 Current focus** —
 - Vergence: vergence saccades (**urgent**) + general vergence tuning → [vergence_focus](#4-claude-memory-mirror)
 - Post-saccadic oscillation (cerebellum forward model) → [ec_pre_delay_tradeoff](#4-claude-memory-mirror)
-- OVAR backwards modulation → [OVAR_DIAGNOSIS_NOTES.md](OVAR_DIAGNOSIS_NOTES.md)
+- OVAR backwards modulation → [OVAR_DIAGNOSIS_NOTES.md](manuscripts/OVAR_DIAGNOSIS_NOTES.md)
 
 **✅ Recently landed** — orbital limits (velocity-wall clamp in plant) + target selection / centering
 (clip + `e_center` folded into the saccade generator).
@@ -50,15 +50,15 @@ The scientific spine — *why* the code is shaped the way it is.
 
 | Note | Thesis |
 |---|---|
-| [manuscript.md](manuscript/manuscript.md) | **Main paper** — differentiable oculomotor model + LLM clinical interface |
-| [unified_oculomotor_template.md](manuscript/unified_oculomotor_template.md) | Only **two** architectures: a saccadic decision + one continuous-control template for everything else |
-| [push_pull_bayesian_readout.md](manuscript/push_pull_bayesian_readout.md) | Push-pull rectification = Bayesian MAP / soft-thresholding |
-| [saccade_triggers_as_kalman_gains.md](manuscript/saccade_triggers_as_kalman_gains.md) | Saccade trigger machinery = SPRT; trigger rates are Kalman gains |
-| [binocular_integrator_manuscript.md](manuscript/binocular_integrator_manuscript.md) | NI manifold imposes a Hering prior bounding strabismus compensation |
-| [steady_state_vergence.md](manuscript/steady_state_vergence.md) + [aca_cac_routing.md](manuscript/aca_cac_routing.md) | Near-response equilibrium + where AC/A · CA/C cross-links inject |
+| [manuscript.md](manuscripts/manuscript.md) | **Main paper** — differentiable oculomotor model + LLM clinical interface |
+| [unified_oculomotor_template.md](manuscripts/unified_oculomotor_template.md) | Only **two** architectures: a saccadic decision + one continuous-control template for everything else |
+| [push_pull_bayesian_readout.md](manuscripts/push_pull_bayesian_readout.md) | Push-pull rectification = Bayesian MAP / soft-thresholding |
+| [saccade_triggers_as_kalman_gains.md](manuscripts/saccade_triggers_as_kalman_gains.md) | Saccade trigger machinery = SPRT; trigger rates are Kalman gains |
+| [binocular_integrator_manuscript.md](manuscripts/binocular_integrator_manuscript.md) | NI manifold imposes a Hering prior bounding strabismus compensation |
+| [steady_state_vergence.md](manuscripts/steady_state_vergence.md) + [aca_cac_routing.md](manuscripts/aca_cac_routing.md) | Near-response equilibrium + where AC/A · CA/C cross-links inject |
 | [docs/cerebellum.md](docs/cerebellum.md) | Cerebellum = one prediction-error rule; setpoint is its constant-prediction limit |
 | [docs/plant_compensation.md](docs/plant_compensation.md) | Pulse-step cancels the plant LP (analytical) |
-| [sfn_abstract.md](manuscript/sfn_abstract.md) | SFN abstract draft |
+| [sfn_abstract.md](manuscripts/sfn_abstract.md) | SFN abstract draft |
 
 ---
 
@@ -78,7 +78,7 @@ Notes I keep in private memory (`~/.claude/.../memory/`) — normally invisible 
 |---|---|
 | Architecture / conventions | `CLAUDE.md` |
 | Navigation / status | `MAP.md` (this file) |
-| Scientific argument | `manuscript/*.md` |
+| Scientific argument | `manuscripts/*.md` |
 | Active design plan | root `PLAN_*.md` / `*_NOTES.md` |
 | Experiment results | `EXPERIMENTS.md` |
 | Bug history / Claude's memory | `~/.claude/.../memory/` (mirrored §4) |

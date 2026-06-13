@@ -2,7 +2,7 @@
 
 Drop-in replacement: same I/O signature as brain_model.step. Implements the
 unified continuous-control template developed in
-manuscript/unified_oculomotor_template.md.
+manuscripts/unified_oculomotor_template.md.
 
 Architecture:
 

@@ -152,7 +152,7 @@ Everything runnable now lives in the package and runs as a module (or console sc
   (gen_parameters, gen_states, run_benchmarks, run_clinical_benchmarks, freeze_reference, sweep_occlusion, block_diagram).
 
 Debug/diagnostic scripts (`diag_*`, `_*`) live in **`scratch/`** (tracked, unmaintained — see `scratch/README.md`).
-Reference literature PDFs are in **`references/`** (was `papers/`); your own writing is in `manuscript/`.
+Reference literature PDFs are in **`references/`** (was `papers/`); your own writing is in `manuscripts/`.
 
 ### State structure (binocular)
 
@@ -332,7 +332,7 @@ Each behavior has a corresponding demo script and output figure.
   - **Saccadic suppression** — visual gate threshold/steepness on cerebellar EC during saccade (commit `0d09a28`). Used to tune the post-saccadic settling window.
   - **Exact plant forward model** — explored inside cerebellum (commits `b8722b7`, `9c33f47`); current code rotates predicted velocity through `ec_pos = NI_net` rather than running a separate MN/plant copy, since Robinson pulse-step already cancels the plant LP to ~5 ms residual.
   - **BrainState refactor** — brain state is now a NamedTuple of subsystem `State` NamedTuples (no flat array, no `_IDX_*` slice constants). Diffrax handles PyTrees natively.
-  - **Unified brain (experimental)** — [`unified_brain.py`](src/oculomotor/models/brain_models/unified_brain.py) is a matrix-form rewrite of `brain_model.step` aligned with `manuscript/unified_oculomotor_template.md`. Active experiment; **not the canonical brain**. Swap in via `simulator.set_brain_step(unified_brain.step)`.
+  - **Unified brain (experimental)** — [`unified_brain.py`](src/oculomotor/models/brain_models/unified_brain.py) is a matrix-form rewrite of `brain_model.step` aligned with `manuscripts/unified_oculomotor_template.md`. Active experiment; **not the canonical brain**. Swap in via `simulator.set_brain_step(unified_brain.step)`.
 
 - **Active debugging (2026-05-25)** — explicitly flagged by user:
   - **Post-saccadic oscillation** — small residual, cerebellum forward-model + suppression-gate combo has helped but not fully closed it. See `project_ec_pre_delay_tradeoff.md`.
