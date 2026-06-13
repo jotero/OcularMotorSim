@@ -141,13 +141,12 @@ src/oculomotor/
 ### scripts/
 
 During the reorg most of `scripts/` has moved into the package. Current `scripts/` holds only the
-server cluster + debug:
+server cluster:
 ```
 scripts/
 ├── server.py               FastAPI web server (+ gen_admin.py) — moves → oculomotor/server/ (pending deploy-path decision)
 ├── simulate.py             Thin shim → oculomotor.llm_pipeline.cli.main()
-├── run_recovery.py         Parameter-recovery experiment (→ scratch/ or fitting later)
-├── diag_*.py / _*.py       Debug/diagnostic scratch (→ scratch/ later)
+└── run_recovery.py         Parameter-recovery experiment (→ scratch/ or fitting later)
 ```
 Moved into the package (run as modules):
 - **Benchmarks** → `oculomotor/benchmarks/` — `python -m oculomotor.benchmarks.bench_<area>`
@@ -155,6 +154,9 @@ Moved into the package (run as modules):
   bench_clinical[_cerebellum|_cn_palsies|_ni_vs|_saccades|_vergence|_vestibular]). Figures → `web/` cache.
 - **Report/cache builders** → `oculomotor/reports/` — `python -m oculomotor.reports.<name>`
   (gen_parameters, gen_states, run_benchmarks, run_clinical_benchmarks, freeze_reference, sweep_occlusion, block_diagram).
+
+Debug/diagnostic scripts (`diag_*`, `_*`) live in **`scratch/`** (tracked, unmaintained — see `scratch/README.md`).
+Reference literature PDFs are in **`references/`** (was `papers/`); your own writing is in `manuscript/`.
 
 ### State structure (binocular)
 

@@ -89,11 +89,12 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
 
 ## §3 — debug + small cleanups
 
-- [ ] **`scratch/`** — move all `diag_*` (15) and `_*` (8). OPEN: track quarantined, or gitignore,
-      or delete the dead `*2/*3` duplicates (`_diag_noise2/3`, `_diag_sg2/3`, `diag_vergence2`)? Default: track.
+- [x] **`scratch/`** — moved all `diag_*` + `_*` (22 files), tracked, + `scratch/README.md`. DONE.
+      (Kept the dead `*2/*3` duplicates for now — prune later.)
 - [ ] **`data/`** (was empty) — becomes the request-DB home, gitignored. Server reads `OCULOMOTOR_DATA`
       (default `<repo>/data`). Dev and stable get separate DBs (separate dirs); override to unify if wanted.
-- [ ] **`papers/` → `references/`** — pure rename, no code refs.
+      *(Pending the server move / deploy-path decision.)*
+- [x] **`papers/` → `references/`** — DONE (pure rename, no code refs).
 - [ ] **`docs/`** now free — optional human-docs home (could absorb `OVAR_DIAGNOSIS_NOTES.md`,
       `EXPERIMENTS.md`, `web/cerebellum.md`, `web/plant_compensation.md` — the last is referenced by
       `final_common_pathway.py:100`, update if moved).
