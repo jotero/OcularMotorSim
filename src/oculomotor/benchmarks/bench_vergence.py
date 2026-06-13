@@ -10,7 +10,7 @@ Usage:
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import bench_utils as utils
+from oculomotor.benchmarks import bench_utils as utils
 
 import numpy as np
 import jax.numpy as jnp

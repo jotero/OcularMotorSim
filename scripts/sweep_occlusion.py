@@ -18,7 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).parent))
-import bench_experiments as be
+from oculomotor.benchmarks import bench_experiments as be
 from oculomotor.analysis import extract_spv_states
 
 

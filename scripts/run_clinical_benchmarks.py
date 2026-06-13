@@ -20,8 +20,8 @@ import datetime
 import importlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import bench_clinical_utils as utils
-import bench_utils
+from oculomotor.benchmarks import bench_clinical_utils as utils
+from oculomotor.benchmarks import bench_utils
 import oculomotor
 
 SHOW      = '--show' in sys.argv
@@ -240,7 +240,7 @@ def main():
     sections_data = []
 
     for mod_name in MODULES:
-        mod = importlib.import_module(mod_name)
+        mod = importlib.import_module(f'oculomotor.benchmarks.{mod_name}')
         if HTML_ONLY:
             figs = []
             for attr in ['FIGURES', '_FIGS']:

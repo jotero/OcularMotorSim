@@ -1,23 +1,18 @@
-"""Shared utilities for benchmark scripts (scripts/bench_*.py).
+"""Shared utilities for the benchmark suite (oculomotor/benchmarks/bench_*.py).
 
-Output directory: web/figures/   (images)
-HTML report:      web/index.html
+Output directory: web/benchmarks/figures/   (images)
+HTML report:      web/benchmarks/index.html
 """
 
 import os
-import sys
 import datetime
 
-_SCRIPTS = os.path.dirname(os.path.abspath(__file__))
-_ROOT    = os.path.normpath(os.path.join(_SCRIPTS, '..'))
-_SRC     = os.path.join(_ROOT, 'src')
-_DOCS    = os.path.join(_ROOT, 'web')
+# bench_utils.py lives at src/oculomotor/benchmarks/ → repo root is 3 levels up.
+# Figures are written into the repo-level web/ cache.
+_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
+_DOCS = os.path.join(_ROOT, 'web')
 
-for _p in [_SCRIPTS, _SRC]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-import oculomotor  # noqa: E402
+import oculomotor
 
 DOCS_DIR  = _DOCS
 BENCH_DIR = os.path.join(_DOCS, 'benchmarks')

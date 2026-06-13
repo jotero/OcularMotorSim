@@ -18,7 +18,7 @@ import datetime
 import importlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import bench_utils as utils
+from oculomotor.benchmarks import bench_utils as utils
 import oculomotor
 
 SHOW      = '--show' in sys.argv
@@ -256,7 +256,7 @@ def main():
     sections_data = []
 
     for mod_name in MODULES:
-        mod = importlib.import_module(mod_name)
+        mod = importlib.import_module(f'oculomotor.benchmarks.{mod_name}')
         if HTML_ONLY:
             # Rebuild HTML without re-running simulations.
             # Each script still has SECTION + figure stubs with fixed paths.

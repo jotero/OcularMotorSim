@@ -33,14 +33,16 @@ Do **not** reimplement the logic.
 Always use `-X utf8` to avoid Windows cp1252 encoding errors (Greek letters in print statements crash otherwise):
 
 ```bash
-"d:/OneDrive/UC Berkeley/OMlab - JOM/Code/ClaudeOculomotorJax/.venv/Scripts/python.exe" -X utf8 scripts/bench_vor_okr.py
+"d:/OneDrive/UC Berkeley/OMlab - JOM/Code/ClaudeOculomotorJax/.venv/Scripts/python.exe" -X utf8 -m oculomotor.benchmarks.bench_vor_okr
 ```
 
 Or from PowerShell:
 
 ```powershell
-& "d:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\.venv\Scripts\python.exe" -X utf8 scripts\bench_vor_okr.py
+& "d:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\.venv\Scripts\python.exe" -X utf8 -m oculomotor.benchmarks.bench_vor_okr
 ```
+
+(Benchmarks live in `src/oculomotor/benchmarks/` and run as modules: `-m oculomotor.benchmarks.bench_<area>`.)
 
 ## Stimulus conventions
 
@@ -139,16 +141,9 @@ src/oculomotor/
 scripts/
 ├── simulate.py             Thin shim → oculomotor.llm_pipeline.cli.main()
 ├── server.py               FastAPI web server — LLM pipeline + logging + feedback + download
-├── bench_vor_okr.py        VOR / VVOR / OKN bench (Raphan Fig. 9 + cascade plots)
-├── bench_saccades.py       Saccade main sequence, oblique, refractoriness, cascade
-├── bench_pursuit.py        Smooth pursuit velocity range, sinusoidal, cascade
-├── bench_fixation.py       Fixational eye movements
-├── bench_vergence.py       Vergence step + sustained
-├── bench_accommodation.py  Accommodation step responses
-├── bench_gravity.py        OCR / tilt suppression / OVAR
-├── bench_listing.py        Listing's-law torsion checks
-├── bench_tvor.py           Translational VOR
-├── bench_clinical_*.py     Clinical paradigms (cerebellum, CN palsies, NI/VS, vergence, vestibular, saccades)
+│   (bench_*.py moved → src/oculomotor/benchmarks/ — run via `python -m oculomotor.benchmarks.bench_<area>`:
+│    vor_okr, saccades, pursuit, fixation, vergence, accommodation, gravity, listing, tvor, experiments,
+│    and bench_clinical[_cerebellum|_cn_palsies|_ni_vs|_saccades|_vergence|_vestibular]. Figures → web/ cache.)
 ├── diag_vergence*.py       Vergence diagnostics
 └── _bench_dt.py            Numerical-stability sweep (private)
 ```
@@ -298,27 +293,27 @@ The version string is logged with every server simulation call.
 Each behavior has a corresponding demo script and output figure.
 
 1. **VOR in the dark** — eye velocity ≈ −head velocity; gain ~0.9–1.0. Canal adaptation TC (~5 s) causes the VOR to decay during sustained rotation; velocity storage extends the effective TC to ~15–20 s.
-   - Demo: `scripts/bench_vor_okr.py` → `outputs/vor_dark.png`
+   - Demo: `oculomotor/benchmarks/bench_vor_okr.py` → `outputs/vor_dark.png`
 
 2. **Velocity storage / TC extension** — during constant-velocity rotation in the dark, eye velocity decays with TC ~15–20 s (not the canal TC of ~5 s). VVOR: in a stationary lit world, OKR corrects VOR slip as the canal adapts — gaze stays stable throughout.
-   - Demo: `scripts/bench_vor_okr.py` → `outputs/vvor.png`
+   - Demo: `oculomotor/benchmarks/bench_vor_okr.py` → `outputs/vvor.png`
 
 3. **OKN + OKAN** — during full-field visual motion, steady-state OKN gain ≈ 1. After scene off, OKAN persists with TC ~20 s (`tau_vs`). With saccades on, eye shows sawtooth nystagmus.
-   - Demo: `scripts/bench_vor_okr.py` → `outputs/okr.png`
+   - Demo: `oculomotor/benchmarks/bench_vor_okr.py` → `outputs/okr.png`
 
 4. **Saccades — main sequence + refractory period** — peak velocity follows `v_peak ≈ 700·(1−exp(−A/7))`, saturating ~600–700 deg/s. Robust intersaccadic interval (~150–200 ms). Oblique saccades straight with synchronized components.
-   - Demo: `scripts/bench_saccades.py` → `outputs/saccade_summary.png`
+   - Demo: `oculomotor/benchmarks/bench_saccades.py` → `outputs/saccade_summary.png`
 
 5. **Smooth pursuit** — foveal target tracking via MT/MST velocity pathway. Pursuit integrator + Smith predictor (efference copy cancels saccadic contamination). Catch-up saccades fire when position error exceeds threshold during ramp pursuit.
-   - Demo: `scripts/bench_pursuit.py` → `outputs/smooth_pursuit.png`
+   - Demo: `oculomotor/benchmarks/bench_pursuit.py` → `outputs/smooth_pursuit.png`
 
 6. **Saccades during head movement** — corrective saccades fire periodically as VOR slip accumulates; staircase toward target.
-   - Demo: `scripts/bench_saccades.py` → `outputs/vor_saccade_cascade.png`
+   - Demo: `oculomotor/benchmarks/bench_saccades.py` → `outputs/vor_saccade_cascade.png`
 
 7. **Efference copy** — burst commands must not contaminate VS/OKR. Verified inside the VOR/OKR cascade plot in `bench_vor_okr.py` and the saccade cascade in `bench_saccades.py`.
 
 8. **Fixational eye movements** — canal noise filtered by VS/NI/plant; retinal position OU drift produces sparse corrective microsaccades; retinal velocity noise drives pursuit-like slow drift.
-   - Demo: `scripts/bench_fixation.py` → `outputs/fixation.png`
+   - Demo: `oculomotor/benchmarks/bench_fixation.py` → `outputs/fixation.png`
 
 ## Current status (2026-05-25)
 

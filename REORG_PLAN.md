@@ -72,8 +72,10 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
       - Repointed readers `patient_builder`, `server`, `gen_parameters`, `gen_states` via `importlib.resources.files`.
       - **Removed the `patient_builder` parent-walk leak** (reads its own package data); verified.
       - `pyproject.toml`: added `[tool.setuptools.package-data] "oculomotor.schema"=["*.yaml"]` + `pyyaml` to extras.
-- [ ] **2.3 `scripts/bench_*` → `src/oculomotor/benchmarks/`** (incl. `bench_utils`, `bench_clinical_utils`).
-      - Figure OUTPUT still goes to the `web/` cache; only the *code* moves.
+- [x] **2.3 `scripts/bench_*` → `src/oculomotor/benchmarks/`** (19 files incl. `bench_utils`, `bench_clinical_utils`). DONE.
+      - Rewired `import bench_utils as utils` → `from oculomotor.benchmarks import ...`; killed the `sys.path` hack;
+        repo-root path now 3-up; `run_benchmarks`/`run_clinical`/`sweep_occlusion` import via `oculomotor.benchmarks.*`.
+      - Run via `python -m oculomotor.benchmarks.bench_<area>`; figures still → `web/` cache. Verified imports.
 - [ ] **2.4 generators/orchestrators → `src/oculomotor/reports/`**
       (`gen_parameters`, `gen_states`, `gen_admin`, `run_benchmarks`, `run_clinical_benchmarks`,
       `run_recovery`, `freeze_reference`, `sweep_occlusion`, `block_diagram`).

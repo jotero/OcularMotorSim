@@ -1,4 +1,4 @@
-"""Shared utilities for clinical benchmark scripts (scripts/bench_clinical_*.py).
+"""Shared utilities for the clinical benchmark suite (oculomotor/benchmarks/bench_clinical_*.py).
 
 Output directory: web/clinical_benchmarks/figures/   (images)
 HTML report:      web/clinical_benchmarks/index.html
@@ -7,19 +7,13 @@ Mirrors bench_utils.py but writes to a separate web/clinical_benchmarks/ tree.
 """
 
 import os
-import sys
 import datetime
 
-_SCRIPTS = os.path.dirname(os.path.abspath(__file__))
-_ROOT    = os.path.normpath(os.path.join(_SCRIPTS, '..'))
-_SRC     = os.path.join(_ROOT, 'src')
-_DOCS    = os.path.join(_ROOT, 'web')
+# bench_clinical_utils.py lives at src/oculomotor/benchmarks/ → repo root is 3 levels up.
+_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
+_DOCS = os.path.join(_ROOT, 'web')
 
-for _p in [_SCRIPTS, _SRC]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-import oculomotor  # noqa: E402
+import oculomotor
 
 DOCS_DIR  = _DOCS
 BENCH_DIR = os.path.join(_DOCS, 'clinical_benchmarks')
@@ -42,7 +36,7 @@ def save_fig(fig, name, show=False, dpi=150, params=None, conditions=None):
     string is embedded just above it.  Delegates the diff logic to bench_utils.
     """
     import matplotlib.pyplot as plt
-    import bench_utils as _bu
+    from oculomotor.benchmarks import bench_utils as _bu
     os.makedirs(FIGS_DIR, exist_ok=True)
 
     ts  = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
