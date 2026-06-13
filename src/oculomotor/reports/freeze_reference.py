@@ -26,7 +26,7 @@ import shutil
 import sys
 
 # Repo-relative paths
-_REPO   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REPO   = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 _DIRS = {
     "main":     {
         "figs": os.path.join(_REPO, "web", "benchmarks",          "figures"),

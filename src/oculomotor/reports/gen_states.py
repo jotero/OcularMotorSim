@@ -20,7 +20,7 @@ import yaml
 
 
 from importlib.resources import files as _files
-_REPO = Path(__file__).resolve().parent.parent
+_REPO = Path(__file__).resolve().parents[3]   # reports → oculomotor → src → repo
 _YAML = _files('oculomotor.schema') / 'states_schema.yaml'
 _HTML = _REPO / 'web' / 'states.html'
 

@@ -17,12 +17,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, str(Path(__file__).parent))
 from oculomotor.benchmarks import bench_experiments as be
 from oculomotor.analysis import extract_spv_states
 
 
-SWEEP_DIR = Path(__file__).resolve().parents[1] / 'web' / 'experiments' / 'figures' / 'sweep'
+SWEEP_DIR = Path(__file__).resolve().parents[3] / 'web' / 'experiments' / 'figures' / 'sweep'
 SWEEP_DIR.mkdir(parents=True, exist_ok=True)
 
 

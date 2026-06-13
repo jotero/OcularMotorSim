@@ -76,10 +76,12 @@ Order matters (imports). Each move: `git mv`, then repoint imports, then verify.
       - Rewired `import bench_utils as utils` → `from oculomotor.benchmarks import ...`; killed the `sys.path` hack;
         repo-root path now 3-up; `run_benchmarks`/`run_clinical`/`sweep_occlusion` import via `oculomotor.benchmarks.*`.
       - Run via `python -m oculomotor.benchmarks.bench_<area>`; figures still → `web/` cache. Verified imports.
-- [ ] **2.4 generators/orchestrators → `src/oculomotor/reports/`**
-      (`gen_parameters`, `gen_states`, `gen_admin`, `run_benchmarks`, `run_clinical_benchmarks`,
-      `run_recovery`, `freeze_reference`, `sweep_occlusion`, `block_diagram`).
-      - These WRITE into `web/` (the cache). Keep their output paths pointing at `web/…`.
+- [x] **2.4 web-cache builders → `src/oculomotor/reports/`** (7 files). DONE.
+      - Moved `gen_parameters`, `gen_states`, `run_benchmarks`, `run_clinical_benchmarks`,
+        `freeze_reference`, `sweep_occlusion`, `block_diagram`. Repo-root paths now 3-up; `sys.path`
+        hacks removed; `run_benchmarks` imports `gen_parameters` via `oculomotor.reports`. Verified imports.
+      - **Excluded:** `gen_admin` (server-coupled → moves with `server`); `run_recovery` (a fitting
+        experiment, not a cache builder → `scratch`/fitting later). Both remain in `scripts/` for now.
 - [ ] **2.5 `scripts/simulate.py` shim** → console script `oculomotor-simulate` → `llm_pipeline.cli:main`
       (or `python -m oculomotor.llm_pipeline.cli`). Then `scripts/` is empty → remove it.
 

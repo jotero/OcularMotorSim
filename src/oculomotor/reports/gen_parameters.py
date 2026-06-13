@@ -456,7 +456,8 @@ def _build_html(brain_fields, sensory_fields, plant_fields, schema_path,
 
 def main():
     from importlib.resources import files
-    repo_root  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # reports/gen_parameters.py → repo root is 3 dirs up (reports → oculomotor → src → repo).
+    repo_root  = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
     schema_yml = str(files("oculomotor.schema") / "parameters_schema.yaml")
     out_path   = os.path.join(repo_root, "web", "parameters.html")
 

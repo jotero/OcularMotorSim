@@ -126,6 +126,9 @@ src/oculomotor/
 │       ├── patient_builder.py         YAML-driven Patient construction
 │       ├── run.py                     Stimulus builder + simulator wiring + figure generator (run_scenario)
 │       └── cli.py                     Command-line entry point (main)
+├── benchmarks/                       Validation suite (bench_*); run: python -m oculomotor.benchmarks.bench_<area>
+├── reports/                          Web-cache builders (gen_parameters/states, run_*benchmarks, freeze_reference, sweep_occlusion, block_diagram)
+├── schema/                           Bundled config yaml as package-data (parameters_schema, states_schema)
 └── sim/
     ├── simulator.py                   ODE wiring + simulate() entry point.
     │                                   Brain step is swappable via set_brain_step()
@@ -137,16 +140,21 @@ src/oculomotor/
 
 ### scripts/
 
+During the reorg most of `scripts/` has moved into the package. Current `scripts/` holds only the
+server cluster + debug:
 ```
 scripts/
+├── server.py               FastAPI web server (+ gen_admin.py) — moves → oculomotor/server/ (pending deploy-path decision)
 ├── simulate.py             Thin shim → oculomotor.llm_pipeline.cli.main()
-├── server.py               FastAPI web server — LLM pipeline + logging + feedback + download
-│   (bench_*.py moved → src/oculomotor/benchmarks/ — run via `python -m oculomotor.benchmarks.bench_<area>`:
-│    vor_okr, saccades, pursuit, fixation, vergence, accommodation, gravity, listing, tvor, experiments,
-│    and bench_clinical[_cerebellum|_cn_palsies|_ni_vs|_saccades|_vergence|_vestibular]. Figures → web/ cache.)
-├── diag_vergence*.py       Vergence diagnostics
-└── _bench_dt.py            Numerical-stability sweep (private)
+├── run_recovery.py         Parameter-recovery experiment (→ scratch/ or fitting later)
+├── diag_*.py / _*.py       Debug/diagnostic scratch (→ scratch/ later)
 ```
+Moved into the package (run as modules):
+- **Benchmarks** → `oculomotor/benchmarks/` — `python -m oculomotor.benchmarks.bench_<area>`
+  (vor_okr, saccades, pursuit, fixation, vergence, accommodation, gravity, listing, tvor, experiments,
+  bench_clinical[_cerebellum|_cn_palsies|_ni_vs|_saccades|_vergence|_vestibular]). Figures → `web/` cache.
+- **Report/cache builders** → `oculomotor/reports/` — `python -m oculomotor.reports.<name>`
+  (gen_parameters, gen_states, run_benchmarks, run_clinical_benchmarks, freeze_reference, sweep_occlusion, block_diagram).
 
 ### State structure (binocular)
 
@@ -342,9 +350,9 @@ Three generated HTML pages live under `web/`. Keep them in sync with code — bu
 
 | Page | Generator | Regen trigger |
 |---|---|---|
-| `web/parameters.html` | `scripts/gen_parameters.py` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `oculomotor/schema/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
-| `web/states.html` | `scripts/gen_states.py` | Any `State` NamedTuple gains/loses a field, any subsystem's `N_STATES` changes, or a new subsystem joins `BrainState`. |
-| `web/index.html` (bench gallery) | `scripts/run_benchmarks.py` (figures + HTML) or `--html-only` (HTML only, reuses existing figures) | Run the **individual** `bench_<area>.py` for the area you changed, then `--html-only` to rebuild the index. Run the full suite only at milestones. |
+| `web/parameters.html` | `python -m oculomotor.reports.gen_parameters` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `oculomotor/schema/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
+| `web/states.html` | `python -m oculomotor.reports.gen_states` | Any `State` NamedTuple gains/loses a field, any subsystem's `N_STATES` changes, or a new subsystem joins `BrainState`. |
+| `web/index.html` (bench gallery) | `python -m oculomotor.reports.run_benchmarks` (figures + HTML) or `--html-only` (HTML only, reuses existing figures) | Run the **individual** `python -m oculomotor.benchmarks.bench_<area>` for the area you changed, then `--html-only` to rebuild the index. Run the full suite only at milestones. |
 
 **For me (Claude):** if I touch any `*Params` field or any `State` / `N_STATES`, propose regenerating the matching HTML before declaring the task done — but ask before launching the full bench suite. Don't silently regenerate everything just to be tidy.
 
