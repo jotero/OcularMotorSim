@@ -21,6 +21,11 @@ import traceback
 import datetime
 from pathlib import Path
 
+# app.py is at src/oculomotor/server/ → the checkout's repo root is 3 dirs up.
+# dev runs from the main checkout, stable from the om-stable worktree (own venv), so this
+# self-locates web/ + data/ to whichever checkout's package is imported.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # Serve .js (incl. ES modules like avatar.js) with a JavaScript MIME type.
 # On Windows the registry often maps .js → text/plain, which browsers REJECT
 # for `<script type="module">` (strict MIME checking) — breaking the 3D avatar.
@@ -29,7 +34,7 @@ mimetypes.add_type('text/javascript', '.mjs')
 
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(_REPO_ROOT / '.env')
 
 import matplotlib
 matplotlib.use('Agg')
@@ -47,7 +52,7 @@ from oculomotor.llm_pipeline.scenario import SimulationScenario, SimulationCompa
 from oculomotor.llm_pipeline.run import run_scenario, run_comparison
 from oculomotor.llm_pipeline.interpret import call_llm
 from oculomotor.llm_pipeline.patient_builder import Patient as _PatientCls
-from gen_admin import generate as _gen_admin
+from oculomotor.server.admin import generate as _gen_admin
 
 # YAML schema used to enrich patient-change diffs with anatomy / disorders.
 import yaml as _yaml
@@ -59,22 +64,22 @@ with _SCHEMA_PATH.open(encoding='utf-8') as _f:
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-# Data directory. Defaults to <repo>/outputs, but set OCULOMOTOR_OUTPUTS to a
-# shared, NON-OneDrive path so the dev (8001) and stable (8000) servers use one
-# database. (OneDrive syncing an actively-written outputs/ corrupts the log —
-# orphaned sidecars, vanished CSV rows.)
-_OUTPUTS_DIR = Path(os.environ.get('OCULOMOTOR_OUTPUTS') or (Path(__file__).parent.parent / 'outputs'))
-_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+# Request database. Each checkout owns its own data/ (this checkout's repo root),
+# so dev (main checkout) and stable (om-stable worktree) get SEPARATE databases.
+# Override with OCULOMOTOR_DATA (e.g. to a non-OneDrive path — OneDrive syncing an
+# actively-written log can corrupt it: orphaned sidecars, vanished CSV rows).
+_DATA_ROOT = Path(os.environ.get('OCULOMOTOR_DATA') or (_REPO_ROOT / 'data'))
+_DATA_ROOT.mkdir(parents=True, exist_ok=True)
 
-_FIGURES_DIR = _OUTPUTS_DIR / 'server_figures'
+_FIGURES_DIR = _DATA_ROOT / 'server_figures'
 _FIGURES_DIR.mkdir(exist_ok=True)
 
 # Per-run JSON sidecars: metadata + library-agnostic plot spec for client-side
 # rendering.  The CSV below remains the lightweight queryable index.
-_DATA_DIR = _OUTPUTS_DIR / 'data'
+_DATA_DIR = _DATA_ROOT / 'data'
 _DATA_DIR.mkdir(exist_ok=True)
 
-_LOG_FILE = _OUTPUTS_DIR / 'simulation_log.csv'
+_LOG_FILE = _DATA_ROOT / 'simulation_log.csv'
 
 _LOG_COLUMNS = [
     'timestamp', 'run_id', 'version', 'prompt', 'mode', 'title',
@@ -667,15 +672,16 @@ async def admin_redirect():
 
 # ── Static file mounts (specific paths before the catch-all /) ────────────────
 
-app.mount('/outputs', StaticFiles(directory=str(_OUTPUTS_DIR)), name='outputs')
+app.mount('/outputs', StaticFiles(directory=str(_DATA_ROOT)), name='outputs')
 
-_DOCS_DIR = Path(__file__).parent.parent / 'web'
-app.mount('/', StaticFiles(directory=str(_DOCS_DIR), html=True), name='frontend')
+# Frontend (web/): this checkout's web/ by default; override with OCULOMOTOR_WEB.
+_WEB_DIR = Path(os.environ.get('OCULOMOTOR_WEB') or (_REPO_ROOT / 'web'))
+app.mount('/', StaticFiles(directory=str(_WEB_DIR), html=True), name='frontend')
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-if __name__ == '__main__':
+def main():
     import uvicorn
 
     parser = argparse.ArgumentParser()
@@ -686,7 +692,12 @@ if __name__ == '__main__':
 
     print(f"\n  OculomotorSim {_SIM_VERSION} running at http://localhost:{args.port}")
     print(f"  Local network:  http://<your-ip>:{args.port}")
-    print(f"  Log:            {_LOG_FILE}")
+    print(f"  Web:            {_WEB_DIR}")
+    print(f"  Data:           {_DATA_ROOT}")
     print(f"  Ctrl+C to stop\n")
 
     uvicorn.run(app, host=args.host, port=args.port)
+
+
+if __name__ == '__main__':
+    main()

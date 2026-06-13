@@ -14,12 +14,13 @@ import json
 import os
 from pathlib import Path
 
-# Mirror server.py: honor OCULOMOTOR_OUTPUTS so the admin reads/writes the same
-# (shared, non-OneDrive) data dir the server uses.
-_OUTPUTS_DIR = Path(os.environ.get('OCULOMOTOR_OUTPUTS') or (Path(__file__).parent.parent / 'outputs'))
-_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-_LOG_FILE    = _OUTPUTS_DIR / 'simulation_log.csv'
-_OUT_FILE    = _OUTPUTS_DIR / 'admin.html'
+# Mirror app.py: resolve the same data/ dir (OCULOMOTOR_DATA, else this checkout's
+# repo-root data/) so the admin reads/writes the server's database.
+_REPO_ROOT   = Path(__file__).resolve().parents[3]   # server → oculomotor → src → repo
+_DATA_ROOT   = Path(os.environ.get('OCULOMOTOR_DATA') or (_REPO_ROOT / 'data'))
+_DATA_ROOT.mkdir(parents=True, exist_ok=True)
+_LOG_FILE    = _DATA_ROOT / 'simulation_log.csv'
+_OUT_FILE    = _DATA_ROOT / 'admin.html'
 
 _LOG_COLUMNS = [
     'timestamp', 'run_id', 'version', 'prompt', 'mode', 'title',
@@ -505,7 +506,7 @@ def generate(rows: list[dict] | None = None) -> None:
     # Annotate each row (on a copy — never mutate the caller's log dicts, which
     # are written back to the fixed-column CSV) with whether a data sidecar
     # exists, so the page only fetches interactive data when there is some.
-    data_dir = _OUTPUTS_DIR / 'data'
+    data_dir = _DATA_ROOT / 'data'
     annotated = []
     for r in rows:
         rr = dict(r)
