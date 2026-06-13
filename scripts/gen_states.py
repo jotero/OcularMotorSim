@@ -1,6 +1,6 @@
-"""Generate docs/states.html — anatomical state / activation directory.
+"""Generate web/states.html — anatomical state / activation directory.
 
-Layered on docs/states_schema.yaml.  Sister page to parameters.html: groups
+Layered on schema/states_schema.yaml.  Sister page to parameters.html: groups
 each model state slice + key derived signal by anatomical subsystem,
 showing shape, units, anatomy, description, and references.
 
@@ -20,8 +20,8 @@ import yaml
 
 
 _REPO = Path(__file__).resolve().parent.parent
-_YAML = _REPO / 'docs' / 'states_schema.yaml'
-_HTML = _REPO / 'docs' / 'states.html'
+_YAML = _REPO / 'schema' / 'states_schema.yaml'
+_HTML = _REPO / 'web' / 'states.html'
 
 
 # ── HTML / CSS ────────────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ def _build_html(by_class):
   <h1>Model states &amp; activations</h1>
   <div class="meta">
     {n_total} entries · {n_llm} LLM-plottable ·
-    Source: <code>docs/states_schema.yaml</code> ·
+    Source: <code>schema/states_schema.yaml</code> ·
     Companion to <a href="parameters.html">parameters.html</a>.
   </div>
   <p style="font-size:13px;color:#444;margin-bottom:18px;">

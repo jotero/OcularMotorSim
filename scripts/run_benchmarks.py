@@ -1,4 +1,4 @@
-"""Run all benchmark scripts and generate docs/index.html.
+"""Run all benchmark scripts and generate web/index.html.
 
 Usage:
     python -X utf8 scripts/run_benchmarks.py           # run all sections
@@ -189,7 +189,7 @@ def _section_html(section_meta, figs):
 
 
 def generate_html(sections_data):
-    """Generate docs/index.html from list of (section_meta, figs) tuples."""
+    """Generate web/index.html from list of (section_meta, figs) tuples."""
     ts  = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     ver = oculomotor.__version__
 

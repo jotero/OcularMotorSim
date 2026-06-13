@@ -1,5 +1,5 @@
 """Parameter sweep over (AC_A, tonic_verg, tonic_acc, proximal_d) and save
-occlusion-summary plots for each combination into docs/experiments/figures/sweep/.
+occlusion-summary plots for each combination into web/experiments/figures/sweep/.
 
 Sweep:
     AC_A         : 2, 4
@@ -22,7 +22,7 @@ import bench_experiments as be
 from oculomotor.analysis import extract_spv_states
 
 
-SWEEP_DIR = Path(__file__).resolve().parents[1] / 'docs' / 'experiments' / 'figures' / 'sweep'
+SWEEP_DIR = Path(__file__).resolve().parents[1] / 'web' / 'experiments' / 'figures' / 'sweep'
 SWEEP_DIR.mkdir(parents=True, exist_ok=True)
 
 

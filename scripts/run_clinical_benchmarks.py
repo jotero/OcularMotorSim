@@ -1,4 +1,4 @@
-"""Run all clinical benchmark scripts and generate docs/clinical_benchmarks/index.html.
+"""Run all clinical benchmark scripts and generate web/clinical_benchmarks/index.html.
 
 Usage:
     python -X utf8 scripts/run_clinical_benchmarks.py           # run all sections
@@ -187,7 +187,7 @@ def _section_html(section_meta, figs):
 
 
 def generate_html(sections_data):
-    """Generate docs/clinical_benchmarks/index.html."""
+    """Generate web/clinical_benchmarks/index.html."""
     ts  = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     ver = oculomotor.__version__
 
@@ -215,7 +215,7 @@ def generate_html(sections_data):
     <p class="meta">
       Generated: <strong>{ts}</strong> &nbsp;|&nbsp;
       Version: <strong>{ver}</strong> &nbsp;|&nbsp;
-      <a href="../../docs/benchmarks/index.html">Normal Benchmarks</a>
+      <a href="../../web/benchmarks/index.html">Normal Benchmarks</a>
     </p>
     <div class="banner">
       &#9883; Clinical simulation suite — lesion models and pathological eye movement patterns.

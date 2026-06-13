@@ -1,8 +1,8 @@
-"""Runner — converts a SimulationScenario into a simulation + figure.
+"""run — converts a SimulationScenario into a simulation + figure.
 
 Entry point::
 
-    from oculomotor.llm_pipeline.runner import run_scenario
+    from oculomotor.llm_pipeline.run import run_scenario
     fig = run_scenario(scenario)      # returns matplotlib Figure
     fig.savefig('output.png', dpi=150, bbox_inches='tight')
 

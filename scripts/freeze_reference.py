@@ -1,6 +1,6 @@
 """Freeze the current state of bench figures as the regression reference.
 
-Copies PNGs from ``docs/<bench>/figures/`` to ``docs/<bench>/reference/`` so the
+Copies PNGs from ``web/<bench>/figures/`` to ``web/<bench>/reference/`` so the
 HTML report can show a side-by-side comparison and flag any drift on later runs.
 
 Usage:
@@ -29,12 +29,12 @@ import sys
 _REPO   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DIRS = {
     "main":     {
-        "figs": os.path.join(_REPO, "docs", "benchmarks",          "figures"),
-        "ref":  os.path.join(_REPO, "docs", "benchmarks",          "reference"),
+        "figs": os.path.join(_REPO, "web", "benchmarks",          "figures"),
+        "ref":  os.path.join(_REPO, "web", "benchmarks",          "reference"),
     },
     "clinical": {
-        "figs": os.path.join(_REPO, "docs", "clinical_benchmarks", "figures"),
-        "ref":  os.path.join(_REPO, "docs", "clinical_benchmarks", "reference"),
+        "figs": os.path.join(_REPO, "web", "clinical_benchmarks", "figures"),
+        "ref":  os.path.join(_REPO, "web", "clinical_benchmarks", "reference"),
     },
 }
 
@@ -87,9 +87,9 @@ def main():
     ap.add_argument("--all", action="store_true",
                     help="Freeze every PNG currently in the figures dir(s).")
     ap.add_argument("--main", action="store_true",
-                    help="Restrict to docs/benchmarks (main suite).")
+                    help="Restrict to web/benchmarks (main suite).")
     ap.add_argument("--clinical", action="store_true",
-                    help="Restrict to docs/clinical_benchmarks (clinical suite).")
+                    help="Restrict to web/clinical_benchmarks (clinical suite).")
     args = ap.parse_args()
 
     if args.main and args.clinical:

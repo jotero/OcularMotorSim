@@ -1,9 +1,9 @@
 """Shared utilities for clinical benchmark scripts (scripts/bench_clinical_*.py).
 
-Output directory: docs/clinical_benchmarks/figures/   (images)
-HTML report:      docs/clinical_benchmarks/index.html
+Output directory: web/clinical_benchmarks/figures/   (images)
+HTML report:      web/clinical_benchmarks/index.html
 
-Mirrors bench_utils.py but writes to a separate docs/clinical_benchmarks/ tree.
+Mirrors bench_utils.py but writes to a separate web/clinical_benchmarks/ tree.
 """
 
 import os
@@ -13,7 +13,7 @@ import datetime
 _SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 _ROOT    = os.path.normpath(os.path.join(_SCRIPTS, '..'))
 _SRC     = os.path.join(_ROOT, 'src')
-_DOCS    = os.path.join(_ROOT, 'docs')
+_DOCS    = os.path.join(_ROOT, 'web')
 
 for _p in [_SCRIPTS, _SRC]:
     if _p not in sys.path:
@@ -35,7 +35,7 @@ CLIN_HTML_PATH = HTML_PATH
 
 
 def save_fig(fig, name, show=False, dpi=150, params=None, conditions=None):
-    """Save figure to docs/clinical_benchmarks/figures/{name}.png; return (path, rel).
+    """Save figure to web/clinical_benchmarks/figures/{name}.png; return (path, rel).
 
     If `params` is provided, a one-line list of non-default overrides is embedded
     in the bottom-left.  If `conditions` is provided, a one-line stimulus-conditions

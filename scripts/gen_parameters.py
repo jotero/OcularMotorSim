@@ -1,8 +1,8 @@
-"""Generate ``docs/parameters.html`` from the live model parameter classes.
+"""Generate ``web/parameters.html`` from the live model parameter classes.
 
 Reads ``BrainParams``, ``SensoryParams``, ``PlantParams`` (canonical Python
 source of truth for defaults), pairs each field with the inline source-code
-comment, optionally enriches each field from ``docs/parameters_schema.yaml``
+comment, optionally enriches each field from ``schema/parameters_schema.yaml``
 (human-curated descriptions, anatomy, references, disorder tags), and emits a
 single HTML document.
 
@@ -14,7 +14,7 @@ Run:
     python -X utf8 scripts/gen_parameters.py
 
 Output:
-    docs/parameters.html
+    web/parameters.html
 """
 
 import datetime
@@ -363,7 +363,7 @@ def _build_html(brain_fields, sensory_fields, plant_fields, schema_path,
     if missing_keys:
         warn += (
             f'<div class="warning"><b>{len(missing_keys)} fields lack schema entries</b> '
-            'and are flagged TODO below. Add to <code>docs/parameters_schema.yaml</code> '
+            'and are flagged TODO below. Add to <code>schema/parameters_schema.yaml</code> '
             'to provide rich descriptions, anatomy, and disorder tags.</div>'
         )
     if stale_keys:
@@ -456,8 +456,8 @@ def _build_html(brain_fields, sensory_fields, plant_fields, schema_path,
 
 def main():
     repo_root  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    schema_yml = os.path.join(repo_root, "docs", "parameters_schema.yaml")
-    out_path   = os.path.join(repo_root, "docs", "parameters.html")
+    schema_yml = os.path.join(repo_root, "schema", "parameters_schema.yaml")
+    out_path   = os.path.join(repo_root, "web", "parameters.html")
 
     schema, schema_path = _load_schema(schema_yml)
     if not _HAS_YAML:

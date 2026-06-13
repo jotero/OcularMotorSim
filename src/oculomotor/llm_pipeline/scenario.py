@@ -180,7 +180,7 @@ class VisualFlagsSegment(BaseModel):
 
 # ── Patient (unchanged) ────────────────────────────────────────────────────────
 
-# ── Patient — auto-generated from docs/parameters_schema.yaml ──────────────────
+# ── Patient — auto-generated from schema/parameters_schema.yaml ──────────────────
 # The Patient Pydantic class (and its fields, defaults, descriptions, range
 # validators) is derived at import time from the YAML schema.  Adding/removing
 # the `disorders:` key on a YAML entry adds/removes the corresponding LLM-
@@ -192,7 +192,7 @@ from oculomotor.llm_pipeline.patient_builder import Patient
 Patient.__doc__ = """Model parameter overrides relative to healthy defaults.
 
 Only specify parameters that differ from the healthy default.  Leave all
-others at their defaults.  Auto-generated from docs/parameters_schema.yaml.
+others at their defaults.  Auto-generated from schema/parameters_schema.yaml.
 
 Gaze-evoked nystagmus (GEN) — IMPORTANT
 ----------------------------------------

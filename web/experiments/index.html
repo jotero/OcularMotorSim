@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OculomotorJax — Experiments</title>
+  <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: #f5f5f5; color: #222; display: flex; }
+nav  { width: 200px; min-height: 100vh; background: #1a1a2e; color: #eee;
+       padding: 20px 0; position: sticky; top: 0; flex-shrink: 0; }
+nav h2  { font-size: 13px; padding: 0 16px 12px; color: #aaa;
+          text-transform: uppercase; letter-spacing: 0.05em; }
+nav a   { display: block; padding: 8px 16px; color: #ccc; text-decoration: none;
+          font-size: 13px; border-left: 3px solid transparent; }
+nav a:hover { background: #2a2a4e; color: #fff; border-left-color: #9b59b6; }
+main { flex: 1; padding: 32px; max-width: 1400px; }
+h1   { font-size: 22px; margin-bottom: 4px; }
+.meta { font-size: 12px; color: #888; margin-bottom: 32px; }
+.section    { margin-bottom: 48px; }
+.section h2 { font-size: 18px; margin-bottom: 6px; border-bottom: 2px solid #9b59b6;
+              padding-bottom: 6px; }
+.section > p { font-size: 13px; color: #555; margin-bottom: 16px; }
+.fig-grid   { display: grid; grid-template-columns: repeat(auto-fill, minmax(580px, 1fr));
+              gap: 20px; }
+.fig-card   { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+              padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.fig-card a img { width: 100%; border-radius: 4px; display: block;
+                  border: 1px solid #eee; cursor: zoom-in; }
+.fig-card h3 { font-size: 14px; margin: 12px 0 6px; }
+.fig-card .desc { font-size: 12px; color: #555; margin-bottom: 8px; }
+.expected   { background: #f5eeff; border-left: 3px solid #9b59b6;
+              padding: 8px 10px; font-size: 12px; border-radius: 0 4px 4px 0;
+              margin-bottom: 8px; }
+.expected strong { display: block; font-size: 11px; color: #888;
+                   text-transform: uppercase; margin-bottom: 2px; }
+.citation   { font-size: 11px; color: #888; font-style: italic; }
+.badge      { display: inline-block; padding: 2px 8px; border-radius: 12px;
+              font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+              text-transform: uppercase; margin-top: 8px; }
+.badge.behavior { background: #d4edda; color: #155724; }
+.badge.cascade  { background: #cce5ff; color: #004085; }
+</style>
+</head>
+<body>
+  <nav>
+    <h2 style="margin-bottom:4px;">Pages</h2>
+    <a href="../../web">LLM Simulator</a>
+    <a href="../benchmarks">Benchmarks</a>
+    <a href="../clinical_benchmarks">Clinical Benchmarks</a>
+    <a href="../parameters.html">Parameters</a>
+    <div style="border-top:1px solid #2a2a4e;margin:10px 0 8px;"></div>
+    <h2>Experiments</h2>
+    <a href="#monocular_occlusion_—_from_convergence">Monocular occlusion — from convergence</a>
+    <a href="#monocular_occlusion_—_from_divergence">Monocular occlusion — from divergence</a>
+    <a href="#occlusion_summary_—_vergence_and_version_spv">Occlusion summary — vergence and version SPV</a>
+    <a href="#fixation_drift_quiver_—_noise_on_vs_off">Fixation Drift Quiver — noise on vs off</a>
+  </nav>
+  <main>
+    <h1>OculomotorJax — Experiments</h1>
+    <p class="meta">
+      Generated: <strong>2026-05-09 14:12</strong> &nbsp;|&nbsp;
+      Version: <strong>edae5d8-dirty</strong>
+    </p>
+    <section class="section">
+      <h2>Experimental</h2>
+      <p>Exploratory paradigms: monocular occlusion, binocular fixation maintenance, fixation drift quiver across visual field.</p>
+      <div class="fig-grid">
+        
+    <div class="fig-card">
+      <a href="figures/occlusion_from_convergence.png" target="_blank"><img src="figures/occlusion_from_convergence.png" alt="Monocular occlusion — from convergence"></a>
+      <h3>Monocular occlusion — from convergence</h3>
+      <p class="desc">Near binocular fixation (25 cm) with +3 D plus lens; resting tonic vergence +15° (convergent), dark drift to +25°.</p>
+      <div class="expected"><strong>Expected behavior</strong>Eyes converged on near target during binocular phase; tonic is also convergent so drift during occlusion is small; dark → drift to ~+25°.</div>
+      <p class="citation">&#128214; Typical clinical dissociated nystagmus / monocular occlusion paradigm</p>
+      <span class="badge behavior">behavior</span>
+    </div>
+
+    <div class="fig-card">
+      <a href="figures/occlusion_from_divergence.png" target="_blank"><img src="figures/occlusion_from_divergence.png" alt="Monocular occlusion — from divergence"></a>
+      <h3>Monocular occlusion — from divergence</h3>
+      <p class="desc">Far binocular fixation (10 m) with -1 D minus lens; tonic vergence fixed at +20° in all conditions (no light/dark shift).</p>
+      <div class="expected"><strong>Expected behavior</strong>Eyes near-parallel during binocular phase; after occlusion all three conditions drift toward the same tonic +20°. Difference between continuous/flashing/dark is purely from how strongly visual input pulls the slow integrator off its setpoint.</div>
+      <p class="citation">&#128214; Typical clinical dissociated nystagmus / monocular occlusion paradigm</p>
+      <span class="badge behavior">behavior</span>
+    </div>
+
+    <div class="fig-card">
+      <a href="figures/occlusion_summary.png" target="_blank"><img src="figures/occlusion_summary.png" alt="Occlusion summary — vergence and version SPV"></a>
+      <h3>Occlusion summary — vergence and version SPV</h3>
+      <p class="desc">Vergence SPV (conv-flipped, averaged with div) and version SPV (averaged) across L/R viewing eyes per occlusion condition. Time origin = occlusion onset.</p>
+      <div class="expected"><strong>Expected behavior</strong>Vergence SPV: dark > flashing > continuous (drift toward tonic). Version SPV: small, mostly symmetric — non-zero drift indicates monocular bias residual after averaging.</div>
+      <p class="citation">&#128214; Composite of from-convergence and from-divergence occlusion paradigms</p>
+      <span class="badge behavior">behavior</span>
+    </div>
+
+    <div class="fig-card">
+      <a href="figures/fixation_drift_quiver.png" target="_blank"><img src="figures/fixation_drift_quiver.png" alt="Fixation Drift Quiver — noise on vs off"></a>
+      <h3>Fixation Drift Quiver — noise on vs off</h3>
+      <p class="desc">Mean slow-phase drift at 17 fixation positions over 5 s each, compared with default sensory noise vs all noise sigmas zeroed. Origin + 8 directions × 5°/10° eccentricity.</p>
+      <div class="expected"><strong>Expected behavior</strong>Noise-on: drift magnitudes typically <1 deg/s at all positions, slightly centripetal at eccentric positions. Noise-off: residual drift is from deterministic dynamics (NI leak, plant) and should be near zero at primary, with small centripetal pull at eccentricity.</div>
+      <p class="citation">&#128214; Cherici et al. (2012) J Vis 12(6):31; Martinez-Conde & Macknik 2017 Neuron.</p>
+      <span class="badge behavior">behavior</span>
+    </div>
+      </div>
+    </section>
+  </main>
+  
+<div id="lb" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+     background:rgba(0,0,0,.85);z-index:1000;cursor:zoom-out;align-items:center;
+     justify-content:center;">
+  <img id="lb-img" style="max-width:95vw;max-height:95vh;border-radius:4px;">
+</div>
+<script>
+(function(){
+  var lb=document.getElementById('lb'),li=document.getElementById('lb-img');
+  document.querySelectorAll('.fig-card a').forEach(function(a){
+    a.addEventListener('click',function(e){e.preventDefault();li.src=a.href;lb.style.display='flex';});
+  });
+  lb.addEventListener('click',function(){lb.style.display='none';});
+})();
+</script>
+
+</body>
+</html>

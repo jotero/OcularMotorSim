@@ -1,5 +1,9 @@
 # ClaudeOculomotorJax — Project Context for Claude
 
+> **Lost? Start at [MAP.md](MAP.md)** — the project atlas: subsystem router (code ↔ design note ↔
+> manuscript ↔ bench), a live status dashboard, and a mirror of Claude's private memory.
+> This file (CLAUDE.md) is the deep architecture reference; MAP.md is the index over it.
+
 ## Shared analysis utilities — no redundant helpers
 
 `src/oculomotor/analysis.py` is the single source of truth for post-hoc signal extraction and plotting
@@ -114,10 +118,12 @@ src/oculomotor/
 │   │   └── readout.py                 Eye position readout + rotation_matrix()
 │   ├── fitting/                       Gradient-based parameter fitting (loss + optimize)
 │   └── llm_pipeline/                  Natural-language → simulation pipeline
+│       ├── prompt.py                  The system prompt sent to Claude (edit to tune interpretation)
+│       ├── interpret.py               NL description → SimulationScenario via Claude API (call_llm)
 │       ├── scenario.py                Pydantic schema (SimulationScenario, Patient, …)
 │       ├── patient_builder.py         YAML-driven Patient construction
-│       ├── runner.py                  Stimulus builder + simulator wiring + figure generator
-│       └── simulate.py                CLI entry point + Claude API call
+│       ├── run.py                     Stimulus builder + simulator wiring + figure generator (run_scenario)
+│       └── cli.py                     Command-line entry point (main)
 └── sim/
     ├── simulator.py                   ODE wiring + simulate() entry point.
     │                                   Brain step is swappable via set_brain_step()
@@ -131,7 +137,7 @@ src/oculomotor/
 
 ```
 scripts/
-├── simulate.py             Thin shim → oculomotor.llm_pipeline.simulate.main()
+├── simulate.py             Thin shim → oculomotor.llm_pipeline.cli.main()
 ├── server.py               FastAPI web server — LLM pipeline + logging + feedback + download
 ├── bench_vor_okr.py        VOR / VVOR / OKN bench (Raphan Fig. 9 + cascade plots)
 ├── bench_saccades.py       Saccade main sequence, oblique, refractoriness, cascade
@@ -336,14 +342,14 @@ Each behavior has a corresponding demo script and output figure.
 
 ## HTML docs and benchmarks — regen policy
 
-Three generated HTML pages live under `docs/`. Keep them in sync with code — but
+Three generated HTML pages live under `web/`. Keep them in sync with code — but
 **do not run the full bench suite casually** (slow). See `project_docs_and_benchmarks.md`.
 
 | Page | Generator | Regen trigger |
 |---|---|---|
-| `docs/parameters.html` | `scripts/gen_parameters.py` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `docs/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
-| `docs/states.html` | `scripts/gen_states.py` | Any `State` NamedTuple gains/loses a field, any subsystem's `N_STATES` changes, or a new subsystem joins `BrainState`. |
-| `docs/index.html` (bench gallery) | `scripts/run_benchmarks.py` (figures + HTML) or `--html-only` (HTML only, reuses existing figures) | Run the **individual** `bench_<area>.py` for the area you changed, then `--html-only` to rebuild the index. Run the full suite only at milestones. |
+| `web/parameters.html` | `scripts/gen_parameters.py` | Any field added/removed/renamed/defaulted in `BrainParams`, `SensoryParams`, or `PlantParams`. Source of truth: the Python NamedTuples; optional enrichment from `schema/parameters_schema.yaml` (missing entries → TODO markers in the rendered page). |
+| `web/states.html` | `scripts/gen_states.py` | Any `State` NamedTuple gains/loses a field, any subsystem's `N_STATES` changes, or a new subsystem joins `BrainState`. |
+| `web/index.html` (bench gallery) | `scripts/run_benchmarks.py` (figures + HTML) or `--html-only` (HTML only, reuses existing figures) | Run the **individual** `bench_<area>.py` for the area you changed, then `--html-only` to rebuild the index. Run the full suite only at milestones. |
 
 **For me (Claude):** if I touch any `*Params` field or any `State` / `N_STATES`, propose regenerating the matching HTML before declaring the task done — but ask before launching the full bench suite. Don't silently regenerate everything just to be tidy.
 
@@ -511,8 +517,10 @@ Evaluation order within one ODE step:
 
 ## LLM simulation pipeline
 
-`oculomotor/llm_pipeline/simulate.py` converts a plain-English scenario description into a simulation
-and figure using the Claude API.  `scripts/simulate.py` is a thin shim that calls into it.
+The `oculomotor/llm_pipeline/` package converts a plain-English scenario description into a simulation
+and figure using the Claude API. Flow: `cli` → `interpret` (sends `prompt` to Claude) → `scenario` →
+`patient_builder` → `run`. The Claude prompt lives in `prompt.py`. `scripts/simulate.py` is a thin shim
+into `cli.main()`.
 
 ### Usage
 
@@ -549,7 +557,7 @@ SimulationScenario  (oculomotor/llm_pipeline/scenario.py — Pydantic)
     ├── Target        → oculomotor/sim/stimuli.py → p_target_array, v_target_array
     ├── Visual        → oculomotor/sim/stimuli.py → v_scene_array, scene/target_present arrays
     └── Patient       → with_brain() / with_sensory() → Params NamedTuple
-    ↓  oculomotor/llm_pipeline/runner.py
+    ↓  oculomotor/llm_pipeline/run.py
 simulate(params, t, **stim_kw, return_states=True)
     ↓
 matplotlib Figure  →  outputs/<slug>.png
@@ -560,12 +568,12 @@ matplotlib Figure  →  outputs/<slug>.png
 Add a generator to `oculomotor/sim/stimuli.py` following the existing pattern (returns
 `t_array`, plus the relevant arrays). Then add the new `type` literal to the
 appropriate sub-schema in `oculomotor/llm_pipeline/scenario.py` and handle it in
-`oculomotor/llm_pipeline/runner.py:_build_stimulus()`.
+`oculomotor/llm_pipeline/run.py:_build_stimulus()`.
 
 ### Adding new plot panels
 
 Add a new `Literal` value to `PlotConfig.panels` in `oculomotor/llm_pipeline/scenario.py` and a
-corresponding `elif panel_name == '...'` branch in `oculomotor/llm_pipeline/runner.py:_draw_panel()`.
+corresponding `elif panel_name == '...'` branch in `oculomotor/llm_pipeline/run.py:_draw_panel()`.
 
 ### API key
 

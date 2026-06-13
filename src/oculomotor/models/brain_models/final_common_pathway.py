@@ -97,7 +97,7 @@ def _smooth_clip(z, g_max):
     the floor lets the antagonist motoneurons fire negatively (i.e., the
     muscles can push as well as pull, in this model abstraction), which makes
     the effective plant a clean cascade of two LPs that linear compensation
-    can invert cleanly.  See docs/plant_compensation.md.
+    can invert cleanly.  See web/plant_compensation.md.
     """
     return z - jax.nn.softplus(z - g_max)
 

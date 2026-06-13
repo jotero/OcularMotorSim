@@ -1,7 +1,7 @@
 """YAML-driven Patient model builder.
 
 The Patient Pydantic model is auto-generated at import time from
-``docs/parameters_schema.yaml``.  Every YAML entry with a ``disorders:``
+``schema/parameters_schema.yaml``.  Every YAML entry with a ``disorders:``
 key (even an empty list) is exposed as a Patient field — that key is the
 single source of truth for "which parameters the LLM can tune."
 
@@ -35,7 +35,7 @@ from oculomotor.sim.simulator import (
 )
 
 
-_YAML_PATH = Path(__file__).resolve().parent.parent.parent.parent / 'docs' / 'parameters_schema.yaml'
+_YAML_PATH = Path(__file__).resolve().parent.parent.parent.parent / 'schema' / 'parameters_schema.yaml'
 
 
 # ── Aliases: patient-facing names that don't map 1:1 to a model field ─────────
@@ -212,7 +212,7 @@ def _build_patient_class():
     Patient = create_model('Patient', **fields, __base__=BaseModel)
     Patient.__doc__ = (
         'Model parameter overrides relative to healthy defaults. '
-        'Auto-generated from docs/parameters_schema.yaml — every entry with '
+        'Auto-generated from schema/parameters_schema.yaml — every entry with '
         'a `disorders:` key is exposed as a field here.'
     )
     return Patient, field_to_class

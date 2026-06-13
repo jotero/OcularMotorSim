@@ -94,6 +94,6 @@ for col, (axis, sign, name, dir_descr) in enumerate(AXES):
     ax.grid(True, alpha=0.2)
 
 fig.tight_layout(rect=[0, 0, 1, 0.94])
-out = 'docs/benchmarks/figures/tvor_cascade_dark_zoom.png'
+out = 'web/benchmarks/figures/tvor_cascade_dark_zoom.png'
 fig.savefig(out, dpi=130)
 print(f'Saved: {out}')

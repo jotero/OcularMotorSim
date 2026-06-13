@@ -1,7 +1,7 @@
 """Shared utilities for benchmark scripts (scripts/bench_*.py).
 
-Output directory: docs/figures/   (images)
-HTML report:      docs/index.html
+Output directory: web/figures/   (images)
+HTML report:      web/index.html
 """
 
 import os
@@ -11,7 +11,7 @@ import datetime
 _SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 _ROOT    = os.path.normpath(os.path.join(_SCRIPTS, '..'))
 _SRC     = os.path.join(_ROOT, 'src')
-_DOCS    = os.path.join(_ROOT, 'docs')
+_DOCS    = os.path.join(_ROOT, 'web')
 
 for _p in [_SCRIPTS, _SRC]:
     if _p not in sys.path:
@@ -131,7 +131,7 @@ def fig_meta(path, rp, title, description, expected, citation, fig_type='behavio
 def reference_for(fig_path, base_dir=None, ref_dir=None):
     """Return path to the reference PNG for a given figure, or None if no ref.
 
-    By default, looks in ``<docs/<bench>/reference/<basename>``; pass an
+    By default, looks in ``<web/<bench>/reference/<basename>``; pass an
     explicit ref_dir to override (e.g. CLIN_REF_DIR for clinical benches).
     """
     if base_dir is None:

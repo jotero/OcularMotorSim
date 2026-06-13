@@ -44,14 +44,14 @@ from pydantic import BaseModel
 
 from oculomotor import __version__ as _SIM_VERSION
 from oculomotor.llm_pipeline.scenario import SimulationScenario, SimulationComparison
-from oculomotor.llm_pipeline.runner import run_scenario, run_comparison
-from oculomotor.llm_pipeline.simulate import call_llm
+from oculomotor.llm_pipeline.run import run_scenario, run_comparison
+from oculomotor.llm_pipeline.interpret import call_llm
 from oculomotor.llm_pipeline.patient_builder import Patient as _PatientCls
 from gen_admin import generate as _gen_admin
 
 # YAML schema used to enrich patient-change diffs with anatomy / disorders.
 import yaml as _yaml
-_SCHEMA_PATH = Path(__file__).parent.parent / 'docs' / 'parameters_schema.yaml'
+_SCHEMA_PATH = Path(__file__).parent.parent / 'schema' / 'parameters_schema.yaml'
 with open(_SCHEMA_PATH, encoding='utf-8') as _f:
     _PARAM_SCHEMA = _yaml.safe_load(_f) or {}
 
@@ -668,7 +668,7 @@ async def admin_redirect():
 
 app.mount('/outputs', StaticFiles(directory=str(_OUTPUTS_DIR)), name='outputs')
 
-_DOCS_DIR = Path(__file__).parent.parent / 'docs'
+_DOCS_DIR = Path(__file__).parent.parent / 'web'
 app.mount('/', StaticFiles(directory=str(_DOCS_DIR), html=True), name='frontend')
 
 

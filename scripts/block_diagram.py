@@ -47,5 +47,5 @@ g.edge("SG",    "EC")
 g.edge("PUR",   "EC")
 g.edge("EC",    "VIS")
 
-out = g.render("docs/block_diagram", cleanup=True)
+out = g.render("web/block_diagram", cleanup=True)
 print(f"Saved: {out}")
