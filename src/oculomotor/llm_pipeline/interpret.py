@@ -13,6 +13,10 @@ from oculomotor.llm_pipeline.scenario import (
     SimulationScenario, SimulationComparison, json_schema, comparison_json_schema)
 from oculomotor.llm_pipeline.prompt import SYSTEM_PROMPT
 
+# Cache the large static system prompt (tools + system render before it) so repeated
+# calls read it at ~0.1x cost instead of re-sending ~6K tokens every time (5-min TTL).
+_SYSTEM = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
+
 # ── LLM call ──────────────────────────────────────────────────────────────────
 
 def call_llm(description: str, model: str) -> SimulationScenario | SimulationComparison:
@@ -48,7 +52,7 @@ def call_llm(description: str, model: str) -> SimulationScenario | SimulationCom
     response = client.messages.create(
         model=model,
         max_tokens=4096,
-        system=SYSTEM_PROMPT,
+        system=_SYSTEM,
         tools=tools,
         tool_choice={"type": "any"},   # force tool use — never a plain-text reply
         messages=[{"role": "user", "content": description}],
@@ -95,7 +99,7 @@ def _call_llm_comparison(description: str, model: str) -> SimulationComparison:
     response = client.messages.create(
         model=model,
         max_tokens=4096,  # comparisons are larger
-        system=SYSTEM_PROMPT,
+        system=_SYSTEM,
         tools=[tool_schema],
         tool_choice={"type": "tool", "name": "generate_comparison"},
         messages=[{"role": "user", "content": description}],

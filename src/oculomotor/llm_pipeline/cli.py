@@ -55,8 +55,8 @@ def main():
                              'Default: outputs/<slug>.png')
     parser.add_argument('--dry-run', action='store_true',
                         help='Print the generated scenario JSON without running.')
-    parser.add_argument('--model', default='claude-opus-4-6',
-                        help='Claude model to use (default: claude-opus-4-6).')
+    parser.add_argument('--model', default='claude-opus-4-8',
+                        help='Claude model to use (default: claude-opus-4-8).')
     parser.add_argument('--json', default=None,
                         help='Load scenario from a JSON file instead of calling the LLM.')
     args = parser.parse_args()

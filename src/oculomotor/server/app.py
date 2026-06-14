@@ -203,7 +203,7 @@ _rewrite_log()
 
 class RunRequest(BaseModel):
     description: str
-    model: str = 'claude-sonnet-4-6'
+    model: str = 'claude-opus-4-8'
 
 
 class RunResponse(BaseModel):
