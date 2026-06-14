@@ -25,7 +25,7 @@ _OUT_FILE    = _DATA_ROOT / 'admin.html'
 _LOG_COLUMNS = [
     'timestamp', 'run_id', 'version', 'prompt', 'mode', 'title',
     'figure_file', 'looks_correct', 'feedback',
-    'favorite', 'note', 'ms_total', 'ms_llm', 'ms_sim',
+    'favorite', 'featured', 'note', 'ms_total', 'ms_llm', 'ms_sim',
 ]
 
 
@@ -279,6 +279,10 @@ function isFav(r) {{
   const v = (r.favorite || '').toString().toLowerCase();
   return v === 'true' || v === '1' || v === 'yes';
 }}
+function isFeatured(r) {{
+  const v = (r.featured || '').toString().toLowerCase();
+  return v === 'true' || v === '1' || v === 'yes';
+}}
 function fmtTiming(r) {{
   if (!r.ms_total) return '—';
   const s = x => (Number(x) / 1000).toFixed(1);
@@ -314,6 +318,19 @@ async function toggleFavorite(runId) {{
     if (b) {{ b.classList.toggle('on', fav); b.textContent = fav ? '★ Favorited' : '☆ Favorite'; }}
     updateRowStar(runId);
     admMsg(fav ? 'Marked favorite — will appear in the gallery' : 'Removed from favorites');
+  }} catch (e) {{ admMsg('Error: ' + e.message, false); }}
+}}
+async function toggleFeatured(runId) {{
+  const r = rows.find(x => x.run_id === runId); if (!r) return;
+  const feat = !isFeatured(r);
+  try {{
+    const resp = await adminPost('/admin/featured', {{ run_id: runId, featured: feat }});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    r.featured = feat ? 'True' : '';
+    const ar = ALL_ROWS.find(x => x.run_id === runId); if (ar) ar.featured = r.featured;
+    const b = document.getElementById('featBtn');
+    if (b) {{ b.classList.toggle('on', feat); b.textContent = feat ? '◆ Featured' : '◇ Feature'; }}
+    admMsg(feat ? 'Featured — will appear as a front-page example' : 'Removed from front-page examples');
   }} catch (e) {{ admMsg('Error: ' + e.message, false); }}
 }}
 async function saveNote(runId) {{
@@ -366,6 +383,9 @@ function selectRow(idx, tr) {{
     <div class="admin-bar">
       <button class="adm-btn fav ${{isFav(r) ? 'on' : ''}}" id="favBtn"
               onclick="toggleFavorite('${{r.run_id}}')">${{isFav(r) ? '★ Favorited' : '☆ Favorite'}}</button>
+      <button class="adm-btn fav ${{isFeatured(r) ? 'on' : ''}}" id="featBtn"
+              title="Featured runs appear as curated examples on the front page (a subset of favorites)"
+              onclick="toggleFeatured('${{r.run_id}}')">${{isFeatured(r) ? '◆ Featured' : '◇ Feature'}}</button>
       <button class="adm-btn danger" onclick="deleteRun('${{r.run_id}}')">🗑 Delete</button>
       <span class="adm-saved" id="admSaved"></span>
     </div>

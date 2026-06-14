@@ -84,7 +84,7 @@ _LOG_FILE = _DATA_ROOT / 'simulation_log.csv'
 _LOG_COLUMNS = [
     'timestamp', 'run_id', 'version', 'prompt', 'mode', 'title',
     'figure_file', 'looks_correct', 'feedback',
-    'favorite', 'note',                    # admin: curate the gallery + tag runs
+    'favorite', 'featured', 'note',        # admin: gallery (favorite) + front-page examples (featured) + tag
     'ms_total', 'ms_llm', 'ms_sim',        # timing (debug): whole request / LLM / sim
 ]
 
@@ -155,6 +155,7 @@ def _read_run_json(run_id: str) -> dict | None:
         payload['looks_correct'] = row.get('looks_correct', payload.get('looks_correct', ''))
         payload['feedback']      = row.get('feedback', payload.get('feedback', ''))
         payload['favorite']      = _truthy(row.get('favorite'))
+        payload['featured']      = _truthy(row.get('featured'))
         payload['note']          = row.get('note', payload.get('note', ''))
     return payload
 
@@ -419,6 +420,7 @@ async def run_endpoint(req: RunRequest):
             'looks_correct':   '',
             'feedback':        '',
             'favorite':        False,
+            'featured':        False,
             'note':            '',
             'timing':          timing,
             'patient_changes': patient_changes,
@@ -443,6 +445,7 @@ async def run_endpoint(req: RunRequest):
             'looks_correct': '',
             'feedback':    '',
             'favorite':    '',
+            'featured':    '',
             'note':        '',
             'ms_total':    timing['total_ms'],
             'ms_llm':      timing['llm_ms'],
@@ -490,6 +493,11 @@ class FavoriteRequest(BaseModel):
     favorite: bool
 
 
+class FeaturedRequest(BaseModel):
+    run_id:   str
+    featured: bool
+
+
 class NoteRequest(BaseModel):
     run_id: str
     note:   str = ''
@@ -523,6 +531,23 @@ async def admin_favorite(req: FavoriteRequest,
     _rewrite_log()
     _patch_run_json(req.run_id, favorite=req.favorite)
     return {'status': 'ok', 'favorite': req.favorite}
+
+
+@app.post('/admin/featured')
+async def admin_featured(req: FeaturedRequest,
+                         x_admin_token: str | None = Header(default=None)):
+    """Mark/unmark a run as FEATURED (featured runs appear as front-page examples).
+
+    Featured is a curated subset of favorites — the paradigm-spanning examples shown
+    under the prompt box. The full favorites set is the 'see more' gallery.
+    """
+    _check_admin(x_admin_token)
+    if req.run_id not in _log_entries:
+        raise HTTPException(status_code=404, detail='run_id not found')
+    _log_entries[req.run_id]['featured'] = 'True' if req.featured else ''
+    _rewrite_log()
+    _patch_run_json(req.run_id, featured=req.featured)
+    return {'status': 'ok', 'featured': req.featured}
 
 
 @app.post('/admin/note')
@@ -560,7 +585,8 @@ async def admin_delete(run_id: str,
 
 
 @app.get('/runs')
-async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool = False):
+async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool = False,
+                              featured_only: bool = False):
     """Return the index of past runs (newest first) for browsing.
 
     Only runs with a persisted data sidecar are listed — those can be
@@ -575,11 +601,14 @@ async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool =
     for run_id, row in _log_entries.items():
         if not _data_path(run_id).exists():
             continue
-        lc  = row.get('looks_correct', '')
-        fav = _truthy(row.get('favorite'))
+        lc   = row.get('looks_correct', '')
+        fav  = _truthy(row.get('favorite'))
+        feat = _truthy(row.get('featured'))
         if correct_only and lc not in ('True', 'correct'):
             continue
         if favorites_only and not fav:
+            continue
+        if featured_only and not feat:
             continue
         rows.append({
             'run_id':        run_id,
@@ -590,6 +619,7 @@ async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool =
             'version':       row.get('version', ''),
             'looks_correct': lc,
             'favorite':      fav,
+            'featured':      feat,
             'note':          row.get('note', ''),
             'ms_total':      row.get('ms_total', ''),
             'ms_llm':        row.get('ms_llm', ''),
