@@ -14,8 +14,11 @@ from oculomotor.llm_pipeline.scenario import (
 from oculomotor.llm_pipeline.prompt import SYSTEM_PROMPT
 
 # Cache the large static system prompt (tools + system render before it) so repeated
-# calls read it at ~0.1x cost instead of re-sending ~6K tokens every time (5-min TTL).
-_SYSTEM = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
+# calls read it at ~0.1x cost instead of re-sending ~6K tokens every time. 1-hour TTL
+# (vs the 5-min default) keeps it warm across an interactive exploration session — worth
+# the higher write cost (2x vs 1.25x) since users fire several scenarios minutes apart.
+_SYSTEM = [{"type": "text", "text": SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
 
