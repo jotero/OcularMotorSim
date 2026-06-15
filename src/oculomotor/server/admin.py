@@ -128,6 +128,12 @@ td.title-cell {{ color: #64748b; font-size: 0.7rem; max-width: 180px;
 .ok-false {{ background: #ef4444; }}
 .ok-null  {{ background: #cbd0d8; }}
 tr.hidden {{ display: none; }}
+td.fav-cell, td.feat-cell {{ text-align: center; cursor: pointer; font-size: 0.92rem;
+  user-select: none; width: 30px; }}
+td.fav-cell:hover, td.feat-cell:hover {{ background: #fff7e6; }}
+.fav-on  {{ color: #f0b429; }}
+.feat-on {{ color: #2563eb; }}
+.fav-off, .feat-off {{ color: #cbd0d8; }}
 
 /* ── Figure panel ── */
 .figure-panel {{
@@ -204,7 +210,9 @@ header .token-input {{
 
 <header>
   <span class="title">Simulation Log</span>
-  <input id="search" placeholder="Filter by prompt…" oninput="filter(this.value)">
+  <input id="search" placeholder="Filter by prompt…" oninput="applyFilter()">
+  <button id="favFilterBtn" class="wide-btn" onclick="toggleFavFilter()" title="Show only favorites">★ Favorites</button>
+  <button id="featFilterBtn" class="wide-btn" onclick="toggleFeatFilter()" title="Show only featured">◆ Featured</button>
   <button id="wideBtn" class="wide-btn" onclick="toggleWide()" title="Hide the list to give plots full width">⤢ Wide plots</button>
   <input id="adminToken" class="token-input" placeholder="admin token (if set)"
          oninput="localStorage.setItem('oculomotor_admin_token', this.value)">
@@ -218,6 +226,8 @@ header .token-input {{
         <tr>
           <th style="width:90px">Date</th>
           <th style="width:76px">Mode</th>
+          <th style="width:30px" title="Favorite — shows in the gallery">★</th>
+          <th style="width:30px" title="Featured — front-page example">◆</th>
           <th>Prompt</th>
           <th style="width:130px">Title</th>
           <th style="width:22px"></th>
@@ -259,7 +269,9 @@ function renderTable(data) {{
     tr.innerHTML = `
       <td class="ts">${{fmtTs(r.timestamp)}}</td>
       <td><span class="mode-badge mode-${{r.mode}}">${{r.mode || '—'}}</span></td>
-      <td class="prompt-cell" title="${{esc(r.prompt)}}">${{isFav(r) ? '<span class="fav-star">★</span> ' : ''}}${{esc(r.prompt)}}</td>
+      <td class="fav-cell" title="Toggle favorite" onclick="event.stopPropagation(); toggleFavorite('${{r.run_id}}')">${{isFav(r) ? '<span class="fav-on">★</span>' : '<span class="fav-off">☆</span>'}}</td>
+      <td class="feat-cell" title="Toggle featured" onclick="event.stopPropagation(); toggleFeatured('${{r.run_id}}')">${{isFeatured(r) ? '<span class="feat-on">◆</span>' : '<span class="feat-off">◇</span>'}}</td>
+      <td class="prompt-cell" title="${{esc(r.prompt)}}">${{esc(r.prompt)}}</td>
       <td class="title-cell" title="${{esc(r.title)}}">${{esc(r.title)}}</td>
       <td><span class="ok-dot ok-${{r.looks_correct === 'True' ? 'true' : r.looks_correct === 'False' ? 'false' : 'null'}}"></span></td>
     `;
@@ -299,12 +311,15 @@ function admMsg(t, ok=true) {{
   const e = document.getElementById('admSaved');
   if (e) {{ e.textContent = t; e.style.color = ok ? '#16a34a' : '#dc2626'; }}
 }}
-function updateRowStar(runId) {{
+function updateRowMarks(runId) {{
   const i = rows.findIndex(x => x.run_id === runId);
   if (i < 0) return;
   const tr = document.querySelectorAll('#tbody tr')[i];
-  const cell = tr && tr.querySelector('.prompt-cell');
-  if (cell) cell.innerHTML = (isFav(rows[i]) ? '<span class="fav-star">★</span> ' : '') + esc(rows[i].prompt);
+  if (!tr) return;
+  const favC = tr.querySelector('.fav-cell');
+  if (favC)  favC.innerHTML  = isFav(rows[i])      ? '<span class="fav-on">★</span>'  : '<span class="fav-off">☆</span>';
+  const featC = tr.querySelector('.feat-cell');
+  if (featC) featC.innerHTML = isFeatured(rows[i]) ? '<span class="feat-on">◆</span>' : '<span class="feat-off">◇</span>';
 }}
 async function toggleFavorite(runId) {{
   const r = rows.find(x => x.run_id === runId); if (!r) return;
@@ -316,7 +331,8 @@ async function toggleFavorite(runId) {{
     const ar = ALL_ROWS.find(x => x.run_id === runId); if (ar) ar.favorite = r.favorite;
     const b = document.getElementById('favBtn');
     if (b) {{ b.classList.toggle('on', fav); b.textContent = fav ? '★ Favorited' : '☆ Favorite'; }}
-    updateRowStar(runId);
+    updateRowMarks(runId);
+    applyFilter();
     admMsg(fav ? 'Marked favorite — will appear in the gallery' : 'Removed from favorites');
   }} catch (e) {{ admMsg('Error: ' + e.message, false); }}
 }}
@@ -330,6 +346,8 @@ async function toggleFeatured(runId) {{
     const ar = ALL_ROWS.find(x => x.run_id === runId); if (ar) ar.featured = r.featured;
     const b = document.getElementById('featBtn');
     if (b) {{ b.classList.toggle('on', feat); b.textContent = feat ? '◆ Featured' : '◇ Feature'; }}
+    updateRowMarks(runId);
+    applyFilter();
     admMsg(feat ? 'Featured — will appear as a front-page example' : 'Removed from front-page examples');
   }} catch (e) {{ admMsg('Error: ' + e.message, false); }}
 }}
@@ -491,16 +509,30 @@ function toggleWide() {{
   setTimeout(() => window.dispatchEvent(new Event('resize')), 180);
 }}
 
-// ── Filter ────────────────────────────────────────────────────────────────────
-function filter(q) {{
-  q = q.toLowerCase();
+// ── Filter (search text + favorite/featured toggles) ──────────────────────────
+let favOnly = false, featOnly = false;
+
+function toggleFavFilter() {{
+  favOnly = !favOnly;
+  document.getElementById('favFilterBtn').classList.toggle('on', favOnly);
+  applyFilter();
+}}
+function toggleFeatFilter() {{
+  featOnly = !featOnly;
+  document.getElementById('featFilterBtn').classList.toggle('on', featOnly);
+  applyFilter();
+}}
+
+function applyFilter() {{
+  const q = (document.getElementById('search').value || '').toLowerCase();
   let visible = 0;
   document.querySelectorAll('#tbody tr').forEach((tr, i) => {{
     const r = rows[i];
-    const match = !q
+    const textMatch = !q
       || (r.prompt||'').toLowerCase().includes(q)
       || (r.title||'').toLowerCase().includes(q)
       || (r.mode||'').toLowerCase().includes(q);
+    const match = textMatch && (!favOnly || isFav(r)) && (!featOnly || isFeatured(r));
     tr.classList.toggle('hidden', !match);
     if (match) visible++;
   }});
