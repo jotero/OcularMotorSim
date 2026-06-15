@@ -259,7 +259,10 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     cover_L = ((spL < 0.5) & (tpL < 0.5) & ((spR > 0.5) | (tpR > 0.5))).astype(int)[::step]
     cover_R = ((spR < 0.5) & (tpR < 0.5) & ((spL > 0.5) | (tpL > 0.5))).astype(int)[::step]
 
-    return dict(
+    # Target: world-Cartesian position relative to the head (m), + a per-frame
+    # presence flag (either eye seeing the foveal target). The avatar draws a red
+    # sphere at this point; presence toggles its visibility (e.g. off during OKN).
+    out = dict(
         fps        = fps,
         n_frames   = int(len(t_ds)),
         duration_s = round(float(t_ds[-1]), 3),
@@ -269,6 +272,14 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
         cover_L = cover_L.tolist(),
         cover_R = cover_R.tolist(),
     )
+
+    if 'p_target' in sim_data and sim_data['p_target'] is not None:
+        tgt = np.array(sim_data['p_target'])[::step]
+        target_present = ((tpL > 0.5) | (tpR > 0.5)).astype(int)[::step]
+        out['target']         = [[round(float(v), 4) for v in row] for row in tgt.tolist()]
+        out['target_present'] = target_present.tolist()
+
+    return out
 
 
 # ── Patient-changes diff (LLM overrides vs healthy defaults) ──────────────────

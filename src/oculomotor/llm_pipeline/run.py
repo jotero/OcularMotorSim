@@ -638,6 +638,7 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
         head_vel        = np.array(stim_kw['head_vel_array']),        # (T, 3) deg/s
         scene_vel       = np.array(stim_kw['v_scene_array']),         # (T, 3) deg/s
         target_vel      = np.array(stim_kw['v_target_array']),        # (T, 3) deg/s
+        p_target        = np.array(stim_kw['p_target_array']),        # (T, 3) m — target pos rel. head (world Cartesian)
         scene_present_L  = np.array(stim_kw['scene_present_L_array']),  # (T,)
         scene_present_R  = np.array(stim_kw['scene_present_R_array']),  # (T,)
         target_present_L = np.array(stim_kw['target_present_L_array']), # (T,)
