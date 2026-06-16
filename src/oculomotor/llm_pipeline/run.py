@@ -121,6 +121,7 @@ def _build_stimulus(scenario: SimulationScenario) -> dict:
         _target_tt              = target_tt,
         # Flat arrays for _draw_panel() / _build_sim_data()
         head_vel_array          = jnp.array(head_vel),
+        head_lin_pos_array      = jnp.array(head_km.lin_pos),   # (T,3) m — for optic-flow viz
         p_target_array          = jnp.array(p_target),
         v_target_array          = jnp.array(v_target),
         v_scene_array           = jnp.array(v_scene),
@@ -636,6 +637,7 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
         eye_pos_R       = sig['eye_pos_R'],                           # (T, 3) deg — right eye
         eye_vel         = sig['eye_vel'],                              # (T, 3) deg/s
         head_vel        = np.array(stim_kw['head_vel_array']),        # (T, 3) deg/s
+        head_lin_pos    = np.array(stim_kw['head_lin_pos_array']),    # (T, 3) m — for optic-flow viz
         scene_vel       = np.array(stim_kw['v_scene_array']),         # (T, 3) deg/s
         target_vel      = np.array(stim_kw['v_target_array']),        # (T, 3) deg/s
         p_target        = np.array(stim_kw['p_target_array']),        # (T, 3) m — target pos rel. head (world Cartesian)

@@ -279,6 +279,22 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
         out['target']         = [[round(float(v), 4) for v in row] for row in tgt.tolist()]
         out['target_present'] = target_present.tolist()
 
+    # Scene angular position (integrate scene velocity) + presence flag, for the
+    # world dot-cloud: it rotates with the scene (OKN) and hides when the scene
+    # is off (e.g. VOR in the dark).
+    if 'scene_vel' in sim_data and sim_data['scene_vel'] is not None:
+        sv = np.array(sim_data['scene_vel'])                 # (T, 3) deg/s
+        scene_pos = np.cumsum(sv * dt_orig, axis=0)[::step]  # (n, 3) deg
+        out['scene_pos']     = [[round(float(v), 2) for v in row] for row in scene_pos.tolist()]
+        out['scene_present'] = ((spL > 0.5) | (spR > 0.5)).astype(int)[::step].tolist()
+
+    # Head linear displacement (m, relative to start) for translational optic flow
+    # of the dot-cloud as the head walks/translates through the world.
+    if 'head_lin_pos' in sim_data and sim_data['head_lin_pos'] is not None:
+        hlp = np.array(sim_data['head_lin_pos'])
+        hlp = (hlp - hlp[0])[::step]                          # (n, 3) m from start
+        out['head_lin_pos'] = [[round(float(v), 4) for v in row] for row in hlp.tolist()]
+
     return out
 
 
