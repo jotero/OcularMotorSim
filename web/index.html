@@ -282,6 +282,8 @@
 <link rel="stylesheet" href="vendor/uPlot.min.css">
 <script src="vendor/uPlot.iife.min.js"></script>
 <script src="plotspec.js"></script>
+<!-- html2canvas: rasterize the live interactive plot to PNG (download + thumbnail snapshot) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -403,11 +405,6 @@
           <p class="feedback-confirm" id="feedback-confirm">&#10003; Feedback saved — thank you!</p>
         </div>
 
-        <h4>Static figure (PNG)</h4>
-        <div id="png-figure">
-          <img id="plot" src="" alt="Simulation figure"
-               style="width:100%;max-width:560px;border-radius:8px;border:1px solid #e3e6ec;display:block;">
-        </div>
         <h4>Scenario JSON</h4>
         <pre id="json-out"></pre>
       </div>
@@ -463,7 +460,7 @@ async function run() {
     if (!resp.ok) { const e = await resp.json(); throw new Error(e.error || 'HTTP ' + resp.status); }
     const data = await resp.json();
 
-    showResult(data);
+    showResult(data, true);   // live run → snapshot+upload the plot as the figure
 
   } catch(e) {
     status.className = 'status error';
@@ -478,18 +475,13 @@ async function run() {
 // Render a result object into the result area. Works for a live /run response
 // (has image_b64 + detail_json) AND a saved run sidecar from /run/{id}/data
 // (has figure_rel + detail + narrative) — so featured examples reuse this path.
-function showResult(data) {
+function showResult(data, live = false) {
   const backend = getBackend();
   const status  = document.getElementById('status');
   const result  = document.getElementById('result');
   _currentRunId = data.run_id;
   _currentMode  = data.mode;
 
-  // PNG: base64 from a live run, else the stored figure for a saved/featured run.
-  const png = document.getElementById('plot');
-  if (data.image_b64)        png.src = 'data:image/png;base64,' + data.image_b64;
-  else if (data.figure_rel)  png.src = backend + '/outputs/' + data.figure_rel;
-  else if (data.run_id)      png.src = backend + '/outputs/server_figures/' + data.run_id + '.png';
   const detail = data.detail_json || data.detail || {};
   document.getElementById('json-out').textContent = JSON.stringify(detail, null, 2);
   result.style.display = 'block';
@@ -537,6 +529,12 @@ function showResult(data) {
     renderPatientChanges(data.patient_changes || []);
   } else {
     renderPatientChanges(data.patient_changes || []);
+  }
+
+  // Live run: once the plot has laid out, snapshot it and upload as this run's
+  // figure so the gallery / featured / admin thumbnails have an image.
+  if (live && data.run_id) {
+    requestAnimationFrame(() => requestAnimationFrame(() => uploadPlotSnapshot(data.run_id)));
   }
 }
 
@@ -765,9 +763,50 @@ function downloadData() {
   window.open(getBackend() + '/download/' + _currentRunId);
 }
 
-function downloadImage() {
-  if (!_currentRunId) return;
-  window.open(getBackend() + '/outputs/server_figures/' + _currentRunId + '.png');
+// Rasterize the live interactive plot (#plot-host) to a canvas via html2canvas.
+// Skips the zoom hint and the red playhead so the export is clean. Returns null
+// if the plot isn't rendered or html2canvas is unavailable.
+async function snapshotPlotCanvas() {
+  const host = document.getElementById('plot-host');
+  if (!host || host.style.display === 'none' || typeof html2canvas === 'undefined') return null;
+  return await html2canvas(host, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    logging: false,
+    ignoreElements: (el) => el.classList &&
+      (el.classList.contains('ps-hint') || el.classList.contains('ps-playhead')),
+  });
+}
+
+async function downloadImage() {
+  try {
+    const canvas = await snapshotPlotCanvas();
+    if (canvas) {
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = (_currentRunId || 'plot') + '.png';
+      a.click();
+      _flashUtilMsg('Image downloaded');
+      return;
+    }
+  } catch (e) { console.error('Plot export failed', e); }
+  // Fallback: the stored figure (older runs / export unavailable)
+  if (_currentRunId) window.open(getBackend() + '/outputs/server_figures/' + _currentRunId + '.png');
+}
+
+// After a run renders, snapshot the plot and upload it as the run's figure so it
+// powers the gallery/featured/admin thumbnails (replaces the matplotlib PNG).
+async function uploadPlotSnapshot(runId) {
+  if (!runId) return;
+  try {
+    const canvas = await snapshotPlotCanvas();
+    if (!canvas) return;
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    if (!blob) return;
+    await fetch(getBackend() + '/runs/' + encodeURIComponent(runId) + '/figure', {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob,
+    });
+  } catch (e) { console.error('Snapshot upload failed', e); }
 }
 
 function _flashUtilMsg(text) {

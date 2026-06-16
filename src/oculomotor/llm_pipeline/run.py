@@ -943,7 +943,8 @@ def _build_plot_spec(t_array: np.ndarray, sig: dict, stim_kw: dict,
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def run_scenario(scenario: SimulationScenario, output_path: str | None = None,
-                 return_data: bool = False, return_spec: bool = False):
+                 return_data: bool = False, return_spec: bool = False,
+                 make_figure: bool = True):
     """Run a SimulationScenario end-to-end and return a matplotlib Figure.
 
     Args:
@@ -995,10 +996,11 @@ def run_scenario(scenario: SimulationScenario, output_path: str | None = None,
     # Extract signals
     sig = _extract_signals(states, params, t_array)
 
-    # Build figure
-    fig = _build_figure(t_array, sig, stim_kw, scenario)
+    # Build figure (skippable: the web server renders plots client-side and does
+    # not need the matplotlib figure; the CLI still uses it).
+    fig = _build_figure(t_array, sig, stim_kw, scenario) if make_figure else None
 
-    if output_path:
+    if fig is not None and output_path:
         fig.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"Saved → {output_path}")
 
@@ -1200,6 +1202,7 @@ def run_comparison(
     output_path: str | None = None,
     return_data: bool = False,
     return_spec: bool = False,
+    make_figure: bool = True,
 ):
     """Run all scenarios in a SimulationComparison and overlay them on one figure.
 
@@ -1249,9 +1252,9 @@ def run_comparison(
             sim_data_list.append(_build_sim_data(t_array, sig, stim_kw))
         print(f"  ✓ {scenario.description}")
 
-    fig = _build_comparison_figure(results, comparison)
+    fig = _build_comparison_figure(results, comparison) if make_figure else None
 
-    if output_path:
+    if fig is not None and output_path:
         fig.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"Saved → {output_path}")
 

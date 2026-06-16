@@ -41,7 +41,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -207,7 +207,7 @@ class RunRequest(BaseModel):
 
 
 class RunResponse(BaseModel):
-    image_b64:        str
+    image_b64:        str = ''   # legacy matplotlib PNG — no longer generated (client renders the plot)
     mode:             str        # 'single' or 'comparison'
     title:            str
     detail_json:      dict
@@ -403,8 +403,8 @@ async def run_endpoint(req: RunRequest):
         _t1 = time.perf_counter()
 
         if isinstance(result, SimulationComparison):
-            fig, cmp_sim_data_list, plot_spec = run_comparison(
-                result, return_data=True, return_spec=True)
+            _, cmp_sim_data_list, plot_spec = run_comparison(
+                result, return_data=True, return_spec=True, make_figure=False)
             title = result.title
             mode  = 'comparison'
             detail = result.model_dump()
@@ -419,27 +419,20 @@ async def run_endpoint(req: RunRequest):
                     eye_trajectories.append(traj)
             patient_changes = None   # per-scenario, attached on each entry
         else:
-            fig, sim_data, plot_spec = run_scenario(
-                result, return_data=True, return_spec=True)
+            _, sim_data, plot_spec = run_scenario(
+                result, return_data=True, return_spec=True, make_figure=False)
             title            = result.description
             mode             = 'single'
             detail           = result.model_dump()
             eye_trajectories = []
             patient_changes  = _build_patient_changes(result.patient)
 
-        ms_sim = (time.perf_counter() - _t1) * 1000.0   # sim + plotting + spec
+        ms_sim = (time.perf_counter() - _t1) * 1000.0   # sim + spec (no figure)
 
-        # Save figure to disk
+        # No server-side figure: the client renders the interactive plot and
+        # uploads a snapshot to POST /runs/{id}/figure, which lands here.
         fig_name = f'{run_id}.png'
         fig_path = _FIGURES_DIR / fig_name
-        fig.savefig(fig_path, dpi=130, bbox_inches='tight')
-
-        # Encode for inline display
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=130, bbox_inches='tight')
-        plt.close(fig)
-        buf.seek(0)
-        img_b64 = base64.b64encode(buf.read()).decode('utf-8')
 
         # Cache sim data for download
         if sim_data is not None:
@@ -501,7 +494,6 @@ async def run_endpoint(req: RunRequest):
         })
 
         return RunResponse(
-            image_b64        = img_b64,
             mode             = mode,
             title            = title,
             detail_json      = detail,
@@ -516,6 +508,26 @@ async def run_endpoint(req: RunRequest):
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(status_code=500, content={'error': str(e)})
+
+
+@app.post('/runs/{run_id}/figure')
+async def upload_figure(run_id: str, request: Request):
+    """Store a client-rendered plot snapshot (PNG) as the run's figure.
+
+    Replaces the old server-side matplotlib figure: the browser rasterizes the
+    interactive plot and POSTs it here so the gallery / featured / admin
+    thumbnails have an image. The run_id must be a known (server-generated) id,
+    which also prevents path traversal.
+    """
+    if run_id not in _log_entries:
+        raise HTTPException(status_code=404, detail='run_id not found')
+    data = await request.body()
+    if not data:
+        raise HTTPException(status_code=400, detail='empty body')
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail='figure too large')
+    (_FIGURES_DIR / f'{run_id}.png').write_bytes(data)
+    return {'status': 'ok', 'bytes': len(data)}
 
 
 @app.post('/feedback')
@@ -704,7 +716,8 @@ async def download_endpoint(run_id: str):
     writer = csv.writer(buf)
     writer.writerow([
         't_s',
-        'eye_pos_yaw_deg', 'eye_pos_pitch_deg', 'eye_pos_roll_deg',
+        'eyeL_pos_yaw_deg', 'eyeL_pos_pitch_deg', 'eyeL_pos_roll_deg',
+        'eyeR_pos_yaw_deg', 'eyeR_pos_pitch_deg', 'eyeR_pos_roll_deg',
         'eye_vel_yaw_degs', 'eye_vel_pitch_degs', 'eye_vel_roll_degs',
         'head_vel_yaw_degs', 'head_vel_pitch_degs', 'head_vel_roll_degs',
         'scene_vel_yaw_degs', 'scene_vel_pitch_degs', 'scene_vel_roll_degs',
@@ -712,8 +725,9 @@ async def download_endpoint(run_id: str):
     ])
 
     t          = np.array(data['t'])
-    eye_pos    = np.array(data['eye_pos'])
-    eye_vel    = np.array(data['eye_vel'])
+    eye_pos_L  = np.array(data.get('eye_pos_L', data['eye_pos']))   # per-eye position
+    eye_pos_R  = np.array(data.get('eye_pos_R', data['eye_pos']))
+    eye_vel    = np.array(data['eye_vel'])                          # conjugate velocity
     head_vel   = np.array(data['head_vel'])
     scene_vel  = np.array(data['scene_vel'])
     target_vel = np.array(data['target_vel'])
@@ -721,7 +735,8 @@ async def download_endpoint(run_id: str):
     for i in range(len(t)):
         writer.writerow([
             f'{t[i]:.4f}',
-            *[f'{v:.4f}' for v in eye_pos[i]],
+            *[f'{v:.4f}' for v in eye_pos_L[i]],
+            *[f'{v:.4f}' for v in eye_pos_R[i]],
             *[f'{v:.4f}' for v in eye_vel[i]],
             *[f'{v:.4f}' for v in head_vel[i]],
             *[f'{v:.4f}' for v in scene_vel[i]],
