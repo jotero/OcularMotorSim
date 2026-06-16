@@ -371,7 +371,7 @@ function anchorCovers() {
 // Re-anchor the (visible) prism lenses: head-fixed, in front of the eye, with the
 // disc normal = head-forward tilted by the (exaggerated) prism deviation so the
 // lens visibly leans toward the prism's base. Mirrors anchorCovers().
-const _PRISM_FWD = 0.022;   // metres forward (a lens just ahead of the eye)
+const _PRISM_FWD = 0.045;   // metres forward — a lens held clearly ahead of the eye (like glasses)
 const _PRISM_TILT = 6;      // visual exaggeration of the few-degree deviation
 const _AXx = new THREE.Vector3(1, 0, 0), _AXy = new THREE.Vector3(0, 1, 0);
 const _pn = new THREE.Vector3();
