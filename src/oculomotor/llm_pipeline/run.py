@@ -311,6 +311,31 @@ _PANEL_LABELS = {
 }
 
 
+# Canonical panel order — the renderer always lays panels out in this order so the
+# figure is consistent across scenarios no matter what order was chosen. Tier 1
+# (core readouts) lead, then stimulus/context, then internal-mechanism panels.
+_PANEL_ORDER = [
+    # Tier 1 — core readouts (always lead, fixed order)
+    'eye_position', 'eye_velocity', 'vergence',
+    # Tier 2 — stimulus / context
+    'visual_flags', 'head_velocity', 'target_position', 'target_velocity', 'scene_velocity',
+    # Tier 3 — internal mechanism (chosen by relevance to the scenario)
+    'gaze_error', 'retinal_error', 'velocity_storage', 'canal_afferents',
+    'neural_integrator', 'pursuit_drive', 'saccade_burst', 'refractory',
+    'cerebellum_pursuit', 'cerebellum_vor',
+]
+
+
+def _order_panels(panels):
+    """Chosen panels in the canonical order (deduped): core readouts first, then
+    stimulus/context, then internal-mechanism panels — so every figure is laid out
+    consistently regardless of the order the panels were listed in."""
+    chosen  = list(dict.fromkeys(panels))                  # dedup, keep first occurrence
+    ordered = [p for p in _PANEL_ORDER if p in chosen]
+    ordered += [p for p in chosen if p not in _PANEL_ORDER]  # any unknown → keep at end
+    return ordered
+
+
 # Plotted 3-D signals are [yaw(H), pitch(V), roll(T)] in deg or deg/s. Show the
 # V/T channels only when they actually move, so horizontal demos stay clean but
 # vertical / torsional movements are no longer dropped from the traces.
@@ -618,7 +643,7 @@ def _build_figure(
     scenario: SimulationScenario,
 ) -> plt.Figure:
     """Assemble the multi-panel figure."""
-    panels = scenario.plot.panels
+    panels = _order_panels(scenario.plot.panels)
     n = len(panels)
     fig = plt.figure(figsize=(10, 2.2 * n))
     gs  = gridspec.GridSpec(n, 1, hspace=0.45)
@@ -949,7 +974,7 @@ def _build_plot_spec(t_array: np.ndarray, sig: dict, stim_kw: dict,
         't':     [round(float(v), 4) for v in t[::stride]],
         'panels': [
             _panel_spec(p, t, sig, stim_kw, scenario, stride)
-            for p in scenario.plot.panels
+            for p in _order_panels(scenario.plot.panels)
         ],
     }
 
@@ -1038,7 +1063,7 @@ def _build_comparison_figure(
     comparison: SimulationComparison,
 ) -> plt.Figure:
     """Overlay N simulation results on the same set of panels."""
-    panels = comparison.panels
+    panels = _order_panels(comparison.panels)
     n = len(panels)
     labels = [s.description for s in comparison.scenarios]
 
@@ -1150,7 +1175,7 @@ def _build_comparison_spec(
         return [round(float(v), 4) if np.isfinite(v) else None for v in y]
 
     panel_specs = []
-    for panel in comparison.panels:
+    for panel in _order_panels(comparison.panels):
         traces, hlines = [], [{'y': 0, 'color': _C['zero'], 'style': '--'}]
         for idx, (t, sig, stim_kw) in enumerate(results):
             color = _COMPARE_COLORS[idx % len(_COMPARE_COLORS)]

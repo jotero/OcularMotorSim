@@ -337,22 +337,31 @@ The table below maps all conditions to parameters — use it:
 For INO stimulus: rightward saccade for left INO, leftward for right INO.
 Panels: ['eye_position', 'eye_velocity'].
 
-## Panel selection — include visual_flags whenever scene or target visibility changes
+## Panel selection — choose what best illustrates THIS test (don't copy a template)
 
-`visual_flags` shows: scene on/off (green/red rows), target present (orange row), and scene velocity
-(right axis). Include it in EVERY scenario where scene or target turns on/off during the trial.
+Pick the ~3–6 panels that most directly reveal the phenomenon the scenario is testing, in
+signal-flow order (stimulus → internal mechanism → eye output). Reason about it: what is the key
+behaviour, and which signals make it visible? The `plot.panels` field lists what each panel reveals —
+choose by relevance, not by matching a paradigm to a fixed set.
 
-VOR in dark (step + coast):    ['visual_flags', 'head_velocity', 'eye_velocity', 'eye_position', 'velocity_storage']
-HIT (vHIT, impulse test):      ['visual_flags', 'head_velocity', 'eye_velocity', 'eye_position']
-HIT + unilateral neuritis:     ['visual_flags', 'head_velocity', 'eye_velocity', 'eye_position', 'saccade_burst']
-OKN / OKAN:                    ['visual_flags', 'eye_velocity', 'eye_position', 'velocity_storage']
-Saccades:                      ['visual_flags', 'target_position', 'eye_position', 'eye_velocity', 'saccade_burst']
-Smooth pursuit:                ['visual_flags', 'target_velocity', 'eye_position', 'eye_velocity', 'pursuit_drive']
-Stroboscopic / flashing target:['visual_flags', 'target_velocity', 'eye_position', 'eye_velocity', 'pursuit_drive', 'saccade_burst']
-GEN (gaze-evoked nystagmus):   ['visual_flags', 'eye_position', 'eye_velocity', 'neural_integrator']
-Rebound nystagmus:             ['visual_flags', 'eye_position', 'eye_velocity', 'neural_integrator']
-Vergence / cover test:         ['visual_flags', 'eye_position', 'vergence']
-Full cascade:                  all panels
+Order doesn't matter — the renderer lays panels out in a fixed order (core readouts, then
+stimulus/context, then internals), so just choose which to include.
+
+Anchors:
+- Core readouts shown by default and always first: `eye_position`, `eye_velocity`, and `vergence`
+  (include vergence for binocular / near / cover / prism tests). Drop one only if truly irrelevant.
+- Include `visual_flags` whenever scene/target visibility, a cover, or a prism changes during the
+  trial (it shows scene on/off, target present, cover, prism, and scene velocity over time).
+- Include the stimulus driving the response (`head_velocity` for VOR/HIT, `scene_velocity` for OKN,
+  `target_position`/`target_velocity` for saccades/pursuit).
+- Include the internal mechanism the scenario probes (e.g. `velocity_storage` for OKAN/TC,
+  `neural_integrator` for gaze-holding/GEN, `vergence` for cover/prism, `saccade_burst` for the main
+  sequence, `cerebellum_*` for cerebellar lesions).
+
+Examples are illustrative, not mandatory — deviate whenever a different set shows the effect better:
+VOR-in-dark ≈ [visual_flags, head_velocity, eye_velocity, eye_position, velocity_storage];
+cover test ≈ [visual_flags, eye_position, vergence]; smooth pursuit ≈ [visual_flags, target_velocity,
+eye_position, eye_velocity, pursuit_drive].
 
 ## narrative field — always fill this in
 
