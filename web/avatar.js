@@ -290,10 +290,20 @@ function setRay(cyl, o, d, len) {
 // render pass, AFTER the head bone is set to its pose, so the cover tracks the
 // eyeball in both the world view (head rotated) and the head-fixed view (head
 // reset to rest). getWorldPosition refreshes the bone world matrices for us.
+//
+// The eye BONE sits ~one radius behind the cornea (centre of the eyeball), so a
+// sphere parked there is mostly buried in the socket and occluded by the face.
+// Push it forward along the gaze axis onto the corneal surface so the front
+// hemisphere clears the skin and reads as a solid patch over the eye.
+const _COVER_FWD = 0.013;   // metres forward (≈ one eyeball radius)
 function anchorCovers() {
   if (!coverMeshL || !faceMesh || !leftEyeBone) return;
-  if (coverMeshL.visible) eyeWorldPos(leftEyeBone,  coverMeshL.position);
-  if (coverMeshR.visible) eyeWorldPos(rightEyeBone, coverMeshR.position);
+  if (coverMeshL.visible)
+    eyeWorldPos(leftEyeBone,  coverMeshL.position)
+      .addScaledVector(eyeGazeDir(leftEyeBone,  _gazeAxisL), _COVER_FWD * _modelUnit);
+  if (coverMeshR.visible)
+    eyeWorldPos(rightEyeBone, coverMeshR.position)
+      .addScaledVector(eyeGazeDir(rightEyeBone, _gazeAxisR), _COVER_FWD * _modelUnit);
 }
 
 // eye_pos in simulation = head-fixed plant state [yaw, pitch, roll] deg
@@ -324,13 +334,13 @@ function applyFrame(fi) {
     );
   }
 
-  // Cover patches: a near-black sphere over a covered eye, anchored to the
-  // rendered eyeball (same faceMesh-local-of-bone point the rays/target use).
+  // Cover patches: a near-black sphere over a covered eye. Set visibility here
+  // (for the world-view render, head rotated); anchorCovers() positions them and
+  // is called again after the head reset for the head-fixed render.
   if (coverMeshL && faceMesh) {
     coverMeshL.visible = !!(_traj.cover_L && _traj.cover_L[fi]);
     coverMeshR.visible = !!(_traj.cover_R && _traj.cover_R[fi]);
-    if (coverMeshL.visible) eyeWorldPos(leftEyeBone,  coverMeshL.position);
-    if (coverMeshR.visible) eyeWorldPos(rightEyeBone, coverMeshR.position);
+    anchorCovers();
   }
 
   // Eyelids: spontaneous blink + upper lid follows vertical gaze (downgaze
