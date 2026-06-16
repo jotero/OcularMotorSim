@@ -97,6 +97,28 @@ function setWorldView(mode) {
   worldCam.updateProjectionMatrix();
 }
 
+// Triangular prism wedge: flat front face (X-Y at Z=0), back face sloping from
+// the thin apex (−X, Z=0) to the thick base (+X, Z=t). Extruded along Y. The +X
+// edge is the BASE; thickness t (scaled per-frame by power). MeshBasic = unlit,
+// so winding/normals don't matter; DoubleSide shows every face.
+function makePrismWedge(hw, hh, t) {
+  const v = new Float32Array([
+    -hw, -hh, 0,   hw, -hh, 0,   hw, -hh, t,   // bottom: apex, base-front, base-back
+    -hw,  hh, 0,   hw,  hh, 0,   hw,  hh, t,   // top
+  ]);
+  const idx = [
+    0, 2, 1,  3, 4, 5,          // triangular caps
+    0, 1, 4,  0, 4, 3,          // front face (Z=0, toward eye)
+    1, 2, 5,  1, 5, 4,          // base face (+X, thick edge)
+    0, 3, 5,  0, 5, 2,          // sloped back face (apex → base-back)
+  ];
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(v, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 const AVATAR_PATH = 'avatar/avatar.glb';
 
 new GLTFLoader().load(AVATAR_PATH, (gltf) => {
@@ -248,9 +270,9 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   // present. Head-fixed (mounted on glasses) and TILTED toward the prism's base
   // by an exaggerated multiple of the deviation, so base direction + power read
   // at a glance. The eyeball re-fixates through it (the sim already deviates gaze).
-  const prismGeo = new THREE.CylinderGeometry(0.024 * _modelUnit, 0.024 * _modelUnit, 0.004 * _modelUnit, 24);
+  const prismGeo = makePrismWedge(0.02 * _modelUnit, 0.022 * _modelUnit, 0.03 * _modelUnit);
   const prismMat = new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true,
-    opacity: 0.32, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
+    opacity: 0.34, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
   prismL = new THREE.Mesh(prismGeo, prismMat);  prismR = new THREE.Mesh(prismGeo, prismMat);
   prismL.frustumCulled = false; prismR.frustumCulled = false;
   prismL.visible = false;       prismR.visible = false;
@@ -368,23 +390,23 @@ function anchorCovers() {
     eyeWorldPos(rightEyeBone, coverMeshR.position).addScaledVector(fwd, _COVER_FWD * _modelUnit);
 }
 
-// Re-anchor the (visible) prism lenses: head-fixed, in front of the eye, with the
-// disc normal = head-forward tilted by the (exaggerated) prism deviation so the
-// lens visibly leans toward the prism's base. Mirrors anchorCovers().
-const _PRISM_FWD = 0.045;   // metres forward — a lens held clearly ahead of the eye (like glasses)
-const _PRISM_TILT = 6;      // visual exaggeration of the few-degree deviation
-const _AXx = new THREE.Vector3(1, 0, 0), _AXy = new THREE.Vector3(0, 1, 0);
-const _pn = new THREE.Vector3();
+// Re-anchor the (visible) prism wedges: head-fixed, in front of the eye, front
+// face perpendicular to gaze, rotated about the optical axis so the thick edge
+// (base) points in the prism's base direction, and scaled in thickness by power.
+// Mirrors anchorCovers().
+const _PRISM_FWD = 0.045;   // metres forward — held clearly ahead of the eye (like glasses)
+const _AXz = new THREE.Vector3(0, 0, 1), _qz = new THREE.Quaternion();
 function anchorPrisms() {
   if (!prismL || !faceMesh || !leftEyeBone || !headBone) return;
   const fwd = headForward();                 // sets _fwdTmp + _rQ (head world quat)
   const place = (mesh, bone, dev) => {
     if (!mesh.visible || !dev) return;
     eyeWorldPos(bone, mesh.position).addScaledVector(fwd, _PRISM_FWD * _modelUnit);
-    const yaw = (dev[0] || 0) * _PRISM_TILT * DEG, pitch = (dev[1] || 0) * _PRISM_TILT * DEG;
-    _pn.set(0, 0, 1).applyAxisAngle(_AXx, pitch).applyAxisAngle(_AXy, yaw)
-       .applyQuaternion(_rQ).normalize();    // head-forward tilted by deviation → world
-    mesh.quaternion.setFromUnitVectors(_UP, _pn);   // disc normal (local +Y) → tilted normal
+    const power     = Math.hypot(dev[0] || 0, dev[1] || 0);
+    const baseAngle = Math.atan2(dev[1] || 0, dev[0] || 0);   // base dir in right-up plane
+    _qz.setFromAxisAngle(_AXz, baseAngle);
+    mesh.quaternion.copy(_rQ).multiply(_qz);                  // head frame ⊗ base rotation
+    mesh.scale.set(1, 1, Math.min(1.8, Math.max(0.3, power / 4)));   // thickness ∝ power
   };
   place(prismL, leftEyeBone,  _prismDevL);
   place(prismR, rightEyeBone, _prismDevR);
