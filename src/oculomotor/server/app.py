@@ -250,14 +250,20 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     head_pos = np.cumsum(hv * dt_orig, axis=0)           # (T, 3) deg
     head_ds  = head_pos[::step]
 
-    # Infer monocular cover: one eye in total darkness while the other has visual input
+    # Infer monocular cover: one eye occluded relative to the fellow eye. Fires for
+    # either convention — full occlusion (a physical patch: no scene AND no target
+    # for that eye) OR loss of the fixation target while the fellow eye still
+    # fixates (alternate cover test, room may stay lit). Binocular darkness (VOR in
+    # the dark) is NOT a cover: both eyes deprived, neither is "the covered one".
     ones = np.ones(len(t))
     spL = np.array(sim_data.get('scene_present_L',  ones))
     spR = np.array(sim_data.get('scene_present_R',  ones))
     tpL = np.array(sim_data.get('target_present_L', ones))
     tpR = np.array(sim_data.get('target_present_R', ones))
-    cover_L = ((spL < 0.5) & (tpL < 0.5) & ((spR > 0.5) | (tpR > 0.5))).astype(int)[::step]
-    cover_R = ((spR < 0.5) & (tpR < 0.5) & ((spL > 0.5) | (tpL > 0.5))).astype(int)[::step]
+    fullL = (spL < 0.5) & (tpL < 0.5);  seesL = (spL > 0.5) | (tpL > 0.5)
+    fullR = (spR < 0.5) & (tpR < 0.5);  seesR = (spR > 0.5) | (tpR > 0.5)
+    cover_L = ((fullL & seesR) | ((tpL < 0.5) & (tpR > 0.5))).astype(int)[::step]
+    cover_R = ((fullR & seesL) | ((tpR < 0.5) & (tpL > 0.5))).astype(int)[::step]
 
     # Target: world-Cartesian position relative to the head (m), + a per-frame
     # presence flag (either eye seeing the foveal target). The avatar draws a red
