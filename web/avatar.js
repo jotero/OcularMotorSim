@@ -54,6 +54,7 @@ let rightEyeBone = null;
 let headBone     = null;
 let restL = null, restR = null, restHead = null;
 let coverMeshL   = null, coverMeshR = null;
+let _forceCover  = false;   // debug: 'c' key forces both covers on (ignores data)
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
@@ -220,12 +221,13 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   _camRefEye = eyeMid.clone(); _camRefSize = size.y; _camNear = near; _camFar = far;
   setWorldView('default');
 
-  // Eye-cover patches: a near-black sphere over a covered eyeball, shown when
-  // that eye is in darkness (monocular cover). Anchored per-frame to the rendered
-  // eye (the same faceMesh-local-of-bone point the target/rays use), in the scene
-  // so it appears in both views. Radius > eyeball so it occludes the iris.
-  const coverGeo = new THREE.SphereGeometry(0.014 * _modelUnit, 18, 12);
-  const coverMat = new THREE.MeshBasicMaterial({ color: 0x111316, toneMapped: false });
+  // Eye-cover patches: an opaque disc over a covered eyeball, shown when that eye
+  // is in darkness (monocular cover). Anchored per-frame to the rendered eye (the
+  // same faceMesh-local-of-bone point the target/rays use), in the scene so it
+  // appears in both views. Radius > eyeball so it occludes the iris. Medium gray
+  // (not near-black) so it stays visible against the dark eye/socket.
+  const coverGeo = new THREE.SphereGeometry(0.016 * _modelUnit, 18, 12);
+  const coverMat = new THREE.MeshBasicMaterial({ color: 0x6a6a6a, toneMapped: false });
   coverMeshL = new THREE.Mesh(coverGeo, coverMat);
   coverMeshR = new THREE.Mesh(coverGeo, coverMat);
   coverMeshL.frustumCulled = false; coverMeshR.frustumCulled = false;
@@ -360,8 +362,8 @@ function applyFrame(fi) {
   // (for the world-view render, head rotated); anchorCovers() positions them and
   // is called again after the head reset for the head-fixed render.
   if (coverMeshL && faceMesh) {
-    coverMeshL.visible = !!(_traj.cover_L && _traj.cover_L[fi]);
-    coverMeshR.visible = !!(_traj.cover_R && _traj.cover_R[fi]);
+    coverMeshL.visible = _forceCover || !!(_traj.cover_L && _traj.cover_L[fi]);
+    coverMeshR.visible = _forceCover || !!(_traj.cover_R && _traj.cover_R[fi]);
     anchorCovers();
   }
 
@@ -583,6 +585,7 @@ function animate(ts) {
 requestAnimationFrame(animate);
 
 // Temporary world-camera view controls: d=default, t=top, l=left, r=right.
+// c = debug-force both eye covers on (ignores cover data) to test rendering.
 // Ignored while typing in a form field.
 window.addEventListener('keydown', (e) => {
   if (e.target && /^(input|textarea|select)$/i.test(e.target.tagName)) return;
@@ -591,4 +594,5 @@ window.addEventListener('keydown', (e) => {
   else if (k === 't') setWorldView('top');
   else if (k === 'l') setWorldView('left');
   else if (k === 'r') setWorldView('right');
+  else if (k === 'c') { _forceCover = !_forceCover; console.log('forceCover =', _forceCover); }
 });
