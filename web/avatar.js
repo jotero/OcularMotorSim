@@ -60,8 +60,8 @@ let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eye
 // eye bone's getWorldPosition() (the canonical, already-correct world position —
 // the same one the head-fixed camera uses).
 let targetSphere = null, gazeRayL = null, gazeRayR = null;
-let sceneDots = null;               // low-contrast world surround (rotates + flows)
-let _dotBase = null, _dotH = 1;     // base dot positions + half-extent (for wrap-around flow)
+let sceneDots = null;               // low-contrast world surround group (rotates + flows)
+let _dotLayers = null, _dotH = 1;   // per-size dot layers {geom, base} + half-extent (wrap flow)
 let _restEyeMid  = null;            // world eye-mid at rest (for the world-fixed target)
 let _gazeAxisL   = null, _gazeAxisR = null;  // eye-local axis that points along gaze
 let _modelUnit   = 1;               // world units per metre (from eye separation)
@@ -170,52 +170,45 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   {
     const N = 1800, H = 6 * _modelUnit, hole = 1.2 * _modelUnit;
     _dotH = H;
-    _dotBase = new Float32Array(N * 3);
-    const arr   = new Float32Array(N * 3);
-    const sizes = new Float32Array(N);
-    for (let i = 0; i < N; i++) {
-      let x, y, z;
-      do { x = (Math.random()*2-1)*H; y = (Math.random()*2-1)*H; z = (Math.random()*2-1)*H; }
-      while (x*x + y*y + z*z < hole*hole);   // no dots inside the head
-      _dotBase[i*3] = x; _dotBase[i*3+1] = y; _dotBase[i*3+2] = z;
-      arr[i*3] = x; arr[i*3+1] = y; arr[i*3+2] = z;
-      // Random fixed-pixel size: 3 px (current) → 30 px (10×). Square-skewed so
-      // most dots stay small (few large ones) — keeps the field from looking busy.
-      const r = Math.random();
-      sizes[i] = 3 + 27 * r * r;
-    }
-    const dg = new THREE.BufferGeometry();
-    dg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    dg.setAttribute('aSize',    new THREE.BufferAttribute(sizes, 1));
-    // ShaderMaterial because PointsMaterial only supports one global size.
-    // gl_PointSize uses the per-vertex aSize × pixelRatio (fixed pixels, no
-    // distance attenuation, matching the old sizeAttenuation:false look).
-    sceneDots = new THREE.Points(dg, new THREE.ShaderMaterial({
-      uniforms: {
-        uColor:   { value: new THREE.Color(0x9aa2ae) },
-        uOpacity: { value: 0.55 },
-        uScale:   { value: renderer.getPixelRatio() },
-      },
-      vertexShader: `
-        attribute float aSize;
-        uniform float uScale;
-        void main() {
-          gl_Position  = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = aSize * uScale;
-        }`,
-      fragmentShader: `
-        uniform vec3  uColor;
-        uniform float uOpacity;
-        void main() {
-          vec2 c = gl_PointCoord - vec2(0.5);
-          if (dot(c, c) > 0.25) discard;   // round dots
-          gl_FragColor = vec4(uColor, uOpacity);
-        }`,
-      transparent: true, depthWrite: false,
-    }));
+    // World-space dot sizes (metres) with sizeAttenuation:true → dots shrink
+    // with distance like real objects (perspective), instead of a fixed pixel
+    // size. Three discrete sizes via three Points layers (PointsMaterial has one
+    // global size); most dots small, a few large. SIZE × _modelUnit converts
+    // metres → world units. Round sprite texture so big dots aren't blocky.
+    const SIZES = [0.05, 0.12, 0.26];   // metres
+    const FRAC  = [0.55, 0.30, 0.15];   // share of dots per size
+    const dotTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const g = c.getContext('2d');
+      g.beginPath(); g.arc(32, 32, 30, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill();
+      const t = new THREE.CanvasTexture(c); return t;
+    })();
+    sceneDots = new THREE.Group();
     sceneDots.position.copy(_restEyeMid);   // centred on the eye; rotates about it
     sceneDots.frustumCulled = false;
     sceneDots.visible = false;
+    _dotLayers = [];
+    for (let s = 0; s < SIZES.length; s++) {
+      const n = Math.round(N * FRAC[s]);
+      const base = new Float32Array(n * 3);
+      const arr  = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        let x, y, z;
+        do { x = (Math.random()*2-1)*H; y = (Math.random()*2-1)*H; z = (Math.random()*2-1)*H; }
+        while (x*x + y*y + z*z < hole*hole);   // no dots inside the head
+        base[i*3] = x; base[i*3+1] = y; base[i*3+2] = z;
+        arr[i*3]  = x; arr[i*3+1]  = y; arr[i*3+2]  = z;
+      }
+      const dg = new THREE.BufferGeometry();
+      dg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+      const pts = new THREE.Points(dg, new THREE.PointsMaterial({
+        color: 0x9aa2ae, size: SIZES[s] * _modelUnit, sizeAttenuation: true,
+        map: dotTex, alphaTest: 0.1,
+        transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false }));
+      pts.frustumCulled = false;
+      sceneDots.add(pts);
+      _dotLayers.push({ geom: dg, base });
+    }
     scene.add(sceneDots);
   }
 
@@ -421,17 +414,19 @@ function applyFrame(fi) {
       // Translational optic flow: shift dots opposite the head displacement,
       // wrapping the box so the field never runs out. (avatar x = −sim x.)
       const hd = _traj.head_lin_pos && _traj.head_lin_pos[fi];
-      if (hd && _dotBase) {
+      if (hd && _dotLayers) {
         const u = _modelUnit, H = _dotH, m = 2 * H;
         const dx = hd[0] * u, dy = hd[1] * u, dz = hd[2] * u;
-        const buf = sceneDots.geometry.attributes.position.array, b = _dotBase;
         const wrap = (v) => { let x = (v + H) % m; if (x < 0) x += m; return x - H; };
-        for (let i = 0; i < buf.length; i += 3) {
-          buf[i]     = wrap(b[i]     + dx);   // + because avatar x is flipped
-          buf[i + 1] = wrap(b[i + 1] - dy);
-          buf[i + 2] = wrap(b[i + 2] - dz);
+        for (const layer of _dotLayers) {
+          const buf = layer.geom.attributes.position.array, b = layer.base;
+          for (let i = 0; i < buf.length; i += 3) {
+            buf[i]     = wrap(b[i]     + dx);   // + because avatar x is flipped
+            buf[i + 1] = wrap(b[i + 1] - dy);
+            buf[i + 2] = wrap(b[i + 2] - dz);
+          }
+          layer.geom.attributes.position.needsUpdate = true;
         }
-        sceneDots.geometry.attributes.position.needsUpdate = true;
       }
       // Rotational drift (OKN): rotate the whole field about the eye.
       const sp = _traj.scene_pos && _traj.scene_pos[fi];
