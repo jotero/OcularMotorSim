@@ -54,7 +54,6 @@ let rightEyeBone = null;
 let headBone     = null;
 let restL = null, restR = null, restHead = null;
 let coverMeshL   = null, coverMeshR = null;
-let _forceCover  = false;   // debug: 'c' key forces both covers on (ignores data)
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
@@ -379,8 +378,8 @@ function applyFrame(fi) {
   // (for the world-view render, head rotated); anchorCovers() positions them and
   // is called again after the head reset for the head-fixed render.
   if (coverMeshL && faceMesh) {
-    coverMeshL.visible = _forceCover || !!(_traj.cover_L && _traj.cover_L[fi]);
-    coverMeshR.visible = _forceCover || !!(_traj.cover_R && _traj.cover_R[fi]);
+    coverMeshL.visible = !!(_traj.cover_L && _traj.cover_L[fi]);
+    coverMeshR.visible = !!(_traj.cover_R && _traj.cover_R[fi]);
     anchorCovers();
   }
 
@@ -602,7 +601,6 @@ function animate(ts) {
 requestAnimationFrame(animate);
 
 // Temporary world-camera view controls: d=default, t=top, l=left, r=right.
-// c = debug-force both eye covers on (ignores cover data) to test rendering.
 // Ignored while typing in a form field.
 window.addEventListener('keydown', (e) => {
   if (e.target && /^(input|textarea|select)$/i.test(e.target.tagName)) return;
@@ -611,5 +609,4 @@ window.addEventListener('keydown', (e) => {
   else if (k === 't') setWorldView('top');
   else if (k === 'l') setWorldView('left');
   else if (k === 'r') setWorldView('right');
-  else if (k === 'c') { _forceCover = !_forceCover; console.log('forceCover =', _forceCover); }
 });
