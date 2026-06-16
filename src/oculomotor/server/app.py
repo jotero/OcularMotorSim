@@ -167,7 +167,7 @@ def _truthy(v) -> bool:
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
 
-app = FastAPI(title='OculomotorSim')
+app = FastAPI(title='ViSiOMlab')
 
 # Allow requests from GitHub Pages (and any other origin) so the static
 # frontend can call this local backend across origins.
@@ -744,7 +744,7 @@ async def download_endpoint(run_id: str):
         ])
 
     csv_bytes = buf.getvalue().encode('utf-8')
-    filename  = f'oculomotorsim_{run_id[:8]}.csv'
+    filename  = f'visiomlab_{run_id[:8]}.csv'
 
     return StreamingResponse(
         io.BytesIO(csv_bytes),
@@ -783,7 +783,7 @@ def main():
     parser.add_argument('--port', type=int, default=8000)
     args = parser.parse_args()
 
-    print(f"\n  OculomotorSim {_SIM_VERSION} running at http://localhost:{args.port}")
+    print(f"\n  ViSiOMlab {_SIM_VERSION} running at http://localhost:{args.port}")
     print(f"  Local network:  http://<your-ip>:{args.port}")
     print(f"  Web:            {_WEB_DIR}")
     print(f"  Data:           {_DATA_ROOT}")

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ViSiOMlab</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -13,6 +14,8 @@
     align-items: center; padding: 32px 24px;
   }
   h1 { font-size: 1.7rem; font-weight: 600; margin-bottom: 6px; color: #0f172a; }
+  h1.brand { line-height: 0; margin-bottom: 8px; }
+  h1.brand img { height: 58px; width: auto; display: block; }
   .subtitle { font-size: 0.88rem; color: #64748b; margin-bottom: 28px;
               max-width: 620px; line-height: 1.55; }
   .card {
@@ -224,7 +227,7 @@
   }
   /* Divider line between the two viewports — hidden in single-head mode */
   .avatar-wrap::after {
-    content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+    content: ''; position: absolute; top: 0; bottom: 0; left: 70%;
     width: 1px; background: #d3d7e0; pointer-events: none;
   }
   .avatar-wrap.single-view::after { display: none; }
@@ -287,7 +290,7 @@
 </head>
 <body>
 
-<h1>ViSiOMlab</h1>
+<h1 class="brand"><img src="assets/visiomlab-logo.svg" alt="ViSiOMlab"></h1>
 <p class="subtitle">A <strong>Vi</strong>rtual <strong>Si</strong>mulator from the <strong>O</strong>cular
   <strong>M</strong>otor <strong>lab</strong> — a biophysically grounded model of how the brain
   controls eye movements. Describe a patient, a clinical test, or a head- and target-motion scenario
@@ -329,8 +332,8 @@
         <canvas id="avatar-canvas"></canvas>
         <span id="avatar-loading">Loading avatar…</span>
         <div class="avatar-labels">
-          <span>World view</span>
-          <span>Head-fixed</span>
+          <span style="flex:7">Head view</span>
+          <span style="flex:3">World view</span>
         </div>
       </div>
       <div id="playback-bar">
