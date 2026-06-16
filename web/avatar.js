@@ -54,6 +54,8 @@ let rightEyeBone = null;
 let headBone     = null;
 let restL = null, restR = null, restHead = null;
 let coverMeshL   = null, coverMeshR = null;
+let prismL = null, prismR = null;          // prism lenses (head-fixed, tilt = base×power)
+let _prismDevL = null, _prismDevR = null;  // current-frame per-eye prism deviation [yaw,pitch,roll]
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
@@ -242,6 +244,18 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   coverMeshL.visible = false;       coverMeshR.visible = false;
   scene.add(coverMeshL); scene.add(coverMeshR);
 
+  // Prism lenses: a translucent disc in front of each eye, shown when a prism is
+  // present. Head-fixed (mounted on glasses) and TILTED toward the prism's base
+  // by an exaggerated multiple of the deviation, so base direction + power read
+  // at a glance. The eyeball re-fixates through it (the sim already deviates gaze).
+  const prismGeo = new THREE.CylinderGeometry(0.024 * _modelUnit, 0.024 * _modelUnit, 0.004 * _modelUnit, 24);
+  const prismMat = new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true,
+    opacity: 0.32, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
+  prismL = new THREE.Mesh(prismGeo, prismMat);  prismR = new THREE.Mesh(prismGeo, prismMat);
+  prismL.frustumCulled = false; prismR.frustumCulled = false;
+  prismL.visible = false;       prismR.visible = false;
+  scene.add(prismL); scene.add(prismR);
+
   document.getElementById('avatar-loading').style.display = 'none';
 
 }, undefined, err => {
@@ -354,6 +368,28 @@ function anchorCovers() {
     eyeWorldPos(rightEyeBone, coverMeshR.position).addScaledVector(fwd, _COVER_FWD * _modelUnit);
 }
 
+// Re-anchor the (visible) prism lenses: head-fixed, in front of the eye, with the
+// disc normal = head-forward tilted by the (exaggerated) prism deviation so the
+// lens visibly leans toward the prism's base. Mirrors anchorCovers().
+const _PRISM_FWD = 0.022;   // metres forward (a lens just ahead of the eye)
+const _PRISM_TILT = 6;      // visual exaggeration of the few-degree deviation
+const _AXx = new THREE.Vector3(1, 0, 0), _AXy = new THREE.Vector3(0, 1, 0);
+const _pn = new THREE.Vector3();
+function anchorPrisms() {
+  if (!prismL || !faceMesh || !leftEyeBone || !headBone) return;
+  const fwd = headForward();                 // sets _fwdTmp + _rQ (head world quat)
+  const place = (mesh, bone, dev) => {
+    if (!mesh.visible || !dev) return;
+    eyeWorldPos(bone, mesh.position).addScaledVector(fwd, _PRISM_FWD * _modelUnit);
+    const yaw = (dev[0] || 0) * _PRISM_TILT * DEG, pitch = (dev[1] || 0) * _PRISM_TILT * DEG;
+    _pn.set(0, 0, 1).applyAxisAngle(_AXx, pitch).applyAxisAngle(_AXy, yaw)
+       .applyQuaternion(_rQ).normalize();    // head-forward tilted by deviation → world
+    mesh.quaternion.setFromUnitVectors(_UP, _pn);   // disc normal (local +Y) → tilted normal
+  };
+  place(prismL, leftEyeBone,  _prismDevL);
+  place(prismR, rightEyeBone, _prismDevR);
+}
+
 // eye_pos in simulation = head-fixed plant state [yaw, pitch, roll] deg
 // head_pos              = integrated head velocity [yaw, pitch, roll] deg
 function applyFrame(fi) {
@@ -389,6 +425,16 @@ function applyFrame(fi) {
     coverMeshL.visible = !!(_traj.cover_L && _traj.cover_L[fi]);
     coverMeshR.visible = !!(_traj.cover_R && _traj.cover_R[fi]);
     anchorCovers();
+  }
+
+  // Prism lenses: shown when this frame has a non-negligible prism deviation.
+  if (prismL && faceMesh) {
+    _prismDevL = _traj.prism_L && _traj.prism_L[fi];
+    _prismDevR = _traj.prism_R && _traj.prism_R[fi];
+    const mag = (d) => d ? Math.hypot(d[0] || 0, d[1] || 0, d[2] || 0) : 0;
+    prismL.visible = mag(_prismDevL) > 0.05;
+    prismR.visible = mag(_prismDevR) > 0.05;
+    anchorPrisms();
   }
 
   // Eyelids: spontaneous blink + upper lid follows vertical gaze (downgaze
@@ -566,6 +612,7 @@ function renderViewports() {
     // world-only props (target + rays) so they don't clutter the eyeball close-up.
     if (headBone && restHead) headBone.rotation.copy(restHead);
     anchorCovers();   // re-anchor covers to the rest-head eyeball for the head view
+    anchorPrisms();
     const _pv = [targetSphere, gazeRayL, gazeRayR].map(m => m && m.visible);
     [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
     renderer.setViewport(hw, 0, w - hw, h);
@@ -578,6 +625,7 @@ function renderViewports() {
     applyFrame(fi);
     if (headBone && restHead) headBone.rotation.copy(restHead);
     anchorCovers();   // re-anchor covers to the rest-head eyeball for the head view
+    anchorPrisms();
     renderer.setViewport(0, 0, w, h);
     renderer.setScissor(0, 0, w, h);
     renderer.setScissorTest(true);
