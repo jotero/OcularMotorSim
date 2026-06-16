@@ -333,7 +333,11 @@ def _order_panels(panels):
     """Chosen panels in the canonical order (deduped): core readouts first, then
     stimulus/context, then internal-mechanism panels — so every figure is laid out
     consistently regardless of the order the panels were listed in."""
-    chosen  = list(dict.fromkeys(panels))                  # dedup, keep first occurrence
+    chosen = list(dict.fromkeys(panels))                   # dedup, keep first occurrence
+    # spv already overlays the driving stimulus (head/scene velocity), so a
+    # standalone head_velocity/scene_velocity panel beside it is redundant.
+    if 'spv' in chosen:
+        chosen = [p for p in chosen if p not in ('head_velocity', 'scene_velocity')]
     ordered = [p for p in _PANEL_ORDER if p in chosen]
     ordered += [p for p in chosen if p not in _PANEL_ORDER]  # any unknown → keep at end
     return ordered
