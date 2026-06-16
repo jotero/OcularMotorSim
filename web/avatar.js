@@ -55,6 +55,8 @@ let headBone     = null;
 let restL = null, restR = null, restHead = null;
 let coverMeshL   = null, coverMeshR = null;
 let eyeMeshes    = [];   // candidate eye meshes (diagnostics)
+let _dbgMarks = null, _gazeDebug = false;          // gaze-anchor candidate markers
+let _eRestDbgL = null, _eLocalDbgL = null, _modelOriginDbg = null;
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
@@ -246,6 +248,22 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   coverMeshL.visible = false;       coverMeshR.visible = false;
   scene.add(coverMeshL); scene.add(coverMeshR);
 
+  // Gaze-anchor candidate markers (LEFT eye): RED = current faceMesh.worldToLocal,
+  // GREEN = boneWorld − modelOrigin (orbit world origin), BLUE = model-local
+  // (orbit model origin). Toggle with 'g'; whichever colour stays ON the left eye
+  // during a VOR head turn is the correct anchor.
+  {
+    const _bw = leftEyeBone.getWorldPosition(new THREE.Vector3());
+    _eRestDbgL      = faceMesh.worldToLocal(_bw.clone());          // rest anchor (scene)
+    _modelOriginDbg = headBone.getWorldPosition(new THREE.Vector3());
+    _eLocalDbgL     = headBone.worldToLocal(_eRestDbgL.clone());   // model-local
+    const mk = (c) => { const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.02 * _modelUnit, 12, 8),
+        new THREE.MeshBasicMaterial({ color: c, toneMapped: false }));
+      m.frustumCulled = false; m.visible = false; scene.add(m); return m; };
+    _dbgMarks = { red: mk(0xff0000), green: mk(0x00ff00), blue: mk(0x2266ff) };
+  }
+
   // Gaze-anchor diagnostic: one-time scene-graph + rest-pose dump. Press 'g'
   // during a rotated VOR frame for the rotated-pose comparison.
   const _graph = [];
@@ -296,16 +314,11 @@ function targetWorld(p) {
   return new THREE.Vector3(-p[0], p[1], p[2]).multiplyScalar(_modelUnit).add(_restEyeMid);
 }
 
-// Eye-centre world position + gaze dir. The avatar is one skinned mesh whose
-// rendered skin sits at the model's LOCAL coords (the glTF skinned-mesh quirk):
-// the skeleton lives at model.position (~[-2,1,1]) but the rendered eye is at
-// boneWorld − model.position. Subtracting only the TRANSLATION (not the full
-// faceMesh.worldToLocal, which also strips the rotation → a constant) makes the
-// origin orbit the world origin with the head, so rays track during VOR.
+// Eye-centre world position (de-offset to the rendered-skin space) + gaze dir.
 const _rQ = new THREE.Quaternion();
 function eyeWorldPos(bone, out) {
   bone.getWorldPosition(out);
-  return headBone ? out.sub(headBone.position) : faceMesh.worldToLocal(out);
+  return faceMesh.worldToLocal(out);   // remove the faceMesh node offset
 }
 function eyeGazeDir(bone, axis) {
   bone.getWorldQuaternion(_rQ);
@@ -492,6 +505,14 @@ function applyFrame(fi) {
       if (sp) sceneDots.rotation.set(-sp[1] * DEG, -sp[0] * DEG, sp[2] * DEG);
     }
   }
+
+  // Gaze-anchor debug markers (LEFT eye candidates) — see which colour tracks.
+  if (_gazeDebug && _dbgMarks && leftEyeBone && headBone) {
+    const v = new THREE.Vector3();
+    leftEyeBone.getWorldPosition(v); _dbgMarks.red.position.copy(faceMesh.worldToLocal(v.clone()));
+    leftEyeBone.getWorldPosition(v); _dbgMarks.green.position.copy(v.sub(_modelOriginDbg));
+    _dbgMarks.blue.position.copy(headBone.localToWorld(_eLocalDbgL.clone()));
+  }
 }
 
 // ── Playback ──────────────────────────────────────────────────────────────────
@@ -650,9 +671,13 @@ window.addEventListener('keydown', (e) => {
   else if (k === 't') setWorldView('top');
   else if (k === 'l') setWorldView('left');
   else if (k === 'r') setWorldView('right');
-  else if (k === 'g') {   // gaze-anchor diagnostic at the CURRENT (rotated) frame
+  else if (k === 'g') {   // toggle gaze-anchor candidate markers (red/green/blue)
+    _gazeDebug = !_gazeDebug;
+    if (_dbgMarks) for (const m of Object.values(_dbgMarks)) m.visible = _gazeDebug;
+    console.log('gazeDebug =', _gazeDebug,
+      '| RED=faceMesh.worldToLocal (current)  GREEN=boneWorld−modelOrigin  BLUE=model-local');
     const fi = Math.min(Math.floor(_frame), _traj ? _traj.n_frames - 1 : 0);
-    if (_traj) applyFrame(fi);   // apply this frame's head rotation before sampling
+    if (_traj) applyFrame(fi);
     dumpGazeDiag('frame' + fi);
   }
 });
