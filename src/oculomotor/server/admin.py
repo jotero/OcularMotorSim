@@ -135,6 +135,28 @@ td.fav-cell:hover, td.feat-cell:hover {{ background: #fff7e6; }}
 .feat-on {{ color: #2563eb; }}
 .fav-off, .feat-off {{ color: #cbd0d8; }}
 
+/* ── Multi-select ── */
+td.sel-cell, th.sel-cell {{ text-align: center; width: 26px; padding-left: 6px;
+  padding-right: 0; cursor: default; }}
+td.sel-cell input, th.sel-cell input {{ cursor: pointer; }}
+tbody tr.selected {{ background: #eaf1ff; }}
+tbody tr.selected:hover {{ background: #e0eaff; }}
+tbody tr.selected.active {{ background: #dbe6ff; }}
+#bulkbar {{
+  display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: #1f2937; color: #e5e7eb; padding: 7px 16px; flex-shrink: 0;
+  border-bottom: 1px solid #111827; font-size: 0.76rem;
+}}
+#bulkbar.show {{ display: flex; }}
+#bulkbar .bulk-count {{ font-weight: 600; margin-right: 6px; }}
+#bulkbar .bulk-msg {{ margin-left: auto; color: #9ca3af; font-size: 0.72rem; }}
+.bulk-btn {{
+  background: #374151; border: 1px solid #4b5563; color: #e5e7eb;
+  font-size: 0.74rem; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+}}
+.bulk-btn:hover {{ border-color: #9ca3af; }}
+.bulk-btn.danger:hover {{ border-color: #f87171; color: #fecaca; background: #3f2222; }}
+
 /* ── Figure panel ── */
 .figure-panel {{
   flex: 1; min-width: 0; overflow-y: auto; padding: 14px 16px;
@@ -219,11 +241,23 @@ header .token-input {{
   <span class="count" id="count"></span>
 </header>
 
+<div id="bulkbar">
+  <span class="bulk-count" id="bulkCount">0 selected</span>
+  <button class="bulk-btn" onclick="bulkFavorite(true)">★ Favorite</button>
+  <button class="bulk-btn" onclick="bulkFavorite(false)">☆ Unfavorite</button>
+  <button class="bulk-btn" onclick="bulkFeatured(true)">◆ Feature</button>
+  <button class="bulk-btn" onclick="bulkFeatured(false)">◇ Unfeature</button>
+  <button class="bulk-btn danger" onclick="bulkDelete()">🗑 Delete</button>
+  <button class="bulk-btn" onclick="clearSelection()">Clear</button>
+  <span class="bulk-msg" id="bulkMsg"></span>
+</div>
+
 <div class="layout">
   <div class="table-panel">
     <table id="log">
       <thead>
         <tr>
+          <th class="sel-cell"><input type="checkbox" id="selAll" title="Select all visible" onclick="toggleSelectAll(this)"></th>
           <th style="width:90px">Date</th>
           <th style="width:76px">Mode</th>
           <th style="width:30px" title="Favorite — shows in the gallery">★</th>
@@ -257,6 +291,7 @@ function fmtTs(ts) {{
 // ── State ────────────────────────────────────────────────────────────────────
 let rows = [];
 let activeIdx = null;
+const selected = new Set();   // run_ids checked for bulk actions
 
 // ── Render table ─────────────────────────────────────────────────────────────
 function renderTable(data) {{
@@ -267,6 +302,7 @@ function renderTable(data) {{
     const tr = document.createElement('tr');
     tr.dataset.idx = i;
     tr.innerHTML = `
+      <td class="sel-cell" onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onclick="onRowCheck(event, ${{i}})"></td>
       <td class="ts">${{fmtTs(r.timestamp)}}</td>
       <td><span class="mode-badge mode-${{r.mode}}">${{r.mode || '—'}}</span></td>
       <td class="fav-cell" title="Toggle favorite" onclick="event.stopPropagation(); toggleFavorite('${{r.run_id}}')">${{isFav(r) ? '<span class="fav-on">★</span>' : '<span class="fav-off">☆</span>'}}</td>
@@ -279,6 +315,14 @@ function renderTable(data) {{
     tbody.appendChild(tr);
   }});
   updateCount();
+  // Re-apply multi-select highlight for selected rows that still exist
+  document.querySelectorAll('#tbody tr').forEach((tr, i) => {{
+    if (rows[i] && selected.has(rows[i].run_id)) {{
+      tr.classList.add('selected');
+      const cb = tr.querySelector('.row-check'); if (cb) cb.checked = true;
+    }}
+  }});
+  if (typeof updateBulkBar === 'function') updateBulkBar();
 }}
 
 function esc(s) {{
@@ -541,6 +585,106 @@ function applyFilter() {{
 
 function updateCount() {{
   document.getElementById('count').textContent = `${{rows.length}} runs`;
+}}
+
+// ── Multi-select (bulk favorite / feature / delete) ───────────────────────────
+let lastCheckedIdx = null;
+
+function onRowCheck(ev, idx) {{
+  ev.stopPropagation();
+  const on = ev.target.checked;
+  if (ev.shiftKey && lastCheckedIdx !== null) {{
+    const a = Math.min(lastCheckedIdx, idx), b = Math.max(lastCheckedIdx, idx);
+    const trs = document.querySelectorAll('#tbody tr');
+    for (let k = a; k <= b; k++) {{
+      if (trs[k] && !trs[k].classList.contains('hidden')) setRowSelected(k, on);
+    }}
+  }} else {{
+    setRowSelected(idx, on);
+  }}
+  lastCheckedIdx = idx;
+  updateBulkBar();
+}}
+
+function setRowSelected(idx, on) {{
+  const r = rows[idx]; if (!r) return;
+  const tr = document.querySelectorAll('#tbody tr')[idx]; if (!tr) return;
+  const cb = tr.querySelector('.row-check'); if (cb) cb.checked = on;
+  tr.classList.toggle('selected', on);
+  if (on) selected.add(r.run_id); else selected.delete(r.run_id);
+}}
+
+function toggleSelectAll(cb) {{
+  document.querySelectorAll('#tbody tr').forEach((tr, i) => {{
+    if (!tr.classList.contains('hidden')) setRowSelected(i, cb.checked);
+  }});
+  updateBulkBar();
+}}
+
+function clearSelection() {{
+  selected.clear();
+  document.querySelectorAll('#tbody tr').forEach((tr) => {{
+    tr.classList.remove('selected');
+    const cb = tr.querySelector('.row-check'); if (cb) cb.checked = false;
+  }});
+  const sa = document.getElementById('selAll'); if (sa) sa.checked = false;
+  updateBulkBar();
+}}
+
+function updateBulkBar() {{
+  const n = selected.size;
+  document.getElementById('bulkbar').classList.toggle('show', n > 0);
+  document.getElementById('bulkCount').textContent = `${{n}} selected`;
+  if (!n) bulkMsg('');
+}}
+
+function bulkMsg(t) {{ const m = document.getElementById('bulkMsg'); if (m) m.textContent = t; }}
+
+async function bulkFavorite(fav) {{
+  const ids = [...selected]; if (!ids.length) return;
+  bulkMsg('Working…');
+  const res = await Promise.allSettled(ids.map(async (runId) => {{
+    const resp = await adminPost('/admin/favorite', {{ run_id: runId, favorite: fav }});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const r = rows.find(x => x.run_id === runId); if (r) r.favorite = fav ? 'True' : '';
+    const ar = ALL_ROWS.find(x => x.run_id === runId); if (ar) ar.favorite = fav ? 'True' : '';
+  }}));
+  const ok = res.filter(x => x.status === 'fulfilled').length;
+  ids.forEach(updateRowMarks);
+  applyFilter();
+  bulkMsg(`${{fav ? 'Favorited' : 'Unfavorited'}} ${{ok}}/${{ids.length}}`);
+}}
+
+async function bulkFeatured(feat) {{
+  const ids = [...selected]; if (!ids.length) return;
+  bulkMsg('Working…');
+  const res = await Promise.allSettled(ids.map(async (runId) => {{
+    const resp = await adminPost('/admin/featured', {{ run_id: runId, featured: feat }});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const r = rows.find(x => x.run_id === runId); if (r) r.featured = feat ? 'True' : '';
+    const ar = ALL_ROWS.find(x => x.run_id === runId); if (ar) ar.featured = feat ? 'True' : '';
+  }}));
+  const ok = res.filter(x => x.status === 'fulfilled').length;
+  ids.forEach(updateRowMarks);
+  applyFilter();
+  bulkMsg(`${{feat ? 'Featured' : 'Unfeatured'}} ${{ok}}/${{ids.length}}`);
+}}
+
+async function bulkDelete() {{
+  const ids = [...selected]; if (!ids.length) return;
+  if (!confirm(`Delete ${{ids.length}} run(s) permanently? Removes their data, figures, and log entries.`)) return;
+  bulkMsg('Deleting…');
+  const res = await Promise.allSettled(ids.map(async (runId) => {{
+    const resp = await fetch('/runs/' + runId, {{ method: 'DELETE', headers: {{ 'X-Admin-Token': adminToken() }} }});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const ai = ALL_ROWS.findIndex(x => x.run_id === runId); if (ai >= 0) ALL_ROWS.splice(ai, 1);
+  }}));
+  const ok = res.filter(x => x.status === 'fulfilled').length;
+  selected.clear();
+  renderTable(ALL_ROWS);
+  applyFilter();
+  document.getElementById('panel').innerHTML =
+    `<div class="no-selection">Deleted ${{ok}} run(s). ← select another</div>`;
 }}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
