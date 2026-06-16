@@ -868,19 +868,15 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
                 if mv > 1.0:
                     active.append(i)
             for i in active:
-                p = _new(f'eye_position_{SUF[i]}', f'Eye / target position — {AXN[i]} (deg)')
+                p = _new(f'eye_position_{SUF[i]}', f'Eye position — {AXN[i]} (deg)')
                 if float(np.max(np.abs(ep_L[:, i] - ep_R[:, i]))) > 0.5:   # disconjugate this axis
                     _ad(p, 'L eye', '#2166ac', ep_L[:, i])
                     _ad(p, 'R eye', '#d6604d', ep_R[:, i])
                 else:
                     _ad(p, 'Eye', _C['eye'], ep[:, i])
-                if i == 0 and head_moves:
-                    _ad(p, 'Gaze (world)', _C['head'], ep[:, 0] + head_angle, style='--')
-                if tgt[i] is not None:
-                    _ad(p, 'Target (visible)', _C['target'], np.where(tp_combined > 0.5, tgt[i], np.nan))
-                    if (tp_combined < 0.5).any():
-                        _ad(p, 'Target (absent)', _C['target'],
-                            np.where(tp_combined < 0.5, tgt[i], np.nan), style='--')
+                # Target overlaid ONLY where it is actually present (no ghost when absent).
+                if tgt[i] is not None and (tp_combined > 0.5).any():
+                    _ad(p, 'Target', _C['target'], np.where(tp_combined > 0.5, tgt[i], np.nan))
                 out.append(p)
         else:  # eye_velocity
             active = [0]
