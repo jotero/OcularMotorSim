@@ -283,7 +283,7 @@
 <body>
 
 <h1>OculomotorSim</h1>
-<p class="subtitle">Describe a scenario or comparison — the model figures out what to simulate.</p>
+<p class="subtitle">Describe a scenario or comparison to simulate.</p>
 
 
 <div class="card">
@@ -338,12 +338,12 @@
 
     <!-- Patient parameter changes — populated from RunResponse.patient_changes -->
     <div id="patient-changes-section" style="display:none;margin-top:18px;">
-      <h3 style="font-size:14px;margin-bottom:8px;color:#1a1a2e;">Patient parameters changed by the LLM</h3>
+      <h3 style="font-size:14px;margin-bottom:8px;color:#1a1a2e;">Patient parameters changed</h3>
       <p style="font-size:11px;color:#666;margin-bottom:10px;">
-        Each row shows a parameter the LLM tuned for this scenario, with its
+        Each row shows a parameter tuned for this scenario, with its
         healthy default and the new value.  Same fields appear in
         <a href="parameters.html" target="_blank">parameters.html</a> with full
-        context.  No row = the LLM left the patient at all defaults (healthy).
+        context.  No row = the patient was left at all defaults (healthy).
       </p>
       <div id="patient-changes-tabs" style="display:none;margin-bottom:8px;"></div>
       <table class="param-table" id="patient-changes-table">
@@ -370,7 +370,7 @@
 
     <!-- Advanced: feedback + raw scenario JSON + the static matplotlib figure (collapsed by default). -->
     <details class="advanced">
-      <summary>Advanced — feedback, scenario JSON &amp; static figure</summary>
+      <summary>Advanced</summary>
       <div class="advanced-body">
         <!-- Feedback -->
         <div class="feedback-section" id="feedback-section">
