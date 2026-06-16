@@ -252,14 +252,14 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   _camRefEye = eyeMid.clone(); _camRefSize = size.y; _camNear = near; _camFar = far;
   setWorldView('default');
 
-  // Eye-cover patches: an opaque disc over a covered eyeball, shown when that eye
-  // is in darkness (monocular cover). Anchored per-frame to the rendered eye (the
-  // same faceMesh-local-of-bone point the target/rays use), in the scene so it
-  // appears in both views. Sits in FRONT of the eye and is clearly bigger than
-  // it: ~5 cm diameter (radius 0.025 m). Medium gray (not near-black) so it
-  // stays visible against the dark eye/socket.
+  // Eye-cover patches: a semi-transparent black disc over a covered eyeball,
+  // shown when that eye is in darkness (monocular cover). Anchored per-frame to
+  // the rendered eye, in the scene so it appears in both views. Sits in FRONT of
+  // the eye and is clearly bigger than it (~5 cm diameter). Black but see-through
+  // (opacity 0.45) so the eye behind it stays visible.
   const coverGeo = new THREE.SphereGeometry(0.025 * _modelUnit, 20, 14);
-  const coverMat = new THREE.MeshBasicMaterial({ color: 0x6a6a6a, toneMapped: false });
+  const coverMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true,
+    opacity: 0.45, depthWrite: false, toneMapped: false });   // black but see-through
   coverMeshL = new THREE.Mesh(coverGeo, coverMat);
   coverMeshR = new THREE.Mesh(coverGeo, coverMat);
   coverMeshL.frustumCulled = false; coverMeshR.frustumCulled = false;
