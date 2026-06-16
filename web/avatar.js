@@ -224,9 +224,10 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   // Eye-cover patches: an opaque disc over a covered eyeball, shown when that eye
   // is in darkness (monocular cover). Anchored per-frame to the rendered eye (the
   // same faceMesh-local-of-bone point the target/rays use), in the scene so it
-  // appears in both views. Radius > eyeball so it occludes the iris. Medium gray
-  // (not near-black) so it stays visible against the dark eye/socket.
-  const coverGeo = new THREE.SphereGeometry(0.016 * _modelUnit, 18, 12);
+  // appears in both views. Sits in FRONT of the eye and is clearly bigger than
+  // it: ~5 cm diameter (radius 0.025 m). Medium gray (not near-black) so it
+  // stays visible against the dark eye/socket.
+  const coverGeo = new THREE.SphereGeometry(0.025 * _modelUnit, 20, 14);
   const coverMat = new THREE.MeshBasicMaterial({ color: 0x6a6a6a, toneMapped: false });
   coverMeshL = new THREE.Mesh(coverGeo, coverMat);
   coverMeshR = new THREE.Mesh(coverGeo, coverMat);
@@ -319,7 +320,7 @@ function setRay(cyl, o, d, len) {
 // sphere parked there is mostly buried in the socket and occluded by the face.
 // Push it forward along the gaze axis onto the corneal surface so the front
 // hemisphere clears the skin and reads as a solid patch over the eye.
-const _COVER_FWD = 0.013;   // metres forward (≈ one eyeball radius)
+const _COVER_FWD = 0.028;   // metres forward — sits clearly in front of the eyeball
 function anchorCovers() {
   if (!coverMeshL || !faceMesh || !leftEyeBone) return;
   if (coverMeshL.visible)
