@@ -798,10 +798,15 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         ep_L, ep_R = sig['eye_pos_L'], sig['eye_pos_R']
         bino_spread = np.max(np.abs(ep_L[:, 0] - ep_R[:, 0]))
         if bino_spread > 0.5:
-            tr('L eye (head)' if head_moves else 'L eye', '#2166ac', ep_L[:, 0])
-            tr('R eye (head)' if head_moves else 'R eye', '#d6604d', ep_R[:, 0])
-            if float(np.max(np.abs(ep[:, 1]))) > 1.0:   # conjugate vertical, if any
-                tr('Eye V', _C['eye'], ep[:, 1], style='--')
+            base  = ' (head)' if head_moves else ''
+            has_v = max(float(np.max(np.abs(ep_L[:, 1]))),
+                        float(np.max(np.abs(ep_R[:, 1])))) > 1.0
+            hsuf  = ' H' if has_v else ''
+            tr(f'L eye{base}{hsuf}', '#2166ac', ep_L[:, 0])
+            tr(f'R eye{base}{hsuf}', '#d6604d', ep_R[:, 0])
+            if has_v:   # per-eye vertical (dashed), symmetric with horizontal
+                tr('L eye V', '#2166ac', ep_L[:, 1], style='--')
+                tr('R eye V', '#d6604d', ep_R[:, 1], style='--')
         else:
             tr_axes('Eye (head frame)' if head_moves else 'Eye', _C['eye'], ep, 1.0)
         if head_moves:
