@@ -824,8 +824,8 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
 
     if panel != 'visual_flags':
         spec['hlines'].append({'y': 0, 'color': _C['zero'], 'style': '--'})
-        if (sp < 0.5).any():
-            spec['shading'] = _dark_spans(t, sp)
+        # Dark-period shading removed — plots stay white; visual_flags (top strip)
+        # already shows when the scene is off.
 
     # Core readouts are split into ONE panel per ACTIVE axis (horizontal / vertical
     # / torsion) — L/R + target in one combined panel is too crowded. Returns a
@@ -837,7 +837,7 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         def _new(nm, ylabel, ymin=None):
             p = {'name': nm, 'ylabel': ylabel, 'type': 'lines',
                  'hlines': [{'y': 0, 'color': _C['zero'], 'style': '--'}],
-                 'shading': (_dark_spans(t, sp) if (sp < 0.5).any() else []),
+                 'shading': [],
                  'traces': []}
             if ymin:
                 p['ymin_span'] = ymin
