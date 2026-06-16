@@ -313,26 +313,22 @@ function eyeGazeDir(bone, axis) {
 // MESH's world bbox-centre (the true rendered eye). Call at rest and at a rotated
 // VOR frame ('g' key) to see which quantity tracks the rendered eye.
 function dumpGazeDiag(tag) {
-  const r3 = (v) => Array.from(v).map(x => Math.round(x * 1000) / 1000);
+  const v = (o) => '[' + o.toArray().map(x => Math.round(x * 1000) / 1000).join(', ') + ']';
   if (!leftEyeBone || !headBone || !faceMesh) { console.log('[gazediag] not ready'); return; }
   headBone.updateWorldMatrix(true, true);
   const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
   headBone.matrixWorld.decompose(p, q, s);
-  console.log(`[gazediag:${tag}] model pos`, r3(p), 'quat', r3(q), 'scale', r3(s));
+  console.log(`[gazediag:${tag}] model pos ${v(p)} quat ${v(q)} scale ${v(s)}`);
   faceMesh.matrixWorld.decompose(p, q, s);
-  console.log(`[gazediag:${tag}] faceMesh "${faceMesh.name}" (parent "${faceMesh.parent && faceMesh.parent.name}") worldPos`, r3(p), 'quat', r3(q));
+  console.log(`[gazediag:${tag}] faceMesh "${faceMesh.name}" parent "${faceMesh.parent && faceMesh.parent.name}" worldPos ${v(p)} quat ${v(q)} scale ${v(s)}`);
   for (const [nm, bone] of [['L', leftEyeBone], ['R', rightEyeBone]]) {
     if (!bone) continue;
     const bw = bone.getWorldPosition(new THREE.Vector3());
+    bone.matrixWorld.decompose(p, q, s);
     const anchor = faceMesh.worldToLocal(bw.clone());
-    console.log(`[gazediag:${tag}] eye${nm} boneWorld`, r3(bw), ' faceLocalAnchor(rays use)', r3(anchor));
+    console.log(`[gazediag:${tag}] eye${nm} boneWorld ${v(bw)} boneQuat ${v(q)} faceLocalAnchor(rays use) ${v(anchor)}`);
   }
-  if (!eyeMeshes.length) console.log(`[gazediag:${tag}] no eye meshes found`);
-  for (const m of eyeMeshes) {
-    const c = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
-    console.log(`[gazediag:${tag}] eyeMesh "${m.name}" bboxCenterWorld`, r3(c));
-  }
-  console.log(`[gazediag:${tag}] _restEyeMid`, _restEyeMid ? r3(_restEyeMid) : null, ' _modelUnit', _modelUnit);
+  console.log(`[gazediag:${tag}] _restEyeMid ${_restEyeMid ? v(_restEyeMid) : 'null'} _modelUnit ${Math.round(_modelUnit * 1000) / 1000}`);
 }
 window.dumpGazeDiag = dumpGazeDiag;
 
