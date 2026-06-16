@@ -629,7 +629,7 @@ function renderViewports() {
     anchorCovers();   // re-anchor covers/prisms to the rest-head eyeball
     anchorPrisms();
     [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
-    headCam.fov = 28; headCam.aspect = headW / h; headCam.updateProjectionMatrix();
+    headCam.fov = 15; headCam.aspect = headW / h; headCam.updateProjectionMatrix();
     renderer.setViewport(0, 0, headW, h);
     renderer.setScissor(0, 0, headW, h);
     renderer.setScissorTest(true);
