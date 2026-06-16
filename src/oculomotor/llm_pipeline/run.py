@@ -534,6 +534,13 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
         else:
             lanes.append(('L eye target', tpL, 'ON', 'covered', '#2166ac'))
             lanes.append(('R eye target', tpR, 'ON', 'covered', '#d6604d'))
+        # Prism lanes — only when a prism is present on that eye (power in Δ).
+        for side, key in (('L', 'prism_L_array'), ('R', 'prism_R_array')):
+            pr = np.array(stim_kw[key]); mag = np.hypot(pr[:, 0], pr[:, 1])
+            if np.any(mag > 0.05):
+                pd = float(np.max(mag)) / 0.5729   # deg → prism diopters
+                lanes.append((f'{side} eye prism', (mag > 0.05).astype(float),
+                              f'{pd:.0f}Δ', 'no prism', '#3690c0'))
 
         n_lanes = len(lanes)
         ax.set_ylim(0, n_lanes)
@@ -913,6 +920,13 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         else:
             lanes.append(('L eye target', tpL, 'ON', 'covered', '#2166ac'))
             lanes.append(('R eye target', tpR, 'ON', 'covered', '#d6604d'))
+        # Prism lanes — only when a prism is present on that eye (power in Δ).
+        for side, key in (('L', 'prism_L_array'), ('R', 'prism_R_array')):
+            pr = np.array(stim_kw[key]); mag = np.hypot(pr[:, 0], pr[:, 1])
+            if np.any(mag > 0.05):
+                pd = float(np.max(mag)) / 0.5729   # deg → prism diopters
+                lanes.append((f'{side} eye prism', (mag > 0.05).astype(float),
+                              f'{pd:.0f}Δ', 'no prism', '#3690c0'))
         spec['lanes'] = [
             {'label': lbl, 'color_on': c_on, 'on_label': on_l, 'off_label': off_l,
              'segments': _binary_segments(t, flag, stride)}
