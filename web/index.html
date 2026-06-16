@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OculomotorSim</title>
+<title>ViSiOMlab</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -13,7 +13,8 @@
     align-items: center; padding: 32px 24px;
   }
   h1 { font-size: 1.7rem; font-weight: 600; margin-bottom: 6px; color: #0f172a; }
-  .subtitle { font-size: 0.88rem; color: #64748b; margin-bottom: 28px; }
+  .subtitle { font-size: 0.88rem; color: #64748b; margin-bottom: 28px;
+              max-width: 620px; line-height: 1.55; }
   .card {
     background: #ffffff; border: 1px solid #e3e6ec;
     border-radius: 12px; padding: 26px; width: 100%; max-width: 1160px;
@@ -58,7 +59,7 @@
     transform: translateY(-1px); }
   .featured-card img { width: 100%; height: 88px; object-fit: cover; display: block; background: #f5f5f5; }
   .featured-card .ftitle { font-size: .73rem; color: #1c2230; padding: 6px 8px; line-height: 1.25; }
-  .see-more { margin-top: 10px; }
+  .see-more { margin-top: 10px; text-align: right; }
   .see-more a { font-size: .8rem; color: #2563eb; cursor: pointer; }
   .see-more a:hover { text-decoration: underline; }
   /* Gallery — persistent docked side panel (not a modal overlay) */
@@ -95,6 +96,8 @@
     text-transform: uppercase; letter-spacing: .03em; }
   .status { margin-top: 18px; font-size: 0.85rem; color: #64748b; min-height: 1.2em; }
   .status.error { color: #dc2626; }
+  .desc-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .05em;
+                color: #94a3b8; margin-bottom: 4px; }
   .mode-badge {
     display: inline-block; font-size: 0.72rem; font-weight: 600;
     padding: 2px 8px; border-radius: 10px; margin-right: 6px;
@@ -282,8 +285,11 @@
 </head>
 <body>
 
-<h1>OculomotorSim</h1>
-<p class="subtitle">Describe a scenario or comparison to simulate.</p>
+<h1>ViSiOMlab</h1>
+<p class="subtitle">A <strong>Vi</strong>rtual <strong>Si</strong>mulator from the <strong>O</strong>cular
+  <strong>M</strong>otor <strong>lab</strong> — a biophysically grounded model of how the brain
+  controls eye movements. Describe a patient, a clinical test, or a head- and target-motion scenario
+  in plain English and see the predicted eye movements, or compare two side by side.</p>
 
 
 <div class="card">
@@ -491,13 +497,9 @@ function showResult(data) {
   try { renderInteractivePlot(data.plot_spec); }
   catch (e) { console.error('renderInteractivePlot threw', e); }
 
-  const badge = data.mode === 'comparison'
-    ? '<span class="mode-badge mode-comparison">comparison</span>'
-    : '<span class="mode-badge mode-single">single</span>';
-  const vtag = data.version ? '<span class="version-tag">v' + data.version + '</span>' : '';
   const desc = (detail && detail.narrative) ? detail.narrative : (data.narrative || data.title || '');
   status.className = 'status';
-  status.innerHTML = badge + desc + vtag;
+  status.innerHTML = '<div class="desc-label">Scenario description</div>' + desc;
 
   document.getElementById('feedback-section').style.display = 'block';
   document.getElementById('util-row').style.display = 'flex';
