@@ -65,6 +65,7 @@ let sceneDots = null;               // low-contrast world surround group (rotate
 let _dotLayers = null, _dotH = 1;   // per-size dot layers {geom, base} + half-extent (wrap flow)
 let _restEyeMid  = null;            // world eye-mid at rest (for the world-fixed target)
 let _gazeAxisL   = null, _gazeAxisR = null;  // eye-local axis that points along gaze
+let _headLocalFwd = null;           // head-local "forward" (for head-fixed cover offset)
 let _modelUnit   = 1;               // world units per metre (from eye separation)
 let _hasTarget   = false, _hasScene = false, _hasLocomotion = false, _showWorld = false;
 // World-camera view presets (switchable via keys d/t/l/r — temporary debug aid).
@@ -148,6 +149,13 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   const qR0 = rightEyeBone.getWorldQuaternion(new THREE.Quaternion());
   _gazeAxisL = new THREE.Vector3(0, 0, 1).applyQuaternion(qL0.clone().invert());
   _gazeAxisR = new THREE.Vector3(0, 0, 1).applyQuaternion(qR0.clone().invert());
+  // World forward at rest is +Z; store it in the head bone's local frame so the
+  // (head-fixed) cover patch can sit in front of the eye along HEAD forward,
+  // independent of where the eye is pointing.
+  if (headBone) {
+    const qH0 = headBone.getWorldQuaternion(new THREE.Quaternion());
+    _headLocalFwd = new THREE.Vector3(0, 0, 1).applyQuaternion(qH0.invert());
+  }
 
   // Normal opaque material so the head correctly occludes the props (a target
   // in front of the face is hidden by the head from the behind camera).
@@ -311,24 +319,32 @@ function setRay(cyl, o, d, len) {
   cyl.visible = true;
 }
 
-// Re-anchor the (visible) cover spheres to the live eye bones. Called once per
-// render pass, AFTER the head bone is set to its pose, so the cover tracks the
-// eyeball in both the world view (head rotated) and the head-fixed view (head
-// reset to rest). getWorldPosition refreshes the bone world matrices for us.
+// Head forward in world space (head-fixed; independent of eye rotation). Falls
+// back to +Z if there is no head bone.
+const _fwdTmp = new THREE.Vector3();
+function headForward() {
+  if (headBone && _headLocalFwd) {
+    headBone.getWorldQuaternion(_rQ);
+    return _fwdTmp.copy(_headLocalFwd).applyQuaternion(_rQ).normalize();
+  }
+  return _fwdTmp.set(0, 0, 1);
+}
+
+// Re-anchor the (visible) cover spheres. Called once per render pass, AFTER the
+// head bone is set to its pose, so the cover tracks the head in both the world
+// view (head rotated) and the head-fixed view (head reset to rest).
 //
-// The eye BONE sits ~one radius behind the cornea (centre of the eyeball), so a
-// sphere parked there is mostly buried in the socket and occluded by the face.
-// Push it forward along the gaze axis onto the corneal surface so the front
-// hemisphere clears the skin and reads as a solid patch over the eye.
+// The patch is HEAD-FIXED (it sits on glasses): anchored at the eyeball centre
+// (the bone origin, which doesn't move when the eye rotates) and pushed forward
+// along HEAD forward — NOT gaze — so it stays put while the eye roves beneath it.
 const _COVER_FWD = 0.028;   // metres forward — sits clearly in front of the eyeball
 function anchorCovers() {
   if (!coverMeshL || !faceMesh || !leftEyeBone) return;
+  const fwd = headForward();
   if (coverMeshL.visible)
-    eyeWorldPos(leftEyeBone,  coverMeshL.position)
-      .addScaledVector(eyeGazeDir(leftEyeBone,  _gazeAxisL), _COVER_FWD * _modelUnit);
+    eyeWorldPos(leftEyeBone,  coverMeshL.position).addScaledVector(fwd, _COVER_FWD * _modelUnit);
   if (coverMeshR.visible)
-    eyeWorldPos(rightEyeBone, coverMeshR.position)
-      .addScaledVector(eyeGazeDir(rightEyeBone, _gazeAxisR), _COVER_FWD * _modelUnit);
+    eyeWorldPos(rightEyeBone, coverMeshR.position).addScaledVector(fwd, _COVER_FWD * _modelUnit);
 }
 
 // eye_pos in simulation = head-fixed plant state [yaw, pitch, roll] deg
