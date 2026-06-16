@@ -48,7 +48,7 @@ ax_fmt(ax, ylabel, xlabel, ylim)
 import numpy as np
 import jax
 import jax.numpy as jnp
-from scipy.ndimage import binary_dilation
+from scipy.ndimage import binary_dilation, median_filter
 from scipy.optimize import curve_fit
 
 from oculomotor.models.sensory_models.sensory_model import (
@@ -266,7 +266,7 @@ def extract_spv_states(states, t, margin_s=0.05, eye='left'):
 # ── Slow-phase velocity ────────────────────────────────────────────────────────
 
 def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0, margin_s=0.05,
-                z_opn=None):
+                z_opn=None, smooth_s=0.0):
     """Slow-phase velocity by masking fast phases and interpolating.
 
     Prefers z_opn (OPN latch state) when provided — z_opn transitions sharply at
@@ -284,10 +284,13 @@ def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0, margin_s=0.05,
                          epoch; covers plant ringing after burst ends
         z_opn:           (T,) OPN state from SG or extract_z_opn(states).
                          Fast phases detected as z_opn < 50.
+        smooth_s:        s — if > 0, median-filter the result over this window to
+                         de-spike residual quick-phase contamination and within-beat
+                         jitter while preserving the slow-phase shape (0 = off).
 
     Returns:
         (T,) slow-phase velocity — fast-phase samples replaced by linear
-        interpolation across the masked epochs.
+        interpolation across the masked epochs (optionally median-smoothed).
     """
     dt       = float(t[1] - t[0])
     margin_n = max(1, int(margin_s / dt))
@@ -301,7 +304,13 @@ def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0, margin_s=0.05,
     slow     = ~is_fast
     if slow.sum() < 2:
         return eye_vel.copy()
-    return np.interp(t, t[slow], eye_vel[slow])
+    spv = np.interp(t, t[slow], eye_vel[slow])
+    if smooth_s and smooth_s > 0:
+        w = max(1, int(round(smooth_s / dt)))
+        if w % 2 == 0:
+            w += 1
+        spv = median_filter(spv, size=w, mode='nearest')
+    return spv
 
 
 # ── Saccade kinematics ────────────────────────────────────────────────────────

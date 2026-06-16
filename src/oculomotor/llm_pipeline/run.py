@@ -465,7 +465,7 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
 
     elif panel_name == 'spv':
         ub = sig['u_burst']
-        spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i]) for i in range(3)], axis=1)
+        spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i], smooth_s=0.2) for i in range(3)], axis=1)
         _ax_axes('SPV', _C['eye'], spv, 5.0)
         if float(np.max(np.abs(hv[:, 0]))) > 2.0:
             ax.plot(t, hv[:, 0], color=_C['head'], lw=1.0, ls=':', label='Head vel')
@@ -913,7 +913,7 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         # saccades) masked out and interpolated — the meaningful nystagmus trace.
         # Overlaid with the driving stimulus (head / scene velocity) for gain.
         ub = sig['u_burst']
-        spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i]) for i in range(3)], axis=1)
+        spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i], smooth_s=0.2) for i in range(3)], axis=1)
         tr_axes('SPV', _C['eye'], spv, 5.0)
         if float(np.max(np.abs(hv[:, 0]))) > 2.0:
             tr('Head vel', _C['head'], hv[:, 0], style=':')
