@@ -51,7 +51,8 @@ server.ps1 - Oculomotor simulator server management
     stable        STABLE server, http://localhost:8000 (..\om-stable worktree's OWN venv =
                   frozen snapshot: frozen model + web + data). Run make-stable first.
     make-stable   Snapshot HEAD -> stable branch in the worktree, (re)install the frozen
-                  package into the worktree venv, copy .env, optionally deploy web/.
+                  package into the worktree venv, copy .env, optionally copy curated
+                  gallery examples (featured/favorites) from dev, optionally deploy web/.
     help          Show this help.
 
   ALIASES   start_dev=dev | start_stable=stable | make_stable=make-stable
@@ -121,7 +122,23 @@ function Invoke-MakeStable {
 
     Write-Host "Run '.\server.ps1 stable' to serve the frozen snapshot on port 8000"
 
-    # 4. Optional: deploy the frozen frontend (web/) to the public website repo.
+    # 4. Optional: promote curated examples from dev's DB into the stable gallery.
+    #    dev and stable keep separate databases, so featured/favorite runs don't
+    #    cross over automatically. This copy is idempotent (existing runs are
+    #    re-flagged, never duplicated).
+    Write-Host ''
+    Write-Host 'Copy curated examples from dev into the stable gallery?' -ForegroundColor Cyan
+    Write-Host '  [f] featured only   [b] featured + favorites   [n] none ' -NoNewline
+    $pick = (Read-Host).ToLower()
+    if ($pick -eq 'f' -or $pick -eq 'b') {
+        $cfArgs = @('-X', 'utf8', '-m', 'oculomotor.reports.copy_featured',
+                    '--from', (Join-Path $root 'server_data'),
+                    '--to',   (Join-Path $stableWorktree 'server_data'))
+        if ($pick -eq 'b') { $cfArgs += '--favorites' }
+        & $mainPython @cfArgs
+    }
+
+    # 5. Optional: deploy the frozen frontend (web/) to the public website repo.
     Write-Host ''
     Write-Host 'Deploy the simulator frontend to the website repo too? (y/n) ' -NoNewline
     if ((Read-Host) -eq 'y') {
