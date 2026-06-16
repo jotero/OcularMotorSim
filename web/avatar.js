@@ -577,9 +577,10 @@ window.loadEyeTrajectory = function(traj) {
     && Math.max(...traj.head_lin_pos.map(p => Math.hypot(p[0], p[1], p[2]))) > 0.1;
   _showWorld = _headMoves || _hasTarget || _hasScene || _hasLocomotion;
 
-  // Show/hide world-view label + divider
+  // Show/hide the world-view label + divider (head view is always shown; in
+  // single-view mode it fills the width).
   const labels = document.querySelectorAll('.avatar-labels span');
-  if (labels[0]) labels[0].style.display = _showWorld ? '' : 'none';
+  if (labels[1]) labels[1].style.display = _showWorld ? '' : 'none';
   const wrap = document.querySelector('.avatar-wrap');
   if (wrap) wrap.classList.toggle('single-view', !_showWorld);
 
@@ -617,30 +618,29 @@ function renderViewports() {
   renderer.clear();
 
   if (_showWorld) {
-    // Split: left = world view, right = head-fixed view
-    const hw = Math.floor(w / 2);
-    const a  = hw / h;
-    worldCam.aspect = a; worldCam.updateProjectionMatrix();
-    headCam.fov = 28; headCam.aspect = a; headCam.updateProjectionMatrix();
+    // Split: LEFT = head-fixed view (70%), RIGHT = world view (30%).
+    const headW  = Math.round(w * 0.70);
+    const worldW = w - headW;
 
-    // Left — world view: apply head rotation
-    applyFrame(fi);
-    renderer.setViewport(0, 0, hw, h);
-    renderer.setScissor(0, 0, hw, h);
-    renderer.setScissorTest(true);
-    renderer.render(scene, worldCam);
-
-    // Right — head-fixed view: head bone at rest, eyes unchanged. Hide the
+    // Left — head-fixed view: head bone at rest, eyes unchanged. Hide the
     // world-only props (target + rays) so they don't clutter the eyeball close-up.
+    applyFrame(fi);
     if (headBone && restHead) headBone.rotation.copy(restHead);
-    anchorCovers();   // re-anchor covers to the rest-head eyeball for the head view
+    anchorCovers();   // re-anchor covers/prisms to the rest-head eyeball
     anchorPrisms();
-    const _pv = [targetSphere, gazeRayL, gazeRayR].map(m => m && m.visible);
     [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
-    renderer.setViewport(hw, 0, w - hw, h);
-    renderer.setScissor(hw, 0, w - hw, h);
+    headCam.fov = 28; headCam.aspect = headW / h; headCam.updateProjectionMatrix();
+    renderer.setViewport(0, 0, headW, h);
+    renderer.setScissor(0, 0, headW, h);
+    renderer.setScissorTest(true);
     renderer.render(scene, headCam);
-    [targetSphere, gazeRayL, gazeRayR].forEach((m, i) => { if (m) m.visible = _pv[i]; });
+
+    // Right — world view: re-apply the rotated head (also restores props/rays).
+    applyFrame(fi);
+    worldCam.aspect = worldW / h; worldCam.updateProjectionMatrix();
+    renderer.setViewport(headW, 0, worldW, h);
+    renderer.setScissor(headW, 0, worldW, h);
+    renderer.render(scene, worldCam);
   } else {
     // No head movement — single full-width head-fixed view, zoomed in on eyes
     headCam.fov = 14; headCam.aspect = w / h; headCam.updateProjectionMatrix();
