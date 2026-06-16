@@ -315,11 +315,13 @@ _PANEL_LABELS = {
 # figure is consistent across scenarios no matter what order was chosen. Tier 1
 # (core readouts) lead, then stimulus/context, then internal-mechanism panels.
 _PANEL_ORDER = [
-    # Tier 1 — core readouts (always lead, fixed order)
+    # Visual-context strip leads (timeline of scene / target / cover / prism)
+    'visual_flags',
+    # Core readouts (fixed order)
     'eye_position', 'eye_velocity', 'vergence',
-    # Tier 2 — stimulus / context
-    'visual_flags', 'head_velocity', 'target_position', 'target_velocity', 'scene_velocity',
-    # Tier 3 — internal mechanism (chosen by relevance to the scenario)
+    # Stimulus
+    'head_velocity', 'target_position', 'target_velocity', 'scene_velocity',
+    # Internal mechanism (chosen by relevance to the scenario)
     'gaze_error', 'retinal_error', 'velocity_storage', 'canal_afferents',
     'neural_integrator', 'pursuit_drive', 'saccade_burst', 'refractory',
     'cerebellum_pursuit', 'cerebellum_vor',

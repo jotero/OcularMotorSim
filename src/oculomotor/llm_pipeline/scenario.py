@@ -251,8 +251,8 @@ class PlotConfig(BaseModel):
         description=(
             "CHOOSE the panels that best reveal the phenomenon THIS scenario tests — reason about it; "
             "do not copy a fixed template. ORDER DOESN'T MATTER: the renderer always lays panels out "
-            "in a fixed order (core readouts, then stimulus/context, then internals), so just list "
-            "which ones you want (~4–7).\n"
+            "in a fixed order (visual_flags first, then core readouts, then stimulus, then internals), "
+            "so just list which ones you want (~4–7).\n"
             "Principles:\n"
             "  • Core readouts shown by default (they always appear first): eye_position, eye_velocity, "
             "and vergence (include vergence for binocular / near / cover / prism tests). Drop one only "
@@ -279,13 +279,15 @@ class PlotConfig(BaseModel):
             "  vergence — binocular vergence angle (convergence/divergence; phoria drift on cover).\n"
             "  cerebellum_pursuit — VPF pursuit forward-model correction + suppression gate.\n"
             "  cerebellum_vor — flocculus NI leak-cancellation + OKR/gravity-dumping corrections.\n"
-            "  target_position / target_velocity — the fixation/pursuit goal and its speed.\n"
+            "  target_velocity — target angular speed (pursuit drive).\n"
+            "  target_position — target angular position. NOTE: eye_position already OVERLAYS the "
+            "target, so usually skip this — add it only when the target's own trajectory is the focus.\n"
             "  scene_velocity — full-field scene velocity (OKR/OKN drive).\n"
-            "  visual_flags — scene/target visibility, cover, prism over time (context strip).\n"
+            "  visual_flags — scene/target visibility, cover, prism over time (context strip; leads).\n"
             "Illustrative only (deviate when another set shows the effect better): VOR-in-dark ≈ "
             "[visual_flags, head_velocity, eye_velocity, eye_position, velocity_storage]; cover test ≈ "
-            "[visual_flags, eye_position, vergence]; saccades ≈ [visual_flags, target_position, "
-            "eye_position, eye_velocity, saccade_burst]."
+            "[visual_flags, eye_position, vergence]; saccades ≈ [visual_flags, eye_position, "
+            "eye_velocity, saccade_burst]."
         )
     )
     title: str = Field(default='', description="Figure title (auto-set from description if empty).")

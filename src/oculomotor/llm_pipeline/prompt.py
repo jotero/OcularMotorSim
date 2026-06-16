@@ -344,16 +344,17 @@ signal-flow order (stimulus → internal mechanism → eye output). Reason about
 behaviour, and which signals make it visible? The `plot.panels` field lists what each panel reveals —
 choose by relevance, not by matching a paradigm to a fixed set.
 
-Order doesn't matter — the renderer lays panels out in a fixed order (core readouts, then
-stimulus/context, then internals), so just choose which to include.
+Order doesn't matter — the renderer lays panels out in a fixed order (`visual_flags` first, then
+core readouts, then stimulus, then internals), so just choose which to include.
 
 Anchors:
-- Core readouts shown by default and always first: `eye_position`, `eye_velocity`, and `vergence`
-  (include vergence for binocular / near / cover / prism tests). Drop one only if truly irrelevant.
-- Include `visual_flags` whenever scene/target visibility, a cover, or a prism changes during the
-  trial (it shows scene on/off, target present, cover, prism, and scene velocity over time).
+- `visual_flags` leads (top context strip) — include it whenever scene/target visibility, a cover, or
+  a prism changes during the trial (it shows scene on/off, target present, cover, prism, scene vel).
+- Core readouts shown by default: `eye_position`, `eye_velocity`, and `vergence` (include vergence for
+  binocular / near / cover / prism tests). Drop one only if truly irrelevant.
 - Include the stimulus driving the response (`head_velocity` for VOR/HIT, `scene_velocity` for OKN,
-  `target_position`/`target_velocity` for saccades/pursuit).
+  `target_velocity` for pursuit). `eye_position` already OVERLAYS the target, so usually skip
+  `target_position` — add it only when the target's own trajectory is the focus.
 - Include the internal mechanism the scenario probes (e.g. `velocity_storage` for OKAN/TC,
   `neural_integrator` for gaze-holding/GEN, `vergence` for cover/prism, `saccade_burst` for the main
   sequence, `cerebellum_*` for cerebellar lesions).
