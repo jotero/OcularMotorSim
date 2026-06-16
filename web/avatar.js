@@ -168,22 +168,51 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   // angular position (OKN), and wraps around the eye as the head translates
   // (locomotion) for seamless optic flow at any distance.
   {
-    const N = 900, H = 6 * _modelUnit, hole = 1.2 * _modelUnit;
+    const N = 1800, H = 6 * _modelUnit, hole = 1.2 * _modelUnit;
     _dotH = H;
     _dotBase = new Float32Array(N * 3);
-    const arr = new Float32Array(N * 3);
+    const arr   = new Float32Array(N * 3);
+    const sizes = new Float32Array(N);
     for (let i = 0; i < N; i++) {
       let x, y, z;
       do { x = (Math.random()*2-1)*H; y = (Math.random()*2-1)*H; z = (Math.random()*2-1)*H; }
       while (x*x + y*y + z*z < hole*hole);   // no dots inside the head
       _dotBase[i*3] = x; _dotBase[i*3+1] = y; _dotBase[i*3+2] = z;
       arr[i*3] = x; arr[i*3+1] = y; arr[i*3+2] = z;
+      // Random fixed-pixel size: 3 px (current) → 30 px (10×). Square-skewed so
+      // most dots stay small (few large ones) — keeps the field from looking busy.
+      const r = Math.random();
+      sizes[i] = 3 + 27 * r * r;
     }
     const dg = new THREE.BufferGeometry();
     dg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    sceneDots = new THREE.Points(dg, new THREE.PointsMaterial({
-      color: 0x9aa2ae, size: 3, sizeAttenuation: false,   // fixed ~3 px so far dots stay visible
-      transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false }));
+    dg.setAttribute('aSize',    new THREE.BufferAttribute(sizes, 1));
+    // ShaderMaterial because PointsMaterial only supports one global size.
+    // gl_PointSize uses the per-vertex aSize × pixelRatio (fixed pixels, no
+    // distance attenuation, matching the old sizeAttenuation:false look).
+    sceneDots = new THREE.Points(dg, new THREE.ShaderMaterial({
+      uniforms: {
+        uColor:   { value: new THREE.Color(0x9aa2ae) },
+        uOpacity: { value: 0.55 },
+        uScale:   { value: renderer.getPixelRatio() },
+      },
+      vertexShader: `
+        attribute float aSize;
+        uniform float uScale;
+        void main() {
+          gl_Position  = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = aSize * uScale;
+        }`,
+      fragmentShader: `
+        uniform vec3  uColor;
+        uniform float uOpacity;
+        void main() {
+          vec2 c = gl_PointCoord - vec2(0.5);
+          if (dot(c, c) > 0.25) discard;   // round dots
+          gl_FragColor = vec4(uColor, uOpacity);
+        }`,
+      transparent: true, depthWrite: false,
+    }));
     sceneDots.position.copy(_restEyeMid);   // centred on the eye; rotates about it
     sceneDots.frustumCulled = false;
     sceneDots.visible = false;
