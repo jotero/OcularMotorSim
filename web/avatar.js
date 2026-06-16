@@ -54,6 +54,7 @@ let rightEyeBone = null;
 let headBone     = null;
 let restL = null, restR = null, restHead = null;
 let coverMeshL   = null, coverMeshR = null;
+let eyeMeshes    = [];   // candidate eye meshes (diagnostics)
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
@@ -106,6 +107,9 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
     if (obj.name === 'RightEye' || obj.name === 'RightEye_09') rightEyeBone = obj;
     // First skinned/standard mesh that carries ARKit blendshapes = the face.
     if (obj.isMesh && obj.morphTargetDictionary && !faceMesh) faceMesh = obj;
+    // Collect candidate eye MESHES (exclude lids/lashes/brows) for diagnostics.
+    if (obj.isMesh && /eye/i.test(obj.name) && !/lash|brow|lid|wear|glass/i.test(obj.name))
+      eyeMeshes.push(obj);
   });
   console.log('Face morph targets:', faceMesh ? Object.keys(faceMesh.morphTargetDictionary).length : 0);
 
@@ -242,6 +246,13 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   coverMeshL.visible = false;       coverMeshR.visible = false;
   scene.add(coverMeshL); scene.add(coverMeshR);
 
+  // Gaze-anchor diagnostic: one-time scene-graph + rest-pose dump. Press 'g'
+  // during a rotated VOR frame for the rotated-pose comparison.
+  const _graph = [];
+  model.traverse(o => _graph.push(`${o.isBone ? 'BONE' : o.isMesh ? 'MESH' : o.type}: ${o.name}`));
+  console.log('[gazediag] scene graph:\n' + _graph.join('\n'));
+  dumpGazeDiag('load-rest');
+
   document.getElementById('avatar-loading').style.display = 'none';
 
 }, undefined, err => {
@@ -295,6 +306,35 @@ function eyeGazeDir(bone, axis) {
   bone.getWorldQuaternion(_rQ);
   return axis.clone().applyQuaternion(_rQ).normalize();
 }
+
+// ── Gaze-anchor diagnostic ────────────────────────────────────────────────────
+// Dumps, for the CURRENT pose: model transform, faceMesh transform, each eye
+// bone's world pos + the faceMesh-local anchor (what the rays use), and any eye
+// MESH's world bbox-centre (the true rendered eye). Call at rest and at a rotated
+// VOR frame ('g' key) to see which quantity tracks the rendered eye.
+function dumpGazeDiag(tag) {
+  const r3 = (v) => Array.from(v).map(x => Math.round(x * 1000) / 1000);
+  if (!leftEyeBone || !headBone || !faceMesh) { console.log('[gazediag] not ready'); return; }
+  headBone.updateWorldMatrix(true, true);
+  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  headBone.matrixWorld.decompose(p, q, s);
+  console.log(`[gazediag:${tag}] model pos`, r3(p), 'quat', r3(q), 'scale', r3(s));
+  faceMesh.matrixWorld.decompose(p, q, s);
+  console.log(`[gazediag:${tag}] faceMesh "${faceMesh.name}" (parent "${faceMesh.parent && faceMesh.parent.name}") worldPos`, r3(p), 'quat', r3(q));
+  for (const [nm, bone] of [['L', leftEyeBone], ['R', rightEyeBone]]) {
+    if (!bone) continue;
+    const bw = bone.getWorldPosition(new THREE.Vector3());
+    const anchor = faceMesh.worldToLocal(bw.clone());
+    console.log(`[gazediag:${tag}] eye${nm} boneWorld`, r3(bw), ' faceLocalAnchor(rays use)', r3(anchor));
+  }
+  if (!eyeMeshes.length) console.log(`[gazediag:${tag}] no eye meshes found`);
+  for (const m of eyeMeshes) {
+    const c = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3());
+    console.log(`[gazediag:${tag}] eyeMesh "${m.name}" bboxCenterWorld`, r3(c));
+  }
+  console.log(`[gazediag:${tag}] _restEyeMid`, _restEyeMid ? r3(_restEyeMid) : null, ' _modelUnit', _modelUnit);
+}
+window.dumpGazeDiag = dumpGazeDiag;
 
 // Closest-approach midpoint of the two gaze lines (the vergence point). Returns
 // null if they're ~parallel or diverging (looking at "infinity").
@@ -609,4 +649,9 @@ window.addEventListener('keydown', (e) => {
   else if (k === 't') setWorldView('top');
   else if (k === 'l') setWorldView('left');
   else if (k === 'r') setWorldView('right');
+  else if (k === 'g') {   // gaze-anchor diagnostic at the CURRENT (rotated) frame
+    const fi = Math.min(Math.floor(_frame), _traj ? _traj.n_frames - 1 : 0);
+    if (_traj) applyFrame(fi);   // apply this frame's head rotation before sampling
+    dumpGazeDiag('frame' + fi);
+  }
 });
