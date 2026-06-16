@@ -358,9 +358,12 @@ Anchors:
 - Include the internal mechanism the scenario probes (e.g. `velocity_storage` for OKAN/TC,
   `neural_integrator` for gaze-holding/GEN, `vergence` for cover/prism, `saccade_burst` for the main
   sequence, `cerebellum_*` for cerebellar lesions).
+- For ANY NYSTAGMUS (OKN/OKAN, vestibular nystagmus, GEN), use `spv` (slow-phase velocity, with
+  quick phases removed) instead of `eye_velocity` — the raw velocity is dominated by quick phases.
 
 Examples are illustrative, not mandatory — deviate whenever a different set shows the effect better:
-VOR-in-dark ≈ [visual_flags, head_velocity, eye_velocity, eye_position, velocity_storage];
+VOR-in-dark ≈ [visual_flags, head_velocity, spv, eye_position, velocity_storage];
+OKN/OKAN ≈ [visual_flags, scene_velocity, spv, eye_position, velocity_storage];
 cover test ≈ [visual_flags, eye_position, vergence]; smooth pursuit ≈ [visual_flags, target_velocity,
 eye_position, eye_velocity, pursuit_drive].
 

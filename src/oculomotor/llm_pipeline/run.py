@@ -32,7 +32,7 @@ from oculomotor.sim.simulator import (
 from oculomotor.models.brain_models import saccade_generator as sg_mod
 from oculomotor.models.brain_models.perception_cyclopean import C_slip, C_pos, C_vel, C_target_visible
 from oculomotor.models.brain_models import perception_cyclopean as _pc_mod
-from oculomotor.analysis import read_brain_acts
+from oculomotor.analysis import read_brain_acts, extract_spv
 
 
 # ── Stimulus builder ──────────────────────────────────────────────────────────
@@ -290,6 +290,7 @@ def _add_visual_shading(ax, t, sp, tp):
 _PANEL_LABELS = {
     'eye_position':      'Eye position (deg)',
     'eye_velocity':      'Eye velocity (deg/s)',
+    'spv':               'Slow-phase velocity (deg/s)',
     'head_velocity':     'Head velocity (deg/s)',
     'gaze_error':        'Gaze error (deg)',
     'retinal_error':     'Retinal position error (deg)',
@@ -318,7 +319,7 @@ _PANEL_ORDER = [
     # Visual-context strip leads (timeline of scene / target / cover / prism)
     'visual_flags',
     # Core readouts (fixed order)
-    'eye_position', 'eye_velocity', 'vergence',
+    'eye_position', 'eye_velocity', 'vergence', 'spv',
     # Stimulus
     'head_velocity', 'target_position', 'target_velocity', 'scene_velocity',
     # Internal mechanism (chosen by relevance to the scenario)
@@ -456,6 +457,16 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
         gaze_v = ep[:, 1] + np.cumsum(hv[:, 1]) * dt_v
         if float(np.max(np.abs(gaze_v))) > 1.0:
             ax.plot(t, gaze_v, color=_C['error'], lw=1.0, ls='--', label='Gaze error V')
+        ax.legend(fontsize=6, loc='upper right')
+
+    elif panel_name == 'spv':
+        ub = sig['u_burst']
+        spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i]) for i in range(3)], axis=1)
+        _ax_axes('SPV', _C['eye'], spv, 5.0)
+        if float(np.max(np.abs(hv[:, 0]))) > 2.0:
+            ax.plot(t, hv[:, 0], color=_C['head'], lw=1.0, ls=':', label='Head vel')
+        if np.any(np.abs(vs[:, 0]) > 0.5):
+            ax.plot(t, vs[:, 0], color='#8c510a', lw=0.9, ls='--', alpha=0.7, label='Scene vel')
         ax.legend(fontsize=6, loc='upper right')
 
     elif panel_name == 'retinal_error':
@@ -771,7 +782,7 @@ _PNG_ONLY_PANELS = {'visual_flags'}
 
 # Velocity / derivative panels that enforce a minimum visible y-range.
 _YMIN_SPAN_PANELS = {
-    'eye_velocity', 'head_velocity', 'saccade_burst', 'pursuit_drive',
+    'eye_velocity', 'spv', 'head_velocity', 'saccade_burst', 'pursuit_drive',
     'target_velocity', 'scene_velocity', 'cerebellum_pursuit', 'cerebellum_vor',
 }
 
@@ -896,6 +907,18 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         tr('Gaze error H', _C['error'], ep[:, 0] + head_angle)
         if float(np.max(np.abs(ep[:, 1] + head_angle_v))) > 1.0:
             tr('Gaze error V', _C['error'], ep[:, 1] + head_angle_v, style='--')
+
+    elif panel == 'spv':
+        # Slow-phase velocity: eye velocity with fast phases (quick phases /
+        # saccades) masked out and interpolated — the meaningful nystagmus trace.
+        # Overlaid with the driving stimulus (head / scene velocity) for gain.
+        ub = sig['u_burst']
+        spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i]) for i in range(3)], axis=1)
+        tr_axes('SPV', _C['eye'], spv, 5.0)
+        if float(np.max(np.abs(hv[:, 0]))) > 2.0:
+            tr('Head vel', _C['head'], hv[:, 0], style=':')
+        if np.any(np.abs(vs[:, 0]) > 0.5):
+            tr('Scene vel', '#8c510a', vs[:, 0], style='--')
 
     elif panel == 'retinal_error':
         tr_axes('Retinal position error', _C['error'], ep_d, 1.0)

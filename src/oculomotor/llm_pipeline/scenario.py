@@ -238,7 +238,7 @@ class PlotConfig(BaseModel):
     """Which signal panels to include in the figure."""
 
     panels: list[Literal[
-        'eye_position', 'eye_velocity', 'head_velocity',
+        'eye_position', 'eye_velocity', 'spv', 'head_velocity',
         'gaze_error', 'retinal_error', 'canal_afferents',
         'velocity_storage', 'neural_integrator',
         'saccade_burst', 'pursuit_drive', 'refractory',
@@ -267,6 +267,9 @@ class PlotConfig(BaseModel):
             "What each panel reveals (pick the internals by relevance):\n"
             "  eye_position — where the eyes point (per-eye when disconjugate); the core output.\n"
             "  eye_velocity — eye speed: VOR/OKR gain, saccade peak velocity, pursuit smoothness.\n"
+            "  spv — slow-phase velocity (eye velocity with quick phases/saccades removed), overlaid "
+            "with head/scene velocity. THE trace for nystagmus (OKN/OKAN, vestibular nystagmus, GEN) "
+            "— prefer it over eye_velocity there, since quick phases obscure the raw velocity.\n"
             "  head_velocity — the head/canal stimulus (VOR, HIT).\n"
             "  gaze_error — gaze (eye+head) relative to the target; foveation error over time.\n"
             "  retinal_error — delayed retinal position error driving saccades/pursuit.\n"
@@ -285,7 +288,8 @@ class PlotConfig(BaseModel):
             "  scene_velocity — full-field scene velocity (OKR/OKN drive).\n"
             "  visual_flags — scene/target visibility, cover, prism over time (context strip; leads).\n"
             "Illustrative only (deviate when another set shows the effect better): VOR-in-dark ≈ "
-            "[visual_flags, head_velocity, eye_velocity, eye_position, velocity_storage]; cover test ≈ "
+            "[visual_flags, head_velocity, spv, eye_position, velocity_storage]; OKN/OKAN ≈ "
+            "[visual_flags, scene_velocity, spv, eye_position, velocity_storage]; cover test ≈ "
             "[visual_flags, eye_position, vergence]; saccades ≈ [visual_flags, eye_position, "
             "eye_velocity, saccade_burst]."
         )
