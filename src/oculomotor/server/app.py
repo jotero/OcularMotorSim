@@ -239,6 +239,11 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     t  = np.array(sim_data['t'])
     dt = float(t[1] - t[0]) if len(t) > 1 else 0.001
     step = max(1, round(1.0 / (fps * dt)))
+    # Integer downsampling means the true frame rate is 1/(step·dt), NOT the
+    # requested fps (e.g. fps=60, dt=1 ms → step=17 → 58.8 fps). Report the
+    # effective rate so the avatar's frame→time mapping (fi/fps) lands exactly on
+    # the plot time axis; using the nominal fps drifts the cursor as it advances.
+    fps_eff = 1.0 / (step * dt)
 
     L = np.array(sim_data.get('eye_pos_L', sim_data['eye_pos']))[::step]
     R = np.array(sim_data.get('eye_pos_R', sim_data['eye_pos']))[::step]
@@ -270,7 +275,7 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     # presence flag (either eye seeing the foveal target). The avatar draws a red
     # sphere at this point; presence toggles its visibility (e.g. off during OKN).
     out = dict(
-        fps        = fps,
+        fps        = round(fps_eff, 6),
         n_frames   = int(len(t_ds)),
         duration_s = round(float(t_ds[-1]), 3),
         left    = [[round(float(v), 2) for v in row] for row in L.tolist()],
