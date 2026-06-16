@@ -296,11 +296,16 @@ function targetWorld(p) {
   return new THREE.Vector3(-p[0], p[1], p[2]).multiplyScalar(_modelUnit).add(_restEyeMid);
 }
 
-// Eye-centre world position (de-offset to the rendered-skin space) + gaze dir.
+// Eye-centre world position + gaze dir. The avatar is one skinned mesh whose
+// rendered skin sits at the model's LOCAL coords (the glTF skinned-mesh quirk):
+// the skeleton lives at model.position (~[-2,1,1]) but the rendered eye is at
+// boneWorld − model.position. Subtracting only the TRANSLATION (not the full
+// faceMesh.worldToLocal, which also strips the rotation → a constant) makes the
+// origin orbit the world origin with the head, so rays track during VOR.
 const _rQ = new THREE.Quaternion();
 function eyeWorldPos(bone, out) {
   bone.getWorldPosition(out);
-  return faceMesh.worldToLocal(out);   // remove the faceMesh node offset
+  return headBone ? out.sub(headBone.position) : faceMesh.worldToLocal(out);
 }
 function eyeGazeDir(bone, axis) {
   bone.getWorldQuaternion(_rQ);
