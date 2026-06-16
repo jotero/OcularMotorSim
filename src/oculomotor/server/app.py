@@ -250,20 +250,21 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     head_pos = np.cumsum(hv * dt_orig, axis=0)           # (T, 3) deg
     head_ds  = head_pos[::step]
 
-    # Infer monocular cover: one eye occluded relative to the fellow eye. Fires for
-    # either convention — full occlusion (a physical patch: no scene AND no target
-    # for that eye) OR loss of the fixation target while the fellow eye still
-    # fixates (alternate cover test, room may stay lit). Binocular darkness (VOR in
-    # the dark) is NOT a cover: both eyes deprived, neither is "the covered one".
     ones = np.ones(len(t))
     spL = np.array(sim_data.get('scene_present_L',  ones))
     spR = np.array(sim_data.get('scene_present_R',  ones))
     tpL = np.array(sim_data.get('target_present_L', ones))
     tpR = np.array(sim_data.get('target_present_R', ones))
-    fullL = (spL < 0.5) & (tpL < 0.5);  seesL = (spL > 0.5) | (tpL > 0.5)
-    fullR = (spR < 0.5) & (tpR < 0.5);  seesR = (spR > 0.5) | (tpR > 0.5)
-    cover_L = ((fullL & seesR) | ((tpL < 0.5) & (tpR > 0.5))).astype(int)[::step]
-    cover_R = ((fullR & seesL) | ((tpR < 0.5) & (tpL > 0.5))).astype(int)[::step]
+    # Monocular cover: prefer the explicit cover flags carried in the data (the
+    # scenario's high-level intent). Fall back to inference (eye in total darkness
+    # while the fellow eye sees) only for older runs / direct simulate() calls that
+    # predate the explicit flags. Binocular darkness is never a cover.
+    if 'cover_L' in sim_data and sim_data['cover_L'] is not None:
+        cover_L = (np.array(sim_data['cover_L']) > 0.5).astype(int)[::step]
+        cover_R = (np.array(sim_data['cover_R']) > 0.5).astype(int)[::step]
+    else:
+        cover_L = ((spL < 0.5) & (tpL < 0.5) & ((spR > 0.5) | (tpR > 0.5))).astype(int)[::step]
+        cover_R = ((spR < 0.5) & (tpR < 0.5) & ((spL > 0.5) | (tpL > 0.5))).astype(int)[::step]
 
     # Target: world-Cartesian position relative to the head (m), + a per-frame
     # presence flag (either eye seeing the foveal target). The avatar draws a red
@@ -300,6 +301,15 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
         hlp = np.array(sim_data['head_lin_pos'])
         hlp = (hlp - hlp[0])[::step]                          # (n, 3) m from start
         out['head_lin_pos'] = [[round(float(v), 4) for v in row] for row in hlp.tolist()]
+
+    # Per-eye prism deviation [yaw, pitch, roll] deg — carried for the avatar to
+    # draw a prism/wedge later. Emitted only when a prism is actually present.
+    for side in ('L', 'R'):
+        key = f'prism_{side}'
+        if key in sim_data and sim_data[key] is not None:
+            pr = np.array(sim_data[key])
+            if pr.ndim == 2 and np.any(np.abs(pr) > 1e-6):
+                out[key] = [[round(float(v), 3) for v in row] for row in pr[::step].tolist()]
 
     return out
 

@@ -150,9 +150,20 @@ class VisualFlagsSegment(BaseModel):
     scene_present  = is the room lit?  True → OKR and visual stabilisation active.
     target_present = is there a discrete foveal target?  True → pursuit and saccades active.
                      Shorthand: sets BOTH eyes simultaneously.
-    target_present_L / target_present_R = per-eye override (cover test).
-                     None (default) = inherit from target_present.
-                     False = that eye is covered (eye patch) → vergence leaks toward tonic_verg.
+    scene_present_L / scene_present_R   = per-eye scene override.
+    target_present_L / target_present_R = per-eye target override.
+                     None (default) = inherit the both-eye value.
+
+    COVER / EYE PATCH: use cover_L / cover_R — the high-level intent. Setting
+    cover_R=True occludes the RIGHT eye completely: the runner forces that eye's
+    scene AND target to off for the simulation (so vergence drifts to phoria) and
+    flags the patch for the avatar. Prefer cover_* over hand-zeroing the per-eye
+    scene_present_*/target_present_* flags.
+
+    PRISM: prism_L / prism_R = optical deviation [yaw, pitch, roll] in degrees,
+    mounted on glasses (head frame). Deviates that eye's apparent gaze; the eye
+    re-fixates through it (fusional/refixation response). None = no prism. 1 prism
+    dioptre ≈ 0.573°; base-out → +yaw on that eye, base-up → +pitch.
 
     Scene MOTION is specified via scene BodySegment rot_yaw_vel — NOT here.
 
@@ -163,8 +174,8 @@ class VisualFlagsSegment(BaseModel):
     VVOR / saccades:       scene_present=True,  target_present=True  (default)
     OKN drum, no dot:      scene_present=True,  target_present=False
     Smooth pursuit:        scene_present=True,  target_present=True
-    Cover test (R covered):scene_present=True,  target_present=True,
-                           target_present_L=True, target_present_R=False
+    Cover R eye (patch):   cover_R=True   (left eye keeps seeing)
+    4Δ base-out R prism:   prism_R=[2.29, 0, 0]   (4 × 0.573°, horizontal)
     Stroboscopic pursuit:  scene_present=True,  target_present=True, target_strobed=True
                            (position visible → saccades; velocity absent → no pursuit drive)
     """
@@ -173,8 +184,12 @@ class VisualFlagsSegment(BaseModel):
     scene_present_L:  Optional[bool] = Field(default=None,  description="L-eye override. None = inherit scene_present. False = L eye in darkness.")
     scene_present_R:  Optional[bool] = Field(default=None,  description="R-eye override. None = inherit scene_present. False = R eye in darkness.")
     target_present:   bool           = Field(default=True,  description="Both-eye shorthand: True = target visible for both eyes.")
-    target_present_L: Optional[bool] = Field(default=None,  description="L-eye override. None = inherit target_present. False = cover L eye.")
-    target_present_R: Optional[bool] = Field(default=None,  description="R-eye override. None = inherit target_present. False = cover R eye.")
+    target_present_L: Optional[bool] = Field(default=None,  description="L-eye target override. None = inherit target_present.")
+    target_present_R: Optional[bool] = Field(default=None,  description="R-eye target override. None = inherit target_present.")
+    cover_L:          bool           = Field(default=False, description="Cover/patch the LEFT eye: forces its scene+target off (sim) and flags the avatar patch.")
+    cover_R:          bool           = Field(default=False, description="Cover/patch the RIGHT eye: forces its scene+target off (sim) and flags the avatar patch.")
+    prism_L:          Optional[list[float]] = Field(default=None, description="LEFT-eye prism deviation [yaw, pitch, roll] deg (head frame). None = no prism.")
+    prism_R:          Optional[list[float]] = Field(default=None, description="RIGHT-eye prism deviation [yaw, pitch, roll] deg (head frame). None = no prism.")
     target_strobed:   bool           = Field(default=False, description="Stroboscopic illumination: True = position signal present but velocity signal absent. Blocks pursuit drive while preserving saccadic targeting.")
 
 
@@ -314,7 +329,7 @@ class SimulationScenario(BaseModel):
         target: [{duration_s: 25, lin_z_0: 2.0}]             ← target at 2 m
         scene:  [{duration_s: 25}]
         visual: [{duration_s: 3},                             ← both eyes open
-                 {duration_s: 15, target_present_L: true, target_present_R: false},  ← cover R
+                 {duration_s: 15, cover_R: true},             ← cover R eye (scene+target off)
                  {duration_s: 7}]                             ← uncover, re-fusion
         patient: {tonic_verg: 8.0}                            ← elevated tonic drive = esophoric
         plot: {panels: ['eye_position', 'vergence']}
@@ -412,7 +427,8 @@ class SimulationScenario(BaseModel):
         description=(
             "Piecewise scene_present / target_present flags. "
             "Both default True (lit room + target visible). "
-            "Use scene_present=False for darkness; target_present=False for OKN drum (no fixation dot)."
+            "Use scene_present=False for darkness; target_present=False for OKN drum (no fixation dot). "
+            "Cover an eye with cover_L/cover_R; insert a prism with prism_L/prism_R."
         )
     )
     patient: Patient = Field(default_factory=Patient)

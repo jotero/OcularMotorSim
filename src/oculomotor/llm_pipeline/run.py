@@ -110,8 +110,10 @@ def _build_stimulus(scenario: SimulationScenario) -> dict:
     v_target[:, 0] = ((rel_vel[:, 0] * depth - rel_pos[:, 0] * rel_vel[:, 2]) / denom_x * (180.0 / np.pi))
     v_target[:, 1] = ((rel_vel[:, 1] * depth - rel_pos[:, 1] * rel_vel[:, 2]) / denom_y * (180.0 / np.pi))
 
-    # Visual flags — per-eye scene_present, target_present, and strobe flag
-    spL, spR, tpL, tpR, ts = stim.build_visual_flags(scenario.visual, T, dt)
+    # Visual flags — per-eye scene_present, target_present, strobe + cover flags
+    spL, spR, tpL, tpR, ts, cvL, cvR = stim.build_visual_flags(scenario.visual, T, dt)
+    # Per-eye prism deviation [yaw, pitch, roll] deg (head frame)
+    prism_L, prism_R = stim.build_prisms(scenario.visual, T, dt)
 
     return dict(
         t_array                 = t,
@@ -131,6 +133,12 @@ def _build_stimulus(scenario: SimulationScenario) -> dict:
         target_present_L_array  = jnp.array(tpL),
         target_present_R_array  = jnp.array(tpR),
         target_strobed_array    = jnp.array(ts),
+        # Cover flags (explicit) — viz only; the sim already sees the forced 0s above
+        cover_L_array           = jnp.array(cvL),
+        cover_R_array           = jnp.array(cvR),
+        # Per-eye prism deviation [yaw, pitch, roll] deg → simulate() + viz
+        prism_L_array           = jnp.array(prism_L),
+        prism_R_array           = jnp.array(prism_R),
     )
 
 
@@ -645,6 +653,10 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
         scene_present_R  = np.array(stim_kw['scene_present_R_array']),  # (T,)
         target_present_L = np.array(stim_kw['target_present_L_array']), # (T,)
         target_present_R = np.array(stim_kw['target_present_R_array']), # (T,)
+        cover_L          = np.array(stim_kw['cover_L_array']),          # (T,) 1 = L eye covered
+        cover_R          = np.array(stim_kw['cover_R_array']),          # (T,) 1 = R eye covered
+        prism_L          = np.array(stim_kw['prism_L_array']),          # (T, 3) deg deviation, L eye
+        prism_R          = np.array(stim_kw['prism_R_array']),          # (T, 3) deg deviation, R eye
     )
 
 
@@ -969,6 +981,8 @@ def run_scenario(scenario: SimulationScenario, output_path: str | None = None,
         target_present_L_array=stim_kw['target_present_L_array'],
         target_present_R_array=stim_kw['target_present_R_array'],
         target_strobed_array=stim_kw['target_strobed_array'],
+        prism_L_array=stim_kw['prism_L_array'],
+        prism_R_array=stim_kw['prism_R_array'],
         return_states=True,
         max_steps=max_steps,
     )

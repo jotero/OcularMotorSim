@@ -92,6 +92,17 @@ time to settle and provides a clear pre-stimulus reference in the figure.
   This is distinct from target_present=False (target completely gone) — the target is
   still visible as a flash, just not continuously illuminated.
 
+  **cover_L / cover_R = True** — Use for an eye patch / cover / occluder on one eye.
+  This is the correct way to cover an eye: it occludes that eye completely (its scene
+  AND target are forced off) so vergence drifts toward phoria, and it flags the patch
+  for the visualization. Do NOT cover an eye by hand-setting scene_present_*/target_present_*
+  — use cover_L/cover_R. (Binocular darkness is scene_present=False, not a cover.)
+
+  **prism_L / prism_R = [yaw, pitch, roll] deg** — Use when a prism is placed in front
+  of an eye. Optical deviation in degrees (head frame); 1 prism dioptre ≈ 0.573°.
+  Base-out → +yaw, base-in → −yaw, base-up → +pitch on that eye. None = no prism.
+  Example: 6Δ base-out over the right eye → prism_R: [3.44, 0, 0].
+
 ## Common recipes
 
 ### Saccade 20° right at 1 m (2 s):
@@ -131,7 +142,7 @@ time to settle and provides a clear pre-stimulus reference in the figure.
   target: [{duration_s: 25, lin_z_0: 2.0}]
   scene:  [{duration_s: 25}]
   visual: [{duration_s: 5},
-           {duration_s: 10, target_present_L: true, target_present_R: false},
+           {duration_s: 10, cover_R: true},
            {duration_s: 10}]
   patient: {tonic_verg: 8.0}   # elevated tonic drive = esophoric resting state
   plot: {panels: ["visual_flags", "eye_position", "vergence"]}
