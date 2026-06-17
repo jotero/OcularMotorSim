@@ -72,7 +72,7 @@ let _hasTarget   = false, _hasScene = false, _hasLocomotion = false, _showWorld 
 // World-camera framing. The head sits at _camRefEye (the rest eye-midpoint, the
 // frame the props live in); _fitCenter/_fitRadius are computed per trajectory so
 // the head AND every target stay in the (narrow) panel. Preset switches d/t/l/r.
-let _camRefEye = null, _camRefSize = 1, _camNear = 0.01, _camFar = 100;
+let _camRefEye = null, _camRefSize = 1, _camRefRadius = 1, _camNear = 0.01, _camFar = 100;
 let _fitCenter = null, _fitRadius = 1, _camMode = 'default', _needWorldFit = false;
 
 // Sample the trajectory once and build the world-space extent that must stay
@@ -80,21 +80,25 @@ let _fitCenter = null, _fitRadius = 1, _camMode = 'default', _needWorldFit = fal
 // target position. Props are scene children, so getWorldPosition is their true
 // rendered location — no need to reason about the skinned-rig origin offset.
 function fitWorldCamera() {
-  if (!_camRefEye || !_traj || !leftEyeBone) return;
-  const rHead = _camRefSize * 0.24;                    // ≈ original head framing
+  if (!_camRefEye || !_traj || !leftEyeBone || !rightEyeBone) return;
+  const rHead = _camRefRadius * 0.6;                    // skull padding around the eyes
+                                                        // (eye-sweep already covers motion)
   const box = new THREE.Box3().makeEmpty();
-  box.expandByPoint(_camRefEye);
   const n = _traj.n_frames, step = Math.max(1, Math.floor(n / 48));
-  const saved = Math.min(Math.floor(_frame), n - 1), p = new THREE.Vector3();
+  const saved = Math.min(Math.floor(_frame), n - 1);
+  const a = new THREE.Vector3(), b = new THREE.Vector3();
   for (let i = 0; i < n; i += step) {
-    applyFrame(i);
-    if (targetSphere && targetSphere.visible)
-      box.expandByPoint(targetSphere.getWorldPosition(p));
+    applyFrame(i);                                       // sets head rotation for frame i
+    // getWorldPosition flushes the world matrix, so these track the head as it
+    // pitches / yaws / tilts back — the whole sweep stays in the box.
+    box.expandByPoint(leftEyeBone.getWorldPosition(a));
+    box.expandByPoint(rightEyeBone.getWorldPosition(b));
+    if (targetSphere && targetSphere.visible) box.expandByPoint(targetSphere.getWorldPosition(a));
   }
   applyFrame(saved);                                    // restore current frame
   const s = box.getBoundingSphere(new THREE.Sphere());
   _fitCenter = s.center.clone();
-  _fitRadius = (s.radius + rHead) * 1.1;                // + head size, + margin
+  _fitRadius = (s.radius + rHead) * 1.06;               // + head extent, + margin
 }
 
 // Position the world camera from the fitted sphere, honouring the narrow panel
@@ -274,6 +278,7 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   // World camera: store reference frame, then apply the default view. Switch
   // views with d (default) / t (top) / l (left) / r (right).
   _camRefEye = eyeMid.clone(); _camRefSize = size.y; _camNear = near; _camFar = far;
+  _camRefRadius = box.getBoundingSphere(new THREE.Sphere()).radius;   // true head extent
   _needWorldFit = true;   // (re)fit once the world view renders with a trajectory
 
   // Eye-cover patches: a semi-transparent black disc over a covered eyeball,
