@@ -53,8 +53,7 @@
   }
   .example-chip:hover { border-color: #2563eb; color: #1c2230; background: #e4ecff; }
   /* Featured example cards (curated; click → instant output) */
-  .prompt-q { font-size: 1.02rem; font-weight: 600; color: #1c2230; margin: 0 0 4px; }
-  .prompt-help { font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0 0 12px; }
+  .prompt-q { font-size: 1.02rem; font-weight: 600; color: #1c2230; margin: 0 0 10px; }
   .examples-head { display: flex; align-items: baseline; justify-content: space-between;
     margin: 18px 0 6px; font-size: 0.85rem; color: #64748b; }
   .examples-head a { font-size: 0.8rem; color: #2563eb; cursor: pointer; white-space: nowrap; }
@@ -301,10 +300,8 @@
 
 <div class="card">
   <h2 class="prompt-q">What do you want to simulate?</h2>
-  <p class="prompt-help">Describe a patient, a clinical test, or a head- and target-motion scenario
-    in plain English and see the predicted eye movements, or compare two side by side.</p>
   <div class="input-row">
-    <textarea id="prompt" placeholder="e.g. &quot;VOR in the dark with left vestibular neuritis&quot; or &quot;compare healthy vs cerebellar deficit on a head impulse test&quot;"></textarea>
+    <textarea id="prompt" placeholder="Describe a patient, a clinical test, or a head- and target-motion scenario in plain English and see the predicted eye movements, or compare two side by side. e.g. &quot;VOR in the dark with left vestibular neuritis&quot; or &quot;compare healthy vs cerebellar deficit on a head impulse test&quot;"></textarea>
     <button id="btn" onclick="run()">Run</button>
   </div>
 
