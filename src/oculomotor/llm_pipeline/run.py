@@ -232,6 +232,7 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         eye_pos_L      = eye_pos_L,        # per-eye: left
         eye_pos_R      = eye_pos_R,        # per-eye: right
         vergence       = vergence,         # L − R (deg); positive = converged
+        ipd            = float(params.sensory.ipd),   # m — for binocular zero-referencing
         x_verg         = x_verg,           # vergence integrator state
         eye_vel        = w_eye,
         w_est          = w_est,
@@ -255,6 +256,68 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         cb_ec_target    = cb_ec_target,
         cb_ec_scene     = cb_ec_scene,
     )
+
+
+# ── Binocular zero-referencing ────────────────────────────────────────────────
+
+def _fmt_dist(d_m: float) -> str:
+    return f'{d_m:.1f} m' if d_m >= 1.0 else f'{d_m * 100:.0f} cm'
+
+
+def _binocular_display(sig: dict, stim_kw: dict, tonic_verg: float) -> dict:
+    """Choose the eye-position zero reference and the per-eye horizontal traces.
+
+    To fixate a *near* target each eye must point at a different angle — that
+    difference IS the vergence — so raw L/R traces straddle a single cyclopean
+    target line and look "off target" even when fixating. We cancel that baseline
+    by re-zeroing the HORIZONTAL axis (vertical & torsion stay absolute), so the
+    residual L−R is the genuine misalignment (cover test, phoria, palsy, skew):
+
+      • constant-depth target → re-zero by the convergence REQUIRED at that depth;
+        both eyes read the target angle when on target, deviations split them.
+      • no target (dark)       → re-zero by the resting (tonic) vergence; both eyes
+        read ~0 at rest, drift/nystagmus read around 0.
+      • varying-depth target   → absolute (0 = straight ahead); vergence movements
+        stay visible in the position trace (the vergence panel shows act vs req).
+
+    The eye-position arrays are NOT modified — this returns per-eye horizontal
+    OFFSETS to be ADDED at render time (client-side in plotspec.js, or at draw
+    time in matplotlib). The data shipped/exported stays raw and veridical.
+
+    Returns dict(off_L, off_R, target_yaw, target_pitch, verg_required,
+                 zero_label, present).
+    """
+    ipd = float(sig.get('ipd', 0.064))
+    pt  = np.array(stim_kw['p_target_array'])                     # (T,3) m
+    tp  = np.maximum(np.array(stim_kw['target_present_L_array']),
+                     np.array(stim_kw['target_present_R_array']))
+    present = tp > 0.5
+    depth = np.maximum(pt[:, 2], 0.05)                            # m
+
+    # Depth-correct target direction (was arctan(x) which assumed depth = 1 m).
+    target_yaw    = np.degrees(np.arctan2(pt[:, 0], depth))
+    target_pitch  = np.degrees(np.arctan2(pt[:, 1], depth))
+    verg_required = 2.0 * np.degrees(np.arctan((ipd / 2.0) / depth))
+
+    vc = 0.0
+    zero_label = '0 = straight ahead'
+    if present.any():
+        d_present = depth[present]
+        d_med  = float(np.median(d_present))
+        spread = float(np.max(d_present) - np.min(d_present))
+        if spread <= max(0.02, 0.05 * d_med):                    # ~constant depth
+            vc = 2.0 * np.degrees(np.arctan((ipd / 2.0) / d_med))
+            zero_label = f'0 = on target @ {_fmt_dist(d_med)}'
+        # else: varying depth → absolute (vc = 0)
+    elif abs(tonic_verg) > 0.1:                                   # dark / no target
+        vc = float(tonic_verg)
+        zero_label = '0 = resting position'
+
+    # displayed = raw + off ; L gets −vc/2, R gets +vc/2 → both land on version.
+    return dict(off_L=-vc / 2.0, off_R=+vc / 2.0,
+                target_yaw=target_yaw, target_pitch=target_pitch,
+                verg_required=verg_required, zero_label=zero_label,
+                present=present)
 
 
 # ── Plotting ──────────────────────────────────────────────────────────────────
@@ -385,8 +448,9 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
     tpL = np.array(stim_kw['target_present_L_array'])              # (T,)
     tpR = np.array(stim_kw['target_present_R_array'])              # (T,)
 
-    target_yaw_deg   = np.degrees(np.arctan(pt[:, 0]))
-    target_pitch_deg = np.degrees(np.arctan(pt[:, 1]))
+    _depth = np.maximum(pt[:, 2], 0.05)
+    target_yaw_deg   = np.degrees(np.arctan2(pt[:, 0], _depth))
+    target_pitch_deg = np.degrees(np.arctan2(pt[:, 1], _depth))
     tgt_v = float(np.max(np.abs(target_pitch_deg))) > 1.0
 
     tp_combined = np.maximum(tpL, tpR)
@@ -408,38 +472,39 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
     if panel_name == 'eye_position':
         ep_L = sig['eye_pos_L']
         ep_R = sig['eye_pos_R']
-        bino_spread = np.max(np.abs(ep_L[:, 0] - ep_R[:, 0]))
 
-        # Show gaze in world frame only when head actually moves (displacement > 2 deg).
+        # Binocular zero-reference (horizontal): re-zero each eye by the convergence
+        # required at the target depth (or resting vergence in the dark) so both eyes
+        # sit on the target when fixating and any misalignment splits them. Both eyes
+        # are ALWAYS shown (cover test / strabismus / palsy need them).
+        cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+        oL, oR = cal['off_L'], cal['off_R']
+        present = cal['present']
+
         dt_val = t[1] - t[0] if len(t) > 1 else 0.001
         head_angle = np.cumsum(hv[:, 0]) * dt_val   # integrated head yaw (deg)
         head_moves = np.max(np.abs(head_angle)) > 2.0
 
-        if bino_spread > 0.5:
-            lbl_L = 'L eye (head)' if head_moves else 'L eye'
-            lbl_R = 'R eye (head)' if head_moves else 'R eye'
-            ax.plot(t, ep_L[:, 0], color='#2166ac', lw=1.2, label=lbl_L)
-            ax.plot(t, ep_R[:, 0], color='#d6604d', lw=1.2, label=lbl_R)
-            if float(np.max(np.abs(ep[:, 1]))) > 1.0:   # conjugate vertical, if any
-                ax.plot(t, ep[:, 1], color=_C['eye'], lw=1.0, ls='--', label='Eye V')
-        else:
-            _ax_axes('Eye (head frame)' if head_moves else 'Eye', _C['eye'], ep, 1.0)
-
+        ax.plot(t, ep_L[:, 0] + oL, color='#2166ac', lw=1.2, label='L eye')
+        ax.plot(t, ep_R[:, 0] + oR, color='#d6604d', lw=1.2, label='R eye')
         if head_moves:
-            gaze = ep[:, 0] + head_angle
-            ax.plot(t, gaze, color=_C['head'], lw=1.2, ls='--', label='Gaze (world)')
+            ax.plot(t, ep[:, 0] + head_angle, color=_C['head'], lw=1.2, ls='--', label='Gaze (world)')
 
-        # Target: solid when visible, dashed+faded when absent
-        ax.plot(t, np.where(tp_combined > 0.5, target_yaw_deg, np.nan),
-                color=_C['target'], lw=1.2, ls='-', label='Target (visible)' + (' H' if tgt_v else ''))
-        if (tp_combined < 0.5).any():
-            ax.plot(t, np.where(tp_combined < 0.5, target_yaw_deg, np.nan),
+        # Target: solid when visible (depth-correct direction), dashed+faded when absent
+        ax.plot(t, np.where(present, target_yaw_deg, np.nan),
+                color=_C['target'], lw=1.2, ls='-', label='Target' + (' H' if tgt_v else ''))
+        if (~present).any():
+            ax.plot(t, np.where(~present, target_yaw_deg, np.nan),
                     color=_C['target'], lw=0.8, ls='--', alpha=0.4, label='Target (absent)')
-        if tgt_v:
-            ax.plot(t, np.where(tp_combined > 0.5, target_pitch_deg, np.nan),
-                    color=_C['target'], lw=1.0, ls=':', label='Target (visible) V')
+        # Vertical eyes (absolute) only if there is meaningful vertical motion.
+        if max(float(np.max(np.abs(ep_L[:, 1]))), float(np.max(np.abs(ep_R[:, 1])))) > 1.0:
+            ax.plot(t, ep_L[:, 1], color='#2166ac', lw=0.9, ls='--', label='L eye V')
+            ax.plot(t, ep_R[:, 1], color='#d6604d', lw=0.9, ls='--', label='R eye V')
+            if tgt_v:
+                ax.plot(t, np.where(present, target_pitch_deg, np.nan),
+                        color=_C['target'], lw=1.0, ls=':', label='Target V')
         ax.legend(fontsize=6, loc='upper right')
-        ax.set_ylabel('Eye / target position (deg)', fontsize=8)
+        ax.set_ylabel(f"Eye position (deg, {cal['zero_label']})", fontsize=8)
 
     elif panel_name == 'eye_velocity':
         _ax_axes('Eye vel', _C['eye'], ev, 5.0)
@@ -503,9 +568,13 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
     elif panel_name == 'vergence':
         ax.plot(t, sig['vergence'][:, 0],  color='#1b7837', lw=1.5, label='Vergence angle')
         ax.plot(t, sig['x_verg'][:, 0],    color='#762a83', lw=1.0, ls=':', label='Vergence integrator')
+        if (tp_combined > 0.5).any():
+            cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+            ax.plot(t, np.where(tp_combined > 0.5, cal['verg_required'], np.nan),
+                    color='#ff8c00', lw=1.0, ls='--', label='Required (target depth)')
         tonic_val = scenario.patient.tonic_verg
         if abs(tonic_val) > 0.1:
-            ax.axhline(tonic_val, color='#ff8c00', lw=1.0, ls='--',
+            ax.axhline(tonic_val, color='#ff8c00', lw=1.0, ls=':',
                        label=f'Tonic verg ({tonic_val:+.1f}°)')
         ax.legend(fontsize=6, loc='upper right')
         ax.set_ylabel('Vergence angle (deg)', fontsize=8)
@@ -542,7 +611,7 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
 
     elif panel_name == 'target_position':
         ax.plot(t, target_yaw_deg, color=_C['target'], lw=1.2, label='Target yaw')
-        tp_pitch = np.degrees(np.arctan(pt[:, 1]))
+        tp_pitch = np.degrees(np.arctan2(pt[:, 1], np.maximum(pt[:, 2], 0.05)))
         if np.any(np.abs(tp_pitch) > 0.5):
             ax.plot(t, tp_pitch, color=_C['burst'], lw=1.0, ls='--', label='Target pitch')
         ax.legend(fontsize=6, loc='upper right')
@@ -818,8 +887,9 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
     tpL = np.array(stim_kw['target_present_L_array'])
     tpR = np.array(stim_kw['target_present_R_array'])
     tp_combined = np.maximum(tpL, tpR)
-    target_yaw_deg   = np.degrees(np.arctan(pt[:, 0]))
-    target_pitch_deg = np.degrees(np.arctan(pt[:, 1]))
+    _depth = np.maximum(pt[:, 2], 0.05)
+    target_yaw_deg   = np.degrees(np.arctan2(pt[:, 0], _depth))
+    target_pitch_deg = np.degrees(np.arctan2(pt[:, 1], _depth))
     tgt_v = float(np.max(np.abs(target_pitch_deg))) > 1.0
     dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
     head_angle = np.cumsum(hv[:, 0]) * dt_val
@@ -857,30 +927,39 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
             if ymin:
                 p['ymin_span'] = ymin
             return p
-        def _ad(p, label, color, y, style='-'):
-            p['traces'].append({'label': label, 'color': color, 'style': style,
-                                'axis': 'left', 'y': _jlist(y, stride)})
+        def _ad(p, label, color, y, style='-', offset=0.0):
+            # Raw y is shipped untouched; `offset` (added client-side at render)
+            # carries the binocular zero-reference so the data stays veridical.
+            tr_d = {'label': label, 'color': color, 'style': style,
+                    'axis': 'left', 'y': _jlist(y, stride)}
+            if offset:
+                tr_d['offset'] = float(offset)
+            p['traces'].append(tr_d)
         if panel == 'eye_position':
             ep_L, ep_R = sig['eye_pos_L'], sig['eye_pos_R']
-            tgt = (target_yaw_deg, target_pitch_deg, None)
+            cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+            present = cal['present']
+            tgt = (cal['target_yaw'], cal['target_pitch'], None)
+            # Both eyes are ALWAYS drawn (cover test / strabismus / palsy need them).
             active = [0]
             for i in (1, 2):
-                mv = max(float(np.max(np.abs(ep_L[:, i]))), float(np.max(np.abs(ep_R[:, i]))),
-                         float(np.max(np.abs(ep[:, i]))))
+                mv = max(float(np.max(np.abs(ep_L[:, i]))), float(np.max(np.abs(ep_R[:, i]))))
                 if i == 1:
-                    mv = max(mv, float(np.max(np.abs(target_pitch_deg))))
+                    mv = max(mv, float(np.max(np.abs(cal['target_pitch']))))
                 if mv > 1.0:
                     active.append(i)
             for i in active:
-                p = _new(f'eye_position_{SUF[i]}', f'Eye position — {AXN[i]} (deg)')
-                if float(np.max(np.abs(ep_L[:, i] - ep_R[:, i]))) > 0.5:   # disconjugate this axis
-                    _ad(p, 'L eye', '#2166ac', ep_L[:, i])
-                    _ad(p, 'R eye', '#d6604d', ep_R[:, i])
-                else:
-                    _ad(p, 'Eye', _C['eye'], ep[:, i])
+                # Horizontal axis carries the zero-reference + per-eye offsets;
+                # vertical / torsion stay absolute (no normal vergence there).
+                zl = f", {cal['zero_label']}" if i == 0 else ''
+                oL = cal['off_L'] if i == 0 else 0.0
+                oR = cal['off_R'] if i == 0 else 0.0
+                p = _new(f'eye_position_{SUF[i]}', f'Eye position — {AXN[i]} (deg{zl})')
+                _ad(p, 'L eye', '#2166ac', ep_L[:, i], offset=oL)
+                _ad(p, 'R eye', '#d6604d', ep_R[:, i], offset=oR)
                 # Target overlaid ONLY where it is actually present (no ghost when absent).
-                if tgt[i] is not None and (tp_combined > 0.5).any():
-                    _ad(p, 'Target', _C['target'], np.where(tp_combined > 0.5, tgt[i], np.nan))
+                if tgt[i] is not None and present.any():
+                    _ad(p, 'Target', _C['target'], np.where(present, tgt[i], np.nan))
                 out.append(p)
         else:  # eye_velocity
             active = [0]
@@ -945,10 +1024,16 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
         spec['ylabel'] = 'Vergence angle (deg)'
         tr('Vergence angle', '#1b7837', sig['vergence'][:, 0])
         tr('Vergence integrator', '#762a83', sig['x_verg'][:, 0], style=':')
+        # Required convergence for the target's depth — actual should track it when
+        # the eyes are correctly verged; the gap is the vergence error.
+        if (tp_combined > 0.5).any():
+            cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+            tr('Required (target depth)', '#ff8c00',
+               np.where(tp_combined > 0.5, cal['verg_required'], np.nan), style='--')
         tonic_val = scenario.patient.tonic_verg
         if abs(tonic_val) > 0.1:
             spec['hlines'].append({'y': round(float(tonic_val), 3),
-                                   'color': '#ff8c00', 'style': '--',
+                                   'color': '#ff8c00', 'style': ':',
                                    'label': f'Tonic verg ({tonic_val:+.1f}°)'})
 
     elif panel == 'cerebellum_pursuit':
@@ -971,7 +1056,7 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
     elif panel == 'target_position':
         spec['ylabel'] = 'Target position (deg)'
         tr('Target yaw', _C['target'], target_yaw_deg)
-        tp_pitch = np.degrees(np.arctan(pt[:, 1]))
+        tp_pitch = np.degrees(np.arctan2(pt[:, 1], np.maximum(pt[:, 2], 0.05)))
         if np.any(np.abs(tp_pitch) > 0.5):
             tr('Target pitch', _C['burst'], tp_pitch, style='--')
 
@@ -1139,7 +1224,7 @@ def _build_comparison_figure(
             ev  = sig['eye_vel']
             hv  = np.array(stim_kw['head_vel_array'])
             pt  = np.array(stim_kw['p_target_array'])
-            target_yaw = np.degrees(np.arctan(pt[:, 0]))
+            target_yaw = np.degrees(np.arctan2(pt[:, 0], np.maximum(pt[:, 2], 0.05)))
 
             if panel == 'eye_position':
                 dt_val = t[1] - t[0] if len(t) > 1 else 0.001
@@ -1249,7 +1334,8 @@ def _build_comparison_spec(
                 if head_moves:
                     add(f'{label} (world)', ep[:, 0] + head_angle, s='-')
                 if idx == 0:
-                    add('Target', np.degrees(np.arctan(pt[:, 0])), c=_C['target'], s=':')
+                    _d = np.maximum(pt[:, 2], 0.05)
+                    add('Target', np.degrees(np.arctan2(pt[:, 0], _d)), c=_C['target'], s=':')
             elif panel == 'eye_velocity':
                 add(label, ev[:, 0])
                 if idx == 0:
