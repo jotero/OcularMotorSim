@@ -260,8 +260,12 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
 
 # ── Binocular zero-referencing ────────────────────────────────────────────────
 
-def _fmt_dist(d_m: float) -> str:
-    return f'{d_m:.1f} m' if d_m >= 1.0 else f'{d_m * 100:.0f} cm'
+def _fmt_zero(d_m: float | None) -> str:
+    """Uniform zero-reference label: the fixation distance the zero corresponds to,
+    in metres rounded to 1 decimal ('0.5 m', '1.0 m') or '∞' for parallel/far."""
+    if d_m is None or d_m >= 100.0:
+        return '∞'                      # ∞ — parallel / far
+    return f'{d_m:.1f} m'
 
 
 def _binocular_display(sig: dict, stim_kw: dict, tonic_verg: float) -> dict:
@@ -277,8 +281,12 @@ def _binocular_display(sig: dict, stim_kw: dict, tonic_verg: float) -> dict:
         both eyes read the target angle when on target, deviations split them.
       • no target (dark)       → re-zero by the resting (tonic) vergence; both eyes
         read ~0 at rest, drift/nystagmus read around 0.
-      • varying-depth target   → absolute (0 = straight ahead); vergence movements
-        stay visible in the position trace (the vergence panel shows act vs req).
+      • varying-depth target   → absolute (0 = ∞); vergence movements stay visible
+        in the position trace (the vergence panel shows act vs req).
+
+    The zero is labelled UNIFORMLY as the fixation distance it corresponds to
+    (the target depth, the tonic resting distance, or ∞), regardless of which
+    case produced it.
 
     The eye-position arrays are NOT modified — this returns per-eye horizontal
     OFFSETS to be ADDED at render time (client-side in plotspec.js, or at draw
@@ -300,18 +308,20 @@ def _binocular_display(sig: dict, stim_kw: dict, tonic_verg: float) -> dict:
     verg_required = 2.0 * np.degrees(np.arctan((ipd / 2.0) / depth))
 
     vc = 0.0
-    zero_label = '0 = straight ahead'
+    zero_dist = None                                             # None → ∞ (parallel)
     if present.any():
         d_present = depth[present]
         d_med  = float(np.median(d_present))
         spread = float(np.max(d_present) - np.min(d_present))
         if spread <= max(0.02, 0.05 * d_med):                    # ~constant depth
             vc = 2.0 * np.degrees(np.arctan((ipd / 2.0) / d_med))
-            zero_label = f'0 = on target @ {_fmt_dist(d_med)}'
-        # else: varying depth → absolute (vc = 0)
+            zero_dist = d_med
+        # else: varying depth → absolute (vc = 0, zero at ∞)
     elif abs(tonic_verg) > 0.1:                                   # dark / no target
         vc = float(tonic_verg)
-        zero_label = '0 = resting position'
+        # resting distance that produces this tonic vergence (for the label)
+        zero_dist = (ipd / 2.0) / np.tan(np.radians(tonic_verg / 2.0))
+    zero_label = f'0 = {_fmt_zero(zero_dist)}'
 
     # displayed = raw + off ; L gets −vc/2, R gets +vc/2 → both land on version.
     return dict(off_L=-vc / 2.0, off_R=+vc / 2.0,

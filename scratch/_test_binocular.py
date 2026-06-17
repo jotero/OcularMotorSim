@@ -1,6 +1,6 @@
 """Unit-check _binocular_display decision logic across the four modes (no sim)."""
 import numpy as np
-from oculomotor.llm_pipeline.run import _binocular_display, _fmt_dist
+from oculomotor.llm_pipeline.run import _binocular_display, _fmt_zero
 
 T = 1000
 def stim(depth, present):
@@ -33,4 +33,4 @@ report("dark, tonic~0", stim(1.0, False), 0.0)
 # expected vc at 0.5 m:
 vc = 2 * np.degrees(np.arctan(0.032 / 0.5))
 print(f"\nexpected near-0.5m convergence vc = {vc:.3f} deg  -> off_L should be {-vc/2:+.3f}")
-print("fmt:", _fmt_dist(0.5), "|", _fmt_dist(1.0), "|", _fmt_dist(2.5))
+print("fmt:", _fmt_zero(0.5), "|", _fmt_zero(1.0), "|", _fmt_zero(None))
