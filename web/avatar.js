@@ -586,11 +586,13 @@ window.loadEyeTrajectory = function(traj) {
   const wrap = document.querySelector('.avatar-wrap');
   if (wrap) wrap.classList.toggle('single-view', !_showWorld);
 
-  document.getElementById('play-btn').textContent = '▶';
   document.getElementById('scrubber').max         = traj.n_frames - 1;
   document.getElementById('scrubber').value       = 0;
   updateTimeDisplay(0);
   applyFrame(0);
+  // Auto-play on load (example loaded or simulation finished).
+  _frame = 0; _lastRafTs = null; _playing = true;
+  document.getElementById('play-btn').textContent = '⏸';
 };
 
 window._avatarTogglePlay = function() {
