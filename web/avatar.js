@@ -663,7 +663,10 @@ function animate(ts) {
   requestAnimationFrame(animate);
   updateBlink(ts);   // spontaneous blink (eyelids), independent of playback
 
-  if (_playing && _traj) {
+  // Gate playback on the rig being loaded — otherwise a sim that arrives before
+  // the glTF finishes loading would race the timeline past the end (avatar frozen
+  // on the last frame, autoplay looking broken). Wait at frame 0 until bones exist.
+  if (_playing && _traj && leftEyeBone) {
     if (_lastRafTs !== null) {
       _frame += (ts - _lastRafTs) / 1000 * _traj.fps;
       if (_frame >= _traj.n_frames) {
