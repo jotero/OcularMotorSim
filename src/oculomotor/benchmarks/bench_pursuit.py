@@ -22,7 +22,10 @@ from oculomotor.sim.simulator import (
 )
 from oculomotor.sim import kinematics as km
 from oculomotor.models.brain_models.perception_cyclopean import C_pos  # noqa: F401
-from oculomotor.analysis import ax_fmt, extract_burst, extract_sg, ni_net, read_brain_decoded, read_brain_acts
+from oculomotor.analysis import (ax_fmt, extract_burst, extract_sg, ni_net,
+                                 read_brain_decoded, read_brain_acts, extract_spv_states)
+from oculomotor.benchmarks.bench_metrics import Metric
+from oculomotor.benchmarks import bode
 
 SHOW  = '--show' in sys.argv
 DT    = 0.001
@@ -69,6 +72,7 @@ def _velocity_range(show):
     for r, lbl in enumerate(row_labels):
         axes[r, 0].set_ylabel(lbl, fontsize=8)
 
+    spv_by_vel = {}   # vel -> slow-phase eye velocity (for gain + latency metrics)
     for ci, vel in enumerate(velocities):
         tgt, pt3, vt3 = _ramp(t_np, vel, T_jump)
         st_pur = _run(theta_pur, t_np, pt3, vt3, key=ci)
@@ -78,6 +82,7 @@ def _velocity_range(show):
         eye_nop = (np.array(st_nop.plant.left[:, 0]) + np.array(st_nop.plant.right[:, 0])) / 2.0
         ev_pur  = np.gradient(eye_pur, DT)
         ev_nop  = np.gradient(eye_nop, DT)
+        spv_by_vel[vel] = extract_spv_states(st_pur, t_np)[:, 0]
         u_pur   = np.array(read_brain_decoded(st_pur, THETA).pu.net[:, 0])     # NET yaw (deg/s)
 
         axes[0, ci].set_title(f'{vel:.0f} deg/s', fontsize=10)
@@ -118,7 +123,31 @@ def _velocity_range(show):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'pursuit_velocity_range', show=show, params=THETA,
                               conditions='Lit, foveal target ramping at 5–80 °/s (constant velocity pursuit)')
-    return utils.fig_meta(path, rp,
+
+    # ── Metrics: steady-state pursuit gain (SPV/target) + onset latency ───────
+    ss = t_np > 1.5
+    def _gain(v):
+        return float(np.mean(spv_by_vel[v][ss]) / v)
+    # Onset latency at 10 deg/s: time from ramp onset to SPV crossing 2 deg/s.
+    spv10 = spv_by_vel[10.0]
+    after = t_np >= T_jump
+    cross = np.where(after & (spv10 > 2.0))[0]
+    latency_ms = float((t_np[cross[0]] - T_jump) * 1000.0) if len(cross) else float('nan')
+    metrics = [
+        Metric('pursuit_ss_gain_5degs', _gain(5.0), tier='gate',
+               lo=0.8, hi=1.1, golden_tol=0.08, units='',
+               cite='Lisberger & Westbrook (1985)',
+               desc='Steady-state pursuit gain (SPV ÷ target vel) at 5 deg/s ramp'),
+        Metric('pursuit_ss_gain_10degs', _gain(10.0), tier='gate',
+               lo=0.8, hi=1.1, golden_tol=0.08, units='',
+               cite='Lisberger & Westbrook (1985)',
+               desc='Steady-state pursuit gain at 10 deg/s ramp'),
+        Metric('pursuit_latency_ms', latency_ms, tier='monitor',
+               lo=60.0, hi=180.0, golden_tol=0.2, units='ms',
+               cite='Rashbass (1961); Carl & Gellman (1987)',
+               desc='Pursuit onset latency at 10 deg/s (ramp onset → SPV > 2 deg/s)'),
+    ]
+    fig_meta = utils.fig_meta(path, rp,
         title='Smooth Pursuit — Velocity Range',
         description='Step-ramp target at 5, 10, 20, 40 deg/s. '
                     'Blue: smooth pursuit enabled. Gray: saccades only (pursuit off). '
@@ -127,78 +156,67 @@ def _velocity_range(show):
                  'At higher velocities: catch-up saccades + partial pursuit.',
         citation='Lisberger & Westbrook (1985) J Neurosci; Rashbass (1961)',
         fig_type='behavior')
+    fig_meta['metrics'] = metrics
+    return fig_meta
 
 
-# ── Figure 2: sinusoidal pursuit ─────────────────────────────────────────────
+# ── Figure 2: pursuit frequency response (Bode) ──────────────────────────────
 
-def _sinusoidal(show):
-    """Sinusoidal target: horizontal + vertical, 3 frequencies."""
-    freqs = [0.2, 0.5, 1.0]   # Hz
-    AMP   = 15.0               # deg/s peak velocity
-    T_END = 12.0
-    t_np  = np.arange(0.0, T_END, DT)
-    T     = len(t_np)
+def _bode(show):
+    """Pursuit Bode: sinusoidal target-velocity sweep, NOISELESS.
+    Gain = eye-velocity (SPV) ÷ target-velocity amplitude; phase lag vs frequency.
+    Replaces the old (messy) sinusoidal-pursuit figure.
+    """
+    AMP    = 10.0   # deg/s peak target velocity
+    FREQS  = np.array([0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 1.5, 2.0])
+    N_CYC  = 5
+    SETTLE = 1.5
 
-    # 2D: H sinusoid at freq f, V sinusoid at 2*freq (Lissajous-like)
-    fig, axes = plt.subplots(3, 3, figsize=(13, 9), sharex=True)
-    fig.suptitle(f'Sinusoidal Pursuit — H: A·sin(2πft), V: A·sin(4πft),  A = {AMP:.0f} deg/s peak',
-                 fontsize=11)
-    row_labels = ['H position (deg)', 'V position (deg)', 'H+V trajectory (deg)']
-    for r, lbl in enumerate(row_labels):
-        axes[r, 0].set_ylabel(lbl, fontsize=8)
+    def run_fn(f):
+        T_end = min(SETTLE + N_CYC / f, 45.0)
+        t  = np.arange(0.0, T_end, DT)
+        Tn = len(t)
+        w  = 2 * np.pi * f
+        on = t >= SETTLE
+        vel = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
+        pos = np.where(on, -(AMP / w) * (np.cos(w * (t - SETTLE)) - 1.0), 0.0)
+        pt3 = np.zeros((Tn, 3)); pt3[:, 2] = 1.0; pt3[:, 0] = np.tan(np.radians(pos))
+        vt3 = np.zeros((Tn, 3)); vt3[:, 0] = vel.astype(np.float32)
+        st  = _run(THETA_NOISELESS, t, jnp.array(pt3), jnp.array(vt3), key=0)
+        eye_spv = extract_spv_states(st, t)[:, 0]
+        return t, vel, eye_spv
 
-    for ci, freq in enumerate(freqs):
-        axes[0, ci].set_title(f'{freq} Hz', fontsize=11)
-        # Position = integral of velocity
-        tgt_h = -(AMP / (2 * np.pi * freq))     * np.cos(2 * np.pi * freq       * t_np)
-        tgt_v = -(AMP / (2 * np.pi * 2 * freq)) * np.cos(2 * np.pi * 2 * freq * t_np)
-        vel_h = AMP * np.sin(2 * np.pi * freq       * t_np)
-        vel_v = AMP * np.sin(2 * np.pi * 2 * freq * t_np)
-
-        pt3 = np.zeros((T, 3)); pt3[:, 2] = 1.0
-        pt3[:, 0] = np.tan(np.radians(tgt_h))
-        pt3[:, 1] = np.tan(np.radians(tgt_v))
-        vt3 = np.zeros((T, 3))
-        vt3[:, 0] = vel_h.astype(np.float32)
-        vt3[:, 1] = vel_v.astype(np.float32)
-
-        st   = _run(THETA, t_np, jnp.array(pt3), jnp.array(vt3), key=ci + 20)
-        # Version eye position = mean of left and right
-        eye_L = np.array(st.plant.left[:, :2])
-        eye_R = np.array(st.plant.right[:, :2])
-        eye   = (eye_L + eye_R) / 2.0
-
-        mask = t_np > 2.0  # skip warm-up
-        axes[0, ci].plot(t_np[mask], tgt_h[mask], color=utils.C['target'], lw=1.2, label='target H')
-        axes[0, ci].plot(t_np[mask], eye[mask, 0], color=utils.C['eye'],   lw=1.5, label='eye H (version)')
-        ax_fmt(axes[0, ci]); axes[0, ci].legend(fontsize=7)
-        absmax = max(np.abs(tgt_h[mask]).max(), np.abs(eye[mask, 0]).max()) * 1.1
-        axes[0, ci].set_ylim(-absmax, absmax)
-
-        axes[1, ci].plot(t_np[mask], tgt_v[mask], color=utils.C['target'], lw=1.2, ls='--', label='target V')
-        axes[1, ci].plot(t_np[mask], eye[mask, 1], color=utils.C['eye'],   lw=1.5, ls='--', label='eye V (version)')
-        ax_fmt(axes[1, ci]); axes[1, ci].legend(fontsize=7)
-        absmax = max(np.abs(tgt_v[mask]).max(), np.abs(eye[mask, 1]).max()) * 1.1
-        axes[1, ci].set_ylim(-absmax, absmax)
-
-        axes[2, ci].plot(tgt_h[mask], tgt_v[mask], color=utils.C['target'], lw=1.0, label='target')
-        axes[2, ci].plot(eye[mask, 0], eye[mask, 1], color=utils.C['eye'],  lw=1.5, label='eye')
-        axes[2, ci].set_xlabel('H (deg)', fontsize=8)
-        axes[2, ci].set_aspect('equal'); axes[2, ci].legend(fontsize=7)
-        axes[2, ci].grid(True, alpha=0.25)
-
-    fig.tight_layout()
-    path, rp = utils.save_fig(fig, 'pursuit_sinusoidal', show=show, params=THETA,
-                              conditions='Lit, foveal target sinusoidal in horizontal position')
-    return utils.fig_meta(path, rp,
-        title='Sinusoidal Pursuit (H + V)',
-        description='Horizontal sinusoidal target at 0.2, 0.5, 1.0 Hz (peak 15 deg/s). '
-                    'Vertical at 2× horizontal frequency for Lissajous trajectory. '
-                    'Rows: H position, V position, 2D trajectory.',
-        expected='Low freq (0.2 Hz): near-unity gain, small phase lag. '
-                 'High freq (1.0 Hz): gain < 1, larger lag, catch-up saccades.',
-        citation='Lisberger et al. (1981) J Neurophysiol',
+    freqs, gains, phases = bode.bode_sweep(run_fn, FREQS, settle_frac=0.45)
+    fig, m = bode.make_bode_figure(
+        freqs, gains, phases,
+        'Smooth Pursuit — Frequency Response (Bode, noiseless)',
+        ref_hz=0.5, gain_label='Gain (eye vel ÷ target vel)')
+    path, rp = utils.save_fig(fig, 'pursuit_bode', show=show, params=THETA_NOISELESS,
+        conditions='Lit, NOISELESS — sinusoidal target-velocity sweep 0.1–2 Hz (10 deg/s peak)')
+    phase_ref = float(m['phase_ref']) if m['phase_ref'] is not None else float('nan')
+    metrics = [
+        Metric('pursuit_bode_gain_low', float(m['gain_low']), tier='gate',
+               lo=0.7, hi=1.1, golden_tol=0.1, units='',
+               cite='Lisberger et al. (1981)',
+               desc='Pursuit low-frequency velocity gain'),
+        Metric('pursuit_bode_bw_hz', float(m['bw_hz']), tier='monitor',
+               lo=0.3, hi=None, golden_tol=0.25, units='Hz',
+               cite='Lisberger et al. (1981)',
+               desc='Pursuit −3 dB bandwidth (corner frequency)'),
+        Metric('pursuit_bode_phase_0p5hz', phase_ref, tier='monitor',
+               lo=-90.0, hi=10.0, golden_tol=0.3, units='deg',
+               cite='Lisberger et al. (1981)',
+               desc='Pursuit phase at 0.5 Hz (− = lag)'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='Smooth Pursuit — Bode (frequency response)',
+        description='Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. '
+                    'Gain = eye-velocity (SPV) ÷ target-velocity; phase lag vs frequency.',
+        expected='Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.',
+        citation='Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol',
         fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
 
 
 # ── Figure 3: pursuit signal cascade ─────────────────────────────────────────
@@ -334,8 +352,8 @@ def run(show=False):
     figs = []
     print('  1/3  velocity range …')
     figs.append(_velocity_range(show))
-    print('  2/3  sinusoidal pursuit …')
-    figs.append(_sinusoidal(show))
+    print('  2/3  frequency response (Bode) …')
+    figs.append(_bode(show))
     print('  3/3  signal cascade …')
     figs.append(_cascade(show))
     return figs

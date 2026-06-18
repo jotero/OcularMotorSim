@@ -1,4 +1,4 @@
-"""OculomotorJax — JAX-based differentiable primate oculomotor model."""
+"""ViSiOMlab — JAX-based differentiable primate oculomotor model."""
 
 import subprocess
 import os

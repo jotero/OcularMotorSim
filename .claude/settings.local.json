@@ -112,7 +112,9 @@
       "PowerShell($env:K_PHASIC_VERG = \"3.0\"; $env:K_VERG = \"2.5\"; $env:TAU_VERG = \"3.0\"; & \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 scripts\\\\diag_vergence_symmetric.py)",
       "PowerShell(Remove-Item Env:K_PHASIC_VERG, Env:K_VERG, Env:TAU_VERG -ErrorAction SilentlyContinue; $env:WITH_ACA = \"1\"; & \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 scripts\\\\diag_vergence_symmetric.py)",
       "Bash(awk '{print $1}')",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.run_benchmarks 2>&1)",
+      "WebSearch"
     ],
     "additionalDirectories": [
       "d:\\OneDrive\\UC Berkeley\\OMlab - JOM\\Code\\ClaudeOculomotorJax\\outputs"

@@ -21,13 +21,14 @@ from oculomotor.sim.simulator import PARAMS_DEFAULT, with_brain, with_sensory, s
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import (
     ax_fmt, extract_burst, extract_sg, ni_net, vs_net,
-    read_brain_acts, read_brain_decoded,
+    read_brain_acts, read_brain_decoded, extract_z_opn,
 )
 from oculomotor.models.brain_models import tvor as tv_mod
 from oculomotor.models.sensory_models.retina import (
     velocity_saturation, ypr_to_xyz, xyz_to_ypr,
 )
 from oculomotor.models.plant_models.readout import rotation_matrix
+from oculomotor.benchmarks.bench_metrics import Metric
 
 
 def _omega_tvor_traj(states, brain_params):
@@ -113,13 +114,13 @@ SHOW  = '--show' in sys.argv
 
 
 def _primary_saccade(burst_yaw, eye_yaw, t_np, t_jump, threshold=20.0):
-    """Amplitude and peak velocity of the FIRST saccade after t_jump.
+    """Amplitude, peak velocity and duration of the FIRST saccade after t_jump.
 
     Uses the burst signal (not raw velocity) to gate on/off so corrective
     saccades and post-saccadic drift are excluded.
 
-    Returns (amplitude_deg, peak_vel_deg_s).  Falls back to full-trace
-    extremes only if no burst crossing is found.
+    Returns (amplitude_deg, peak_vel_deg_s, duration_s).  Falls back to
+    full-trace extremes (with NaN duration) only if no burst crossing is found.
     """
     i0     = int(t_jump / DT) + 1          # first sample after step
     burst  = burst_yaw[i0:]
@@ -131,7 +132,7 @@ def _primary_saccade(burst_yaw, eye_yaw, t_np, t_jump, threshold=20.0):
     off_idx = np.where(np.diff(is_sac.astype(int)) < 0)[0]
 
     if len(on_idx) == 0:
-        return float(eye[-1] - eye_yaw[i0 - 1]), float(np.max(np.abs(vel)))
+        return float(eye[-1] - eye_yaw[i0 - 1]), float(np.max(np.abs(vel))), float('nan')
 
     i_on  = on_idx[0] + 1                  # first sample inside saccade
     after = off_idx[off_idx >= on_idx[0]]
@@ -139,7 +140,23 @@ def _primary_saccade(burst_yaw, eye_yaw, t_np, t_jump, threshold=20.0):
 
     amplitude = float(eye[i_off] - eye[i_on - 1])
     peak_vel  = float(np.max(np.abs(vel[i_on:i_off + 1])))
-    return amplitude, peak_vel
+    duration  = float((i_off - (i_on - 1)) * DT)        # onset → offset span
+    return amplitude, peak_vel, duration
+
+
+def _count_saccades(burst_yaw, t_start, threshold=20.0, min_dur_s=0.004):
+    """Count distinct saccade bursts after `t_start`.
+
+    A saccade = a contiguous run where |burst| exceeds `threshold` lasting at
+    least `min_dur_s` (filters single-sample blips / microsaccade noise).
+    """
+    i0     = int(t_start / DT)
+    is_sac = (np.abs(burst_yaw[i0:]) > threshold).astype(int)
+    edges  = np.diff(np.concatenate([[0], is_sac, [0]]))
+    starts = np.where(edges > 0)[0]
+    ends   = np.where(edges < 0)[0]
+    min_n  = max(1, int(min_dur_s / DT))
+    return int(np.sum((ends - starts) >= min_n))
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -214,72 +231,176 @@ def _main_sequence(show):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'saccade_main_sequence', show=show, params=THETA,
                               conditions='Lit, foveal target stepping 1°–40° horizontally')
-    return utils.fig_meta(path, rp,
+
+    # ── Quantitative metrics (measured from states, not the figure) ──────────
+    amps_arr = np.array(amps_out)
+    peak_arr = np.array(peak_vels)
+    req      = np.array(amplitudes, dtype=float)
+    big      = req >= 5.0                      # main sequence is clean for A ≥ 5°
+    ref_big  = 700.0 * (1.0 - np.exp(-amps_arr[big] / 7.0))
+    resid_max = float(np.max(np.abs(peak_arr[big] - ref_big) / ref_big))
+    peak_20   = float(peak_arr[amplitudes.index(20)])
+    gain      = float(np.mean(amps_arr[big] / req[big]))
+
+    metrics = [
+        Metric('sac_peak_vel_20deg', peak_20, tier='gate',
+               lo=550.0, hi=750.0, golden_tol=0.05, units='deg/s',
+               cite='Bahill et al. (1975)',
+               desc='Peak velocity of a 20° saccade (main-sequence saturation)'),
+        Metric('sac_mainseq_resid_max', resid_max, tier='gate',
+               lo=None, hi=0.20, golden_tol=0.15, units='',
+               cite='Bahill et al. (1975)',
+               desc='Max fractional deviation from 700(1−e^−A/7), amplitudes ≥5°'),
+        Metric('sac_primary_gain', gain, tier='monitor',
+               lo=0.80, hi=1.05, golden_tol=0.05, units='',
+               cite='Robinson (1975)',
+               desc='Mean primary-saccade amplitude / target amplitude (≥5°)'),
+    ]
+
+    fig = utils.fig_meta(path, rp,
         title='Saccade Main Sequence',
         description='Peak velocity vs amplitude scatter (left) and aligned eye traces (right) for amplitudes 0.5–20°.',
         expected='All data within ±20% of 700(1−e^{−A/7}). Peak ≈660 deg/s at 20°.',
         citation='Bahill et al. (1975) Science; Robinson (1975) J Neurophysiol',
         fig_type='behavior')
+    fig['metrics'] = metrics
+    return fig
 
 
 # ── Figure 2: oblique saccades ────────────────────────────────────────────────
 
 def _oblique(show):
-    T_end = 3.5
+    """Saccade fan: 12° saccades from centre to 8 equally-spaced directions, each
+    followed by a return to centre. Tests the hallmarks of oblique saccades —
+    straight 2-D trajectories and synchronised horizontal/vertical components.
+    Noiseless, so curvature reflects the model rather than fixational jitter.
+    """
+    AMP  = 12.0
+    DIRS = np.arange(0.0, 360.0, 45.0)      # 8 directions, 45° apart
+    HOLD = 0.35                              # dwell at each target / at centre
+    T0   = 0.2
+
+    targets = []
+    for d in DIRS:
+        targets.append((AMP * np.cos(np.radians(d)), AMP * np.sin(np.radians(d))))
+        targets.append((0.0, 0.0))           # return to centre between directions
+    T_end = T0 + len(targets) * HOLD + 0.2
     t_np  = np.arange(0.0, T_end, DT)
     T     = len(t_np)
 
-    jumps = [(0.3, 12.0, 0.0), (0.9, 12.0, 8.0),
-             (1.6,  0.0, 8.0), (2.2,  0.0, 0.0), (2.8, -10.0, 5.0)]
-    pt3   = np.zeros((T, 3)); pt3[:, 2] = 1.0
     tgt_h = np.zeros(T); tgt_v = np.zeros(T)
-    for t_j, y, p in jumps:
-        tgt_h[t_np >= t_j] = y; tgt_v[t_np >= t_j] = p
-    pt3[:, 0] = np.tan(np.radians(tgt_h))
-    pt3[:, 1] = np.tan(np.radians(tgt_v))
+    out_events = []   # (onset_idx, dir_deg) for each outward saccade
+    for i, (h, v) in enumerate(targets):
+        ts = T0 + i * HOLD
+        tgt_h[t_np >= ts] = h; tgt_v[t_np >= ts] = v
+        if i % 2 == 0:
+            out_events.append((int(ts / DT), float(DIRS[i // 2])))
+    pt3 = np.zeros((T, 3)); pt3[:, 2] = 1.0
+    pt3[:, 0] = np.tan(np.radians(tgt_h)); pt3[:, 1] = np.tan(np.radians(tgt_v))
 
-    st    = _run(t_np, jnp.array(pt3), max_s=int(T_end / DT) + 500)
-    # version: average of left eye (plant[:, :3]) and right eye (plant[:, 3:6])
-    eye_L = np.array(st.plant.left)
-    eye_R = np.array(st.plant.right)
-    eye   = (eye_L + eye_R) / 2.0   # (T, 3) version position
+    st  = _run(t_np, jnp.array(pt3), max_s=int(T_end / DT) + 500, params=THETA_NOISELESS)
+    eye = (np.array(st.plant.left) + np.array(st.plant.right)) / 2.0
+    eye_h, eye_v = eye[:, 0], eye[:, 1]
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-    fig.suptitle('Oblique Saccade Sequence', fontsize=12)
+    # ── Per-direction straightness + H/V synchrony ────────────────────────────
+    # Window each measurement to the PRIMARY saccade only (onset→offset detected
+    # from 2-D eye speed) so corrective saccades and post-saccade drift don't
+    # contaminate the curvature or the component-synchrony estimate.
+    n_hold  = int(HOLD / DT)
+    THR_SP  = 20.0   # deg/s — 2-D speed on/off threshold for the primary saccade
+    straight, sync_ms = {}, {}
+    for i0, d in out_events:
+        h = eye_h[i0:i0 + n_hold] - eye_h[i0]
+        v = eye_v[i0:i0 + n_hold] - eye_v[i0]
+        speed = np.hypot(np.gradient(h, DT), np.gradient(v, DT))
+        above = speed > THR_SP
+        if not above.any():
+            continue
+        on   = int(np.argmax(above))                    # primary saccade onset
+        peak = on + int(np.argmax(speed[on:]))
+        rest = np.where(~above[peak:])[0]
+        off  = peak + int(rest[0]) if len(rest) else len(h) - 1
+        H1, V1 = h[off], v[off]                          # primary-saccade endpoint
+        L = np.hypot(H1, V1)
+        if L < 1.0:
+            continue
+        ux, uy = H1 / L, V1 / L
+        hp, vp = h[on:off + 1], v[on:off + 1]
+        straight[d] = float(np.max(np.abs(hp * uy - vp * ux)) / L)   # max perp dev / amplitude
 
-    axes[0].plot(eye[:, 0], eye[:, 1], color=utils.C['eye'], lw=1.2)
-    for _, y, p in jumps:
-        axes[0].plot(y, p, 'x', color=utils.C['target'], ms=9, markeredgewidth=2.5)
-    axes[0].set_xlabel('Yaw (deg)'); axes[0].set_ylabel('Pitch (deg)')
-    axes[0].set_title('2-D Trajectory (straight lines expected)')
-    axes[0].set_aspect('equal'); axes[0].grid(True, alpha=0.25)
-    axes[0].axhline(0, color='k', lw=0.4); axes[0].axvline(0, color='k', lw=0.4)
+        def _t90(comp, final):
+            if abs(final) < 1.0:
+                return np.nan
+            seg = comp[on:off + 1]
+            thr = 0.9 * final
+            hit = np.where(seg >= thr if final > 0 else seg <= thr)[0]
+            return (on + hit[0]) * DT if len(hit) else np.nan
+        sync_ms[d] = float(abs(_t90(h, H1) - _t90(v, V1)) * 1000.0)
 
-    for ax in axes[1:]:
-        for t_j, _, _ in jumps:
-            ax.axvline(t_j, color='gray', lw=0.6, ls='--', alpha=0.4)
+    obliq    = [d for d in DIRS if d % 90 != 0]     # 45,135,225,315 (true obliques)
+    str_obl  = [straight[d] for d in obliq if d in straight]
+    sync_obl = [sync_ms[d]  for d in obliq if d in sync_ms and not np.isnan(sync_ms[d])]
+    m_straight = float(np.max(str_obl))  if str_obl  else float('nan')
+    m_sync     = float(np.max(sync_obl)) if sync_obl else float('nan')
 
-    axes[1].plot(t_np, tgt_h,   color=utils.C['target'], lw=1.5, label='target H')
-    axes[1].plot(t_np, eye[:,0], color=utils.C['eye'],   lw=1.5, label='eye H')
-    axes[1].set_ylabel('Yaw (deg)'); axes[1].set_xlabel('Time (s)')
-    axes[1].set_title('Horizontal Component')
-    axes[1].legend(fontsize=9); axes[1].grid(True, alpha=0.25); axes[1].axhline(0, color='k', lw=0.4)
+    # ── Plot: 2-D fan | representative oblique components | straightness bars ──
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle('Oblique Saccades — 12° fan, 8 directions (noiseless)', fontsize=12)
 
-    axes[2].plot(t_np, tgt_v,   color=utils.C['target'], lw=1.5, ls='--', label='target V')
-    axes[2].plot(t_np, eye[:,1], color=utils.C['eye'],   lw=1.5, ls='--', label='eye V')
-    axes[2].set_ylabel('Pitch (deg)'); axes[2].set_xlabel('Time (s)')
-    axes[2].set_title('Vertical Component')
-    axes[2].legend(fontsize=9); axes[2].grid(True, alpha=0.25); axes[2].axhline(0, color='k', lw=0.4)
+    ax = axes[0]
+    ax.plot(eye_h, eye_v, color=utils.C['eye'], lw=1.0, alpha=0.9)
+    for d in DIRS:
+        ax.plot(AMP * np.cos(np.radians(d)), AMP * np.sin(np.radians(d)), 'x',
+                color=utils.C['target'], ms=9, markeredgewidth=2.0)
+    ax.set_aspect('equal'); ax.grid(True, alpha=0.25)
+    ax.axhline(0, color='k', lw=0.4); ax.axvline(0, color='k', lw=0.4)
+    ax.set_xlabel('Yaw (deg)'); ax.set_ylabel('Pitch (deg)')
+    ax.set_title('2-D trajectories (straight radial lines expected)')
+
+    ax = axes[1]
+    match = [i for i, dd in out_events if dd == 45.0]
+    if match:
+        i0 = match[0]
+        seg_t = (t_np[i0:i0 + n_hold] - t_np[i0]) * 1000.0
+        ax.plot(seg_t, eye_h[i0:i0 + n_hold] - eye_h[i0], color='#1f77b4', lw=1.6, label='H component')
+        ax.plot(seg_t, eye_v[i0:i0 + n_hold] - eye_v[i0], color='#d62728', lw=1.6, label='V component')
+        ax.set_xlim(0, 150)
+    ax.set_xlabel('Time from onset (ms)'); ax.set_ylabel('Eye position (deg)')
+    ax.set_title('45° oblique — H & V start/end together'); ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.25); ax.axhline(0, color='k', lw=0.4)
+
+    ax = axes[2]
+    ds = sorted(straight.keys())
+    ax.bar([str(int(d)) for d in ds], [straight[d] * 100 for d in ds],
+           color=['#d62728' if d % 90 != 0 else '#888888' for d in ds])
+    ax.set_ylabel('Max curvature (% of amplitude)'); ax.set_xlabel('Direction (deg)')
+    ax.set_title('Trajectory straightness (red = oblique)')
+    ax.grid(True, alpha=0.25, axis='y')
 
     fig.tight_layout()
-    path, rp = utils.save_fig(fig, 'saccade_oblique', show=show, params=THETA,
-                              conditions='Lit, foveal target stepping diagonally (oblique amplitudes/angles)')
-    return utils.fig_meta(path, rp,
-        title='Oblique Saccades',
-        description='Sequence of saccades to 5 oblique targets. Left: 2D trajectory. Center/right: H and V components.',
-        expected='Straight 2D trajectories. H and V components synchronised (end together).',
-        citation='Smit et al. (1990) J Neurophysiol',
+    path, rp = utils.save_fig(fig, 'saccade_oblique', show=show, params=THETA_NOISELESS,
+                              conditions='Lit, NOISELESS — 12° saccades to 8 directions (fan); curvature = model, not jitter')
+    metrics = [
+        Metric('sac_oblique_straightness', m_straight, tier='monitor',
+               lo=None, hi=0.08, golden_tol=0.2, units='',
+               cite='Smit et al. (1990); van Gisbergen et al. (1985)',
+               desc='Max trajectory curvature (perp dev ÷ amplitude) over oblique directions'),
+        Metric('sac_oblique_sync_ms', m_sync, tier='monitor',
+               lo=None, hi=20.0, golden_tol=0.3, units='ms',
+               cite='Smit et al. (1990)',
+               desc='Max H–V component desynchrony (|90%-reach time difference|), oblique directions'),
+    ]
+    fig_meta = utils.fig_meta(path, rp,
+        title='Oblique Saccades (8-direction fan)',
+        description='12° saccades from centre to 8 directions (45° apart), noiseless. '
+                    'Left: 2-D trajectories. Centre: 45° H/V components (synchrony). '
+                    'Right: per-direction trajectory curvature.',
+        expected='Straight radial trajectories (curvature < ~5% of amplitude). '
+                 'H and V components start and end together (oblique synchrony).',
+        citation='Smit et al. (1990) J Neurophysiol; van Gisbergen et al. (1985)',
         fig_type='behavior')
+    fig_meta['metrics'] = metrics
+    return fig_meta
 
 
 # ── Figure 3: double-step refractoriness ──────────────────────────────────────
@@ -301,6 +422,8 @@ def _refractoriness(show):
 
     cmap   = plt.get_cmap('viridis')
     colors = [cmap(i / (len(isis) - 1)) for i in range(len(isis))]
+
+    sac_counts = {}   # (A, isi) -> number of distinct saccades after the first step
 
     fig, axes = plt.subplots(2, len(AMPS), figsize=(4.5 * len(AMPS), 8),
                              sharex=True)
@@ -324,6 +447,7 @@ def _refractoriness(show):
             st  = _run(t_np, jnp.array(pt3), key=ri * len(AMPS) + ci)
             eye = (np.array(st.plant.left[:, 0]) + np.array(st.plant.right[:, 0])) / 2.0
             bst = extract_burst(st, THETA)[:, 0]
+            sac_counts[(A, isi)] = _count_saccades(bst, t1)
 
             lbl = f'ISI={isi*1000:.0f}ms'
             col = colors[ri]
@@ -357,7 +481,27 @@ def _refractoriness(show):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'saccade_refractoriness', show=show, params=THETA,
                               conditions='Lit, double-step target with varying inter-step intervals')
-    return utils.fig_meta(path, rp,
+
+    # ── Quantitative metrics ─────────────────────────────────────────────────
+    # Refractory threshold: smallest commanded ISI at which a distinct second
+    # saccade appears (A=20° column). Becker & Jürgens put this near ~150 ms.
+    # tier=monitor — the burst-counting extractor is still maturing (corrective
+    # saccades can inflate the count), so we track it without gating CI on it.
+    A_REF = 20
+    refr_isi_ms = float('nan')
+    for isi in isis:                                   # isis ascending
+        if sac_counts.get((A_REF, isi), 0) >= 2:
+            refr_isi_ms = isi * 1000.0
+            break
+
+    metrics = [
+        Metric('sac_refractory_isi_ms', refr_isi_ms, tier='monitor',
+               lo=50.0, hi=260.0, golden_tol=0.25, units='ms',
+               cite='Becker & Jürgens (1979)',
+               desc='Smallest double-step ISI yielding a distinct 2nd saccade (A=20°)'),
+    ]
+
+    fig = utils.fig_meta(path, rp,
         title='Saccade Double-Step Refractoriness',
         description='Double-step paradigm: target jumps 0→A/2 then A/2→A for A=10,20,30,40° '
                     'after variable ISI (20–500 ms). '
@@ -367,6 +511,8 @@ def _refractoriness(show):
                  'Refractory period roughly constant across amplitudes (~150 ms).',
         citation='Becker & Jürgens (1979) Vision Res',
         fig_type='behavior')
+    fig['metrics'] = metrics
+    return fig
 
 
 # ── Figure 4: signal cascade ──────────────────────────────────────────────────
@@ -401,6 +547,16 @@ def _cascade(show, noisy=False):
     for r, lbl in enumerate(row_labels):
         axes[r, 0].set_ylabel(lbl, fontsize=8)
 
+    # Post-saccade window: well after even the 40° saccade has completed
+    # (saccades finish by ~0.25 s for t_jump=0.1). Accuracy = endpoint error,
+    # stability = residual eye speed (post-saccadic drift / oscillation).
+    # We accumulate per amplitude both "with corrective saccades" and
+    # "without" (correctives masked via the OPN fast-phase latch).
+    POST_T0, POST_T1 = 0.5, 0.85
+    post_win = (t_np >= POST_T0) & (t_np <= POST_T1)
+    acc_final, acc_primary = [], []   # endpoint err: with / without correctives
+    spd_drift = []                    # residual slow-phase speed (correctives masked)
+
     for ci, amp in enumerate(amplitudes):
         pt3 = _pt3(t_np, amp, t_jump=t_jump)
         st  = _run(t_np, pt3, key=ci, max_s=int(T_end/DT)+200, params=params)
@@ -410,6 +566,18 @@ def _cascade(show, noisy=False):
         eye   = eye3d[:, 0]
         vel   = vel3d[:, 0]
         tgt = np.degrees(np.arctan2(np.array(pt3[:,0]), np.array(pt3[:,2])))
+
+        # ── Accuracy + stability in the post-saccade window ──────────────────
+        # slow = post-saccade samples that are NOT inside a (corrective) fast
+        # phase, detected via the OPN latch (z_opn < 50 ⇒ saccade in progress).
+        z_opn = extract_z_opn(st)
+        slow  = post_win & (z_opn >= 50.0)
+        prim_amp, _ = _primary_saccade(sg['u_burst'][:, 0], eye, t_np, t_jump)
+        # Endpoint error: final (after correctives) vs primary-only (open loop).
+        acc_final.append(float(np.mean(np.abs(eye[post_win] - tgt[post_win]))))
+        acc_primary.append(float(abs(amp - prim_amp)))
+        # Residual slow-phase speed: corrective fast phases masked out (drift only).
+        spd_drift.append(float(np.mean(np.abs(vel[slow]))) if slow.any() else float('nan'))
 
         axes[0, ci].set_title(f'{amp:.0f}°', fontsize=11)
         vl  = dict(color='gray', lw=0.6, ls='--', alpha=0.5)
@@ -580,7 +748,29 @@ def _cascade(show, noisy=False):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, fname, show=show, params=params,
                               conditions=f'Lit, foveal targets at 1°/5°/20°/40° horizontal{noise_tag}')
-    return utils.fig_meta(path, rp,
+    # ── Quantitative metrics (averaged over the 4 amplitudes) ────────────────
+    # Suffixed by noise condition so the noiseless and noisy cascades contribute
+    # separate, comparable metrics. "with corrective saccades" = final endpoint /
+    # raw speed; "without" = primary-only endpoint / fast-phase-masked drift.
+    cond = 'noisy' if noisy else 'noiseless'
+    _agg = lambda xs: float(np.nanmean(xs))
+    metrics = [
+        Metric(f'sac_endpoint_err_{cond}', _agg(acc_final),
+               tier=('gate' if not noisy else 'monitor'),
+               lo=None, hi=(0.6 if not noisy else 1.2), golden_tol=0.20, units='deg',
+               cite='Robinson (1975)',
+               desc='Final endpoint error vs target in hold window — WITH corrective saccades'),
+        Metric(f'sac_primary_err_{cond}', _agg(acc_primary), tier='monitor',
+               lo=None, hi=None, golden_tol=0.20, units='deg',
+               cite='Becker & Jürgens (1979)',
+               desc='Primary-saccade endpoint error — WITHOUT correctives (open-loop undershoot)'),
+        Metric(f'sac_postsac_drift_{cond}', _agg(spd_drift), tier='monitor',
+               lo=(0.1 if noisy else 0.0), hi=(1.0 if noisy else 0.2),
+               golden_tol=0.25, units='deg/s', cite='',
+               desc='Mean slow-phase speed in hold window — WITHOUT fast phases (drift / oscillation)'),
+    ]
+
+    fig = utils.fig_meta(path, rp,
         title='Saccade Signal Cascade' + noise_tag,
         description='Row-by-row signal flow for 1°, 5°, 20°, 40° saccades: position, visual cascade + hold, '
                     'accumulator/latch, residual error, burst, eye velocity, refractory state.',
@@ -588,6 +778,8 @@ def _cascade(show, noisy=False):
                  'accumulator floor locks out next saccade for ~270 ms.',
         citation='Robinson (1975) J Neurophysiol; Scudder et al. (2002)',
         fig_type='cascade')
+    fig['metrics'] = metrics
+    return fig
 
 
 # ── Section entry point ────────────────────────────────────────────────────────
@@ -609,9 +801,11 @@ def run(show=False):
     figs.append(_main_sequence(show))
     print('  2/4  oblique saccades …')
     figs.append(_oblique(show))
-    print('  3/4  double-step refractoriness …')
+    print('  3/5  double-step refractoriness …')
     figs.append(_refractoriness(show))
-    print('  4/4  signal cascade (noisy) …')
+    print('  4/5  signal cascade (noiseless) …')
+    figs.append(_cascade(show, noisy=False))
+    print('  5/5  signal cascade (noisy) …')
     figs.append(_cascade(show, noisy=True))
     return figs
 

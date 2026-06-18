@@ -21,7 +21,19 @@ import matplotlib.pyplot as plt
 
 from oculomotor.sim.simulator import PARAMS_DEFAULT, simulate, with_brain, with_sensory
 from oculomotor.sim import kinematics as km
-from oculomotor.analysis import ax_fmt
+from oculomotor.analysis import ax_fmt, fit_tc
+from oculomotor.benchmarks.bench_metrics import Metric
+from oculomotor.benchmarks import bode
+
+# Clean noiseless full model (cross-links + SVBN burst ON, just no sensory noise)
+# for the near-response behavioural figures — realistic dynamics, no jitter.
+PARAMS_VERG_CLEAN = with_brain(
+    with_sensory(PARAMS_DEFAULT, sigma_canal=0.0, sigma_slip=0.0,
+                 sigma_pos=0.0, sigma_vel=0.0),
+    sigma_acc=0.0)
+
+# Isolated accommodation loop (cross-links off) for the pure accommodation step.
+PARAMS_ACC_CLEAN = with_brain(PARAMS_VERG_CLEAN, AC_A=0.0, CA_C=0.0)
 
 SHOW = '--show' in sys.argv
 DT   = 0.001
@@ -57,11 +69,12 @@ PARAMS_VERG_ASYM_DEBUG = with_brain(
 
 
 SECTION = dict(
-    id='vergence', title='5. Vergence (preliminary)',
-    description='PRELIMINARY — not yet re-validated against the recent cerebellar / '
-                'final-common-pathway refactors. Core figures only: symmetric + asymmetric '
-                'vergence (both directions), the vergence signal cascade (4 conditions), '
-                'and the vergence main sequence (peak velocity vs amplitude).',
+    id='near_response', title='5. Near response (vergence + accommodation)',
+    description='Merged near-response section. Basic midline vergence (noiseless) — '
+                'reaches geometric target, version stays conjugate, latency/TC/overshoot. '
+                'Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. '
+                'Vergence and accommodation frequency responses (Bode). The vergence '
+                'cascade is kept as an internal-signals debug figure (no metrics).',
 )
 
 
@@ -724,7 +737,24 @@ def _main_sequence(show):
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     path, rp = utils.save_fig(fig, 'vergence_main_sequence', show=show, params=PARAMS_VERG,
                               conditions='Lit, vergence amplitudes 1°–18° (main sequence, sym + asym)')
-    return utils.fig_meta(
+
+    # ── Metrics: convergence>divergence + Zee SVBN facilitation (asym ÷ sym) ──
+    sc = np.array(sym_conv_peaks); sd = np.array(sym_div_peaks)
+    ac = np.array(asym_conv_peaks)
+    conv_div_ratio = float(np.mean(sc) / np.mean(sd)) if np.mean(sd) > 1e-6 else float('nan')
+    asym_facil     = float(np.mean(ac) / np.mean(sc)) if np.mean(sc) > 1e-6 else float('nan')
+    metrics = [
+        Metric('verg_conv_div_ratio', conv_div_ratio, tier='monitor',
+               lo=1.0, hi=None, golden_tol=0.2, units='',
+               cite='Zee et al. (1992); Collewijn et al. (1988)',
+               desc='Symmetric peak-velocity ratio convergence ÷ divergence (>1 expected)'),
+        Metric('verg_asym_facilitation', asym_facil, tier='monitor',
+               lo=1.0, hi=None, golden_tol=0.25, units='',
+               cite='Zee et al. (1992)',
+               desc='Zee SVBN facilitation: asymmetric ÷ symmetric peak vergence velocity'),
+    ]
+
+    fm = utils.fig_meta(
         path, rp,
         title='Vergence Main Sequence (peak velocity vs. amplitude)',
         description='Peak vergence velocity for amplitudes 2–16°, both directions, '
@@ -736,21 +766,435 @@ def _main_sequence(show):
         citation='Zee et al. (1992) J Neurophysiol; Rashbass & Westheimer (1961) J Physiol; '
                  'Collewijn et al. (1988) J Physiol',
     )
+    fm['metrics'] = metrics
+    return fm
+
+
+def _midline_vergence(show):
+    """Basic midline vergence — symmetric convergence + divergence steps, NOISELESS.
+    Metrics: reaches geometric target (conv error), version stays conjugate
+    (version leak), and the rise dynamics (latency, time-constant, overshoot).
+    """
+    T_STEP, TOTAL = 1.0, 4.0
+    t = np.arange(0.0, TOTAL, DT); T = len(t)
+    D_FAR, D_NEAR = 3.0, 0.3
+    g_far, g_near = _verg_angle_deg(D_FAR), _verg_angle_deg(D_NEAR)
+
+    def _runc(d0, d1):
+        pt = np.where((t >= T_STEP)[:, None],
+                      np.array([0.0, 0.0, float(d1)]), np.array([0.0, 0.0, float(d0)]))
+        st = simulate(PARAMS_VERG_CLEAN, t, target=km.build_target(t, lin_pos=pt),
+                      scene_present_array=np.ones(T), return_states=True)
+        eL = np.array(st.plant.left[:, 0]); eR = np.array(st.plant.right[:, 0])
+        return eL - eR, (eL + eR) / 2.0      # vergence (L−R), version (L+R)/2
+
+    verg_c, vers_c = _runc(D_FAR, D_NEAR)     # convergence
+    verg_d, vers_d = _runc(D_NEAR, D_FAR)     # divergence
+
+    ss      = t > (TOTAL - 0.5)
+    start   = float(np.mean(verg_c[(t > T_STEP - 0.2) & (t < T_STEP)]))
+    conv_ss = float(np.mean(verg_c[ss]))
+    change  = conv_ss - start
+    conv_err     = float(abs(conv_ss - g_near))
+    version_leak = float(np.max(np.abs(vers_c[t >= T_STEP])))
+    thr10 = start + 0.1 * change
+    cr = np.where((t >= T_STEP) & ((verg_c >= thr10) if change > 0 else (verg_c <= thr10)))[0]
+    latency_ms = float((t[cr[0]] - T_STEP) * 1000.0) if len(cr) else float('nan')
+    seg  = verg_c[t >= T_STEP]
+    peak = float(np.max(seg)) if change > 0 else float(np.min(seg))
+    overshoot = float(max(0.0, (peak - conv_ss) / change)) if abs(change) > 0.5 else float('nan')
+    tau, _, _ = fit_tc(t, verg_c, T_STEP, TOTAL)
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle('Basic midline vergence — symmetric conv/div (noiseless)', fontsize=12, fontweight='bold')
+    ax = axes[0]
+    ax.plot(t, verg_c, color=utils.C['eye'],   lw=1.6, label='convergence (3→0.3 m)')
+    ax.plot(t, verg_d, color=utils.C['target'], lw=1.6, label='divergence (0.3→3 m)')
+    ax.axhline(g_near, color='gray', lw=0.8, ls='--', label=f'near target {g_near:.1f}°')
+    ax.axhline(g_far,  color='gray', lw=0.8, ls=':',  label=f'far target {g_far:.1f}°')
+    ax.axvline(T_STEP, color='gray', lw=0.8, ls=':')
+    ax_fmt(ax, ylabel='Vergence L−R (deg)', xlabel='Time (s)'); ax.legend(fontsize=8)
+    ax = axes[1]
+    ax.plot(t, vers_c, color=utils.C['eye'],   lw=1.4, label='version (conv)')
+    ax.plot(t, vers_d, color=utils.C['target'], lw=1.4, label='version (div)')
+    ax.axhline(0, color='gray', lw=0.8, ls='--')
+    ax.axvline(T_STEP, color='gray', lw=0.8, ls=':'); ax.set_ylim(-2, 2)
+    ax_fmt(ax, ylabel='Version (L+R)/2 (deg)', xlabel='Time (s)'); ax.legend(fontsize=8)
+    ax.set_title('Conjugacy check — version should stay ≈ 0', fontsize=9)
+
+    fig.tight_layout()
+    path, rp = utils.save_fig(fig, 'vergence_midline', show=show, params=PARAMS_VERG_CLEAN,
+                              conditions='Lit, NOISELESS — midline symmetric vergence steps (3 m ↔ 0.3 m)')
+    metrics = [
+        Metric('verg_sym_conv_err', conv_err, tier='monitor',
+               lo=None, hi=1.5, golden_tol=0.2, units='deg',
+               cite='Mays (1984)', desc='Steady-state vergence error vs geometric target (convergence)'),
+        Metric('verg_sym_version_leak', version_leak, tier='monitor',
+               lo=None, hi=1.0, golden_tol=0.3, units='deg',
+               cite='Mays (1984)', desc='Max |version| during symmetric vergence (conjugacy — should be ≈0)'),
+        Metric('verg_latency_ms', latency_ms, tier='monitor',
+               lo=80.0, hi=300.0, golden_tol=0.25, units='ms',
+               cite='Rashbass & Westheimer (1961)', desc='Vergence latency (step → 10% of change)'),
+        Metric('verg_tc_s', float(tau) if tau else float('nan'), tier='monitor',
+               lo=0.1, hi=2.0, golden_tol=0.25, units='s',
+               cite='Rashbass & Westheimer (1961)', desc='Vergence rise time constant (exp fit)'),
+        Metric('verg_overshoot', overshoot, tier='monitor',
+               lo=None, hi=0.5, golden_tol=0.3, units='',
+               cite='Hung et al. (1986)', desc='Convergence overshoot fraction (peak − SS)/(SS − start)'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='Basic midline vergence (symmetric, noiseless)',
+        description='Symmetric convergence (3→0.3 m) and divergence (0.3→3 m) steps, NOISELESS. '
+                    'Left: vergence reaching geometric target. Right: version (conjugacy check).',
+        expected='Vergence reaches geometric target; version stays ≈0; rise TC ~0.2–1 s; small overshoot.',
+        citation='Mays (1984) J Neurophysiol; Rashbass & Westheimer (1961) J Physiol',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
+
+
+def _aca(show):
+    """AC/A cross-link — a binocular +lens forces accommodation, which drives
+    convergence via AC/A even with no disparity change. Noiseless; vs AC_A=0."""
+    T_STEP, TOTAL = 1.0, 7.0
+    t = np.arange(0.0, TOTAL, DT); T = len(t)
+    D_FAR, LENS = 2.0, 2.0
+    pt   = np.tile(np.array([0.0, 0.0, D_FAR]), (T, 1)).astype(np.float32)
+    lens = np.where(t >= T_STEP, LENS, 0.0).astype(np.float32)
+
+    def _run(theta):
+        st = simulate(theta, t, target=km.build_target(t, lin_pos=pt),
+                      scene_present_array=np.ones(T),
+                      lens_L_array=lens, lens_R_array=lens, return_states=True)
+        return (np.array(st.plant.left[:, 0] - st.plant.right[:, 0]),
+                np.array(st.acc_plant[:, 0]))
+
+    v_on,  a_on  = _run(PARAMS_VERG_CLEAN)
+    v_off, a_off = _run(with_brain(PARAMS_VERG_CLEAN, AC_A=0.0))
+
+    ss = t > (TOTAL - 0.5)
+    aca_delta = float(np.mean(v_on[ss]) - np.mean(v_off[ss]))
+    acc_rise  = float(np.mean(a_on[ss]) - float(a_on[0]))
+    deg_per_pd = 0.5729
+    aca_ratio = float((aca_delta / deg_per_pd) / acc_rise) if abs(acc_rise) > 0.1 else float('nan')
+    g0 = _verg_angle_deg(D_FAR)
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle(f'AC/A — +{LENS:.0f} D binocular lens drives convergence via AC/A (noiseless)',
+                 fontsize=12, fontweight='bold')
+    axes[0].plot(t, a_on,  color=utils.C['vs'],  lw=1.5, label='accommodation (AC/A on)')
+    axes[0].plot(t, a_off, color=utils.C['eye'], lw=1.3, ls='--', label='accommodation (AC/A=0)')
+    axes[0].axvline(T_STEP, color='gray', lw=0.8, ls=':')
+    ax_fmt(axes[0], ylabel='Accommodation (D)', xlabel='Time (s)'); axes[0].legend(fontsize=8)
+    axes[1].plot(t, v_on,  color=utils.C['vs'],  lw=1.5, label='vergence (AC/A on)')
+    axes[1].plot(t, v_off, color=utils.C['eye'], lw=1.3, ls='--', label='vergence (AC/A=0)')
+    axes[1].axhline(g0, color='gray', lw=0.8, ls=':', label=f'geometric {g0:.1f}°')
+    axes[1].axvline(T_STEP, color='gray', lw=0.8, ls=':')
+    ax_fmt(axes[1], ylabel='Vergence L−R (deg)', xlabel='Time (s)'); axes[1].legend(fontsize=8)
+
+    fig.tight_layout()
+    path, rp = utils.save_fig(fig, 'vergence_aca', show=show, params=PARAMS_VERG_CLEAN,
+                              conditions=f'Lit, NOISELESS — +{LENS:.0f} D binocular lens at {D_FAR:.0f} m (AC/A vs AC_A=0)')
+    metrics = [
+        Metric('aca_vergence_delta', aca_delta, tier='monitor',
+               lo=0.0, hi=None, golden_tol=0.2, units='deg',
+               cite='Schor (1979); Morgan (1944)',
+               desc='Extra convergence from AC/A (lens-driven vergence, on − off)'),
+        Metric('aca_ratio_pd_per_d', aca_ratio, tier='monitor',
+               lo=0.0, hi=None, golden_tol=0.2, units='pd/D',
+               cite='Schor (1979)', desc='Behavioural AC/A ratio (Δvergence pd ÷ Δaccommodation D)'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='AC/A — lens-driven convergence',
+        description=f'+{LENS:.0f} D binocular lens at {D_FAR:.0f} m, NOISELESS. With AC/A the extra '
+                    'accommodation drives convergence; with AC_A=0 vergence stays at geometric.',
+        expected='Accommodation rises ≥1 D; AC/A adds convergence above geometric; AC_A=0 control flat.',
+        citation='Schor CM (1979) Vision Res; Morgan (1944)',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
+
+
+def _vergence_bode(show):
+    """Vergence frequency response — sinusoidal depth (disparity) demand, NOISELESS.
+    Gain = vergence response ÷ geometric demand; low-pass."""
+    V0, AMP = 4.0, 2.0
+    FREQS = np.array([0.1, 0.2, 0.5, 1.0, 2.0])
+    N_CYC, SETTLE = 5, 2.0
+
+    def run_fn(f):
+        T_end = min(SETTLE + N_CYC / f, 35.0)
+        t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
+        on = t >= SETTLE
+        demand = V0 + np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
+        depth  = IPD / 2.0 / np.tan(np.radians(demand) / 2.0)
+        pt = np.zeros((Tn, 3)); pt[:, 2] = depth
+        st = simulate(PARAMS_VERG_CLEAN, t, target=km.build_target(t, lin_pos=pt.astype(np.float32)),
+                      scene_present_array=np.ones(Tn), return_states=True)
+        verg = np.array(st.plant.left[:, 0] - st.plant.right[:, 0])
+        return t, demand, verg
+
+    freqs, g, p = bode.bode_sweep(run_fn, FREQS, settle_frac=0.4)
+    fig, m = bode.make_bode_figure(freqs, g, p,
+        'Vergence — Frequency Response (Bode, noiseless)',
+        ref_hz=0.5, gain_label='Gain (vergence ÷ demand)')
+    path, rp = utils.save_fig(fig, 'vergence_bode', show=show, params=PARAMS_VERG_CLEAN,
+        conditions='Lit, NOISELESS — sinusoidal depth/disparity demand 0.1–2 Hz (±2° about 4°)')
+    ph = m['phase_ref']
+    metrics = [
+        Metric('verg_bode_gain_low', float(m['gain_low']), tier='monitor',
+               lo=0.5, hi=1.1, golden_tol=0.1, units='', cite='Rashbass & Westheimer (1961)',
+               desc='Vergence low-frequency gain'),
+        Metric('verg_bode_bw_hz', float(m['bw_hz']), tier='monitor',
+               lo=0.3, hi=None, golden_tol=0.25, units='Hz', cite='Rashbass & Westheimer (1961)',
+               desc='Vergence −3 dB bandwidth'),
+        Metric('verg_bode_phase_0p5hz', float(ph) if ph is not None else float('nan'),
+               tier='monitor', lo=-120.0, hi=10.0, golden_tol=0.3, units='deg',
+               cite='Rashbass & Westheimer (1961)', desc='Vergence phase at 0.5 Hz (− = lag)'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='Vergence — Bode (frequency response)',
+        description='Sinusoidal depth/disparity demand (0.1–2 Hz, ±2° about 4°), NOISELESS. '
+                    'Gain = vergence ÷ demand; low-pass, BW ~1–2 Hz.',
+        expected='Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.',
+        citation='Rashbass & Westheimer (1961) J Physiol',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
+
+
+def _accommodation_bode(show):
+    """Accommodation frequency response — sinusoidal accommodative demand, NOISELESS.
+    Gain = accommodation ÷ demand (D); low-pass, BW ~2 Hz."""
+    D0, AMP = 2.0, 1.0
+    FREQS = np.array([0.1, 0.2, 0.5, 1.0, 2.0, 4.0])
+    N_CYC, SETTLE = 6, 2.0
+
+    def run_fn(f):
+        T_end = min(SETTLE + N_CYC / f, 35.0)
+        t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
+        on = t >= SETTLE
+        demand = D0 + np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
+        depth  = 1.0 / demand
+        pt = np.zeros((Tn, 3)); pt[:, 2] = depth
+        st = simulate(PARAMS_VERG_CLEAN, t, target=km.build_target(t, lin_pos=pt.astype(np.float32)),
+                      scene_present_array=np.ones(Tn), return_states=True)
+        acc = np.array(st.acc_plant[:, 0])
+        return t, demand, acc
+
+    freqs, g, p = bode.bode_sweep(run_fn, FREQS, settle_frac=0.4)
+    fig, m = bode.make_bode_figure(freqs, g, p,
+        'Accommodation — Frequency Response (Bode, noiseless)',
+        ref_hz=0.5, gain_label='Gain (accommodation ÷ demand)')
+    path, rp = utils.save_fig(fig, 'accommodation_bode', show=show, params=PARAMS_VERG_CLEAN,
+        conditions='Lit, NOISELESS — sinusoidal accommodative demand 0.1–4 Hz (±1 D about 2 D)')
+    metrics = [
+        Metric('acc_bode_gain_low', float(m['gain_low']), tier='monitor',
+               lo=0.5, hi=1.05, golden_tol=0.1, units='', cite='Stark et al. (1965)',
+               desc='Accommodation low-frequency gain'),
+        Metric('acc_bode_bw_hz', float(m['bw_hz']), tier='monitor',
+               lo=0.5, hi=None, golden_tol=0.25, units='Hz', cite='Stark et al. (1965)',
+               desc='Accommodation −3 dB bandwidth (~2 Hz)'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='Accommodation — Bode (frequency response)',
+        description='Sinusoidal accommodative demand (0.1–4 Hz, ±1 D about 2 D), NOISELESS. '
+                    'Gain = accommodation ÷ demand; low-pass, BW ~2 Hz.',
+        expected='Gain ≈ 1 at low f, −3 dB near ~2 Hz.',
+        citation='Stark, Takahashi & Zames (1965); Read & Schor (2022)',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
+
+
+def _accommodation_step(show):
+    """Isolated accommodation step (AC/A = CA/C = 0), NOISELESS — far→near→far.
+    Targets: latency 300–400 ms (Del Águila 2017; Read 2022 latency ~0.3 s),
+    SS gain ~0.85–0.95 (accommodative lag), exponential rise.
+    """
+    T1, T2, TOTAL = 1.0, 4.0, 6.0
+    t = np.arange(0.0, TOTAL, DT); T = len(t)
+    D_FAR, D_NEAR = 6.0, 0.4                      # 0.17 D → 2.5 D
+    pt = np.tile(np.array([0.0, 0.0, D_FAR]), (T, 1)).astype(np.float32)
+    pt[(t >= T1) & (t < T2)] = [0.0, 0.0, D_NEAR]
+    st = simulate(PARAMS_ACC_CLEAN, t, target=km.build_target(t, lin_pos=pt),
+                  scene_present_array=np.ones(T), return_states=True)
+    acc    = np.array(st.acc_plant[:, 0])
+    demand = 1.0 / np.linalg.norm(pt, axis=1)
+    near_d = 1.0 / D_NEAR
+
+    start = float(np.mean(acc[(t > T1 - 0.2) & (t < T1)]))
+    ss    = float(np.mean(acc[(t > T2 - 0.5) & (t < T2)]))
+    change = ss - start
+    gain   = float(ss / near_d)
+    thr10  = start + 0.1 * change
+    cr = np.where((t >= T1) & (acc >= thr10))[0]
+    latency_ms = float((t[cr[0]] - T1) * 1000.0) if len(cr) else float('nan')
+    accv = np.gradient(acc, DT)
+    peak_vel = float(np.max(np.abs(accv[(t >= T1) & (t < T2)])))
+    tau, _, _ = fit_tc(t, acc, T1, T2)
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    fig.suptitle('Isolated accommodation step (AC/A = CA/C = 0, noiseless)',
+                 fontsize=12, fontweight='bold')
+    ax.plot(t, demand, 'k--', lw=1.0, alpha=0.7, label='demand (1/z)')
+    ax.plot(t, acc, color=utils.C['eye'], lw=1.6, label='accommodation (D)')
+    ax.axvline(T1, color='gray', lw=0.8, ls=':'); ax.axvline(T2, color='gray', lw=0.8, ls=':')
+    ax_fmt(ax, ylabel='Diopters (D)', xlabel='Time (s)'); ax.legend(fontsize=9)
+    fig.tight_layout()
+    path, rp = utils.save_fig(fig, 'accommodation_step', show=show, params=PARAMS_ACC_CLEAN,
+                              conditions='Lit, NOISELESS — defocus step 0.17→2.5 D (AC/A=CA/C=0)')
+    metrics = [
+        Metric('acc_step_latency_ms', latency_ms, tier='monitor',
+               lo=150.0, hi=500.0, golden_tol=0.2, units='ms',
+               cite='Del Águila-Carrasco (2017); Read (2022)',
+               desc='Accommodation step latency (demand step → 10% of response)'),
+        Metric('acc_step_tc_s', float(tau) if tau else float('nan'), tier='monitor',
+               lo=0.1, hi=1.2, golden_tol=0.25, units='s',
+               cite='Read (2022)', desc='Accommodation rise time constant (exp fit)'),
+        Metric('acc_step_gain', gain, tier='monitor',
+               lo=0.75, hi=1.05, golden_tol=0.1, units='',
+               cite='Del Águila-Carrasco (2017)', desc='Accommodation SS gain (response ÷ demand)'),
+        Metric('acc_step_peak_vel', peak_vel, tier='monitor',
+               lo=1.0, hi=None, golden_tol=0.25, units='D/s',
+               cite='Del Águila-Carrasco (2017)', desc='Peak accommodation velocity (far→near step)'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='Accommodation step (isolated, noiseless)',
+        description='Far→near→far defocus step (0.17↔2.5 D), cross-links off. '
+                    'Latency, time constant, SS gain (lag), peak velocity.',
+        expected='Latency ~0.3 s; rise TC ~0.2–0.5 s; SS gain ~0.85–0.95 (lag); exponential.',
+        citation='Del Águila-Carrasco et al. (2017) BioMed Res Int; Read et al. (2022) J Vision',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
+
+
+def _near_adaptation(show):
+    """Short-term tonic adaptation, NOISELESS. Sustained near fixation winds up the
+    tonic vergence (→ phoria) and tonic accommodation (→ dark focus); measured as
+    the open-loop residual after the target is removed (dark), CONTROL-SUBTRACTED
+    against a far-throughout run with the identical dark transition. The control
+    subtraction cancels the shared dark resting bias (tonic_verg + AC/A-on-dark-
+    focus — a known over-convergence artifact) and isolates the adaptation induced
+    by the near interval. Targets: tonic decay TC ~15–20 s (Hung 1992); adapted
+    shift of a few deg / a few tenths D.
+    """
+    T_BASE, T_ADAPT, T_OPEN = 2.0, 32.0, 30.0
+    TOTAL = T_BASE + T_ADAPT + T_OPEN
+    t = np.arange(0.0, TOTAL, DT); T = len(t)
+    D_FAR, D_NEAR = 3.0, 0.4
+    t_on, t_off = T_BASE, T_BASE + T_ADAPT
+
+    # Open loop = dark (scene + target off) after the adapting interval — same
+    # dark transition for both conditioning and control runs.
+    sp = np.where(t < t_off, 1.0, 0.0)
+    tp = np.where(t < t_off, 1.0, 0.0)
+
+    # CONDITIONING run: 32 s sustained near (0.4 m) before going dark.
+    pt = np.tile(np.array([0.0, 0.0, D_FAR]), (T, 1)).astype(np.float32)
+    pt[(t >= t_on) & (t < t_off)] = [0.0, 0.0, D_NEAR]
+    st = simulate(PARAMS_VERG_CLEAN, t, target=km.build_target(t, lin_pos=pt),
+                  scene_present_array=sp, target_present_array=tp, return_states=True)
+    verg = np.array(st.plant.left[:, 0] - st.plant.right[:, 0])
+    acc  = np.array(st.acc_plant[:, 0])
+
+    # CONTROL run: far the whole time, identical dark transition, NO near
+    # conditioning. Its open-loop residual is the dark resting bias (tonic_verg
+    # + AC/A-on-dark-focus). Subtracting it cancels that bias and isolates the
+    # tonic ADAPTATION induced by the sustained near interval (Schor/Hung phoria
+    # adaptation logic) — robust to the known dark over-convergence artifact.
+    pt_c = np.tile(np.array([0.0, 0.0, D_FAR]), (T, 1)).astype(np.float32)
+    st_c = simulate(PARAMS_VERG_CLEAN, t, target=km.build_target(t, lin_pos=pt_c),
+                    scene_present_array=sp, target_present_array=tp, return_states=True)
+    verg_c = np.array(st_c.plant.left[:, 0] - st_c.plant.right[:, 0])
+    acc_c  = np.array(st_c.acc_plant[:, 0])
+
+    base_v = float(np.mean(verg[(t > 0.5) & (t < t_on)]))
+    base_a = float(np.mean(acc[(t > 0.5) & (t < t_on)]))
+    # Adapted TONIC = open-loop residual AFTER the fast vergence/accommodation
+    # component has relaxed (τ_fast ≈ 3 s), leaving the slow adaptable tonic;
+    # measured as conditioning − control to remove the shared dark resting bias.
+    W0, W1 = t_off + 5.0, t_off + 7.0
+    win = (t > W0) & (t < W1)
+    adapt_v = float(np.mean(verg[win]));  ctrl_v = float(np.mean(verg_c[win]))
+    adapt_a = float(np.mean(acc[win]));   ctrl_a = float(np.mean(acc_c[win]))
+    phoria_shift    = adapt_v - ctrl_v
+    darkfocus_shift = adapt_a - ctrl_a
+    # Decay TC of the adapting residual measured on the control-subtracted trace.
+    tau_v, _, _ = fit_tc(t, verg - verg_c, W0, TOTAL - 0.2)
+    tau_a, _, _ = fit_tc(t, acc - acc_c, W0, TOTAL - 0.2)
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
+    fig.suptitle('Near-response short-term adaptation (sustained near → open-loop, noiseless)',
+                 fontsize=12, fontweight='bold')
+    axes[0].plot(t, verg, color=utils.C['eye'], lw=1.4, label='near-conditioned')
+    axes[0].plot(t, verg_c, color='gray', lw=1.1, ls='--', label='far control')
+    axes[0].axhline(base_v, color='gray', lw=0.8, ls=':')
+    axes[0].axvline(t_on, color='gray', lw=0.8, ls='--'); axes[0].axvline(t_off, color='tomato', lw=0.9, ls='--')
+    ax_fmt(axes[0], ylabel='Vergence (deg)'); axes[0].legend(fontsize=8)
+    axes[0].set_title(f'tonic vergence / phoria — adapted shift (cond − control) {phoria_shift:+.2f}°', fontsize=9)
+    axes[1].plot(t, acc, color=utils.C['ni'], lw=1.4, label='near-conditioned')
+    axes[1].plot(t, acc_c, color='gray', lw=1.1, ls='--', label='far control')
+    axes[1].axhline(base_a, color='gray', lw=0.8, ls=':')
+    axes[1].axvline(t_on, color='gray', lw=0.8, ls='--'); axes[1].axvline(t_off, color='tomato', lw=0.9, ls='--')
+    ax_fmt(axes[1], ylabel='Accommodation (D)', xlabel='Time (s)'); axes[1].legend(fontsize=8)
+    axes[1].set_title(f'tonic accommodation / dark focus — adapted shift (cond − control) {darkfocus_shift:+.2f} D', fontsize=9)
+    fig.tight_layout()
+    path, rp = utils.save_fig(fig, 'near_adaptation', show=show, params=PARAMS_VERG_CLEAN,
+                              conditions=f'Lit→dark, NOISELESS — {T_ADAPT:.0f} s sustained near (0.4 m) then open-loop')
+    metrics = [
+        Metric('verg_phoria_adapt', phoria_shift, tier='monitor',
+               lo=0.0, hi=None, golden_tol=0.25, units='deg',
+               cite='Hung (1992); Schor (1988)',
+               desc='Tonic-vergence (phoria) adaptation after sustained near '
+                    '(open-loop residual, near-conditioned − far control)'),
+        Metric('verg_phoria_tc_s', float(tau_v) if tau_v else float('nan'), tier='monitor',
+               lo=5.0, hi=40.0, golden_tol=0.3, units='s',
+               cite='Hung (1992)', desc='Open-loop tonic-vergence decay time constant (~15–20 s)'),
+        Metric('acc_darkfocus_adapt', darkfocus_shift, tier='monitor',
+               lo=0.0, hi=None, golden_tol=0.3, units='D',
+               cite='Hung (1992); Schor (1988)',
+               desc='Tonic-accommodation (dark focus) adaptation after sustained '
+                    'near (open-loop residual, near-conditioned − far control)'),
+        Metric('acc_darkfocus_tc_s', float(tau_a) if tau_a else float('nan'), tier='monitor',
+               lo=5.0, hi=60.0, golden_tol=0.3, units='s',
+               cite='Hung (1992)', desc='Open-loop tonic-accommodation decay time constant'),
+    ]
+    fm = utils.fig_meta(path, rp,
+        title='Near-response short-term adaptation',
+        description=f'{T_ADAPT:.0f} s sustained near fixation (0.4 m) then open-loop (dark), '
+                    'control-subtracted against a far-throughout run with the identical dark '
+                    'transition. The gap between the two traces is the tonic adaptation induced '
+                    'by the near interval; it holds and decays slowly.',
+        expected='Adapted phoria + dark-focus shift toward the near demand (cond − control > 0); '
+                 'open-loop decay TC ~15–20 s (Hung 1992). The control subtraction removes the '
+                 'known dark over-convergence baseline.',
+        citation='Hung (1992) Ophthal Physiol Opt; Schor (1988) — imbalanced adaptation',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
 
 
 def run(show=False):
-    # Trimmed to a core set (2026-05-11) — the vergence subsystem has not been
-    # re-validated against the recent cerebellar / FCP refactors.  The
-    # fixation-disparity-vs-distance and diplopia figures are still defined in
-    # this module but not run by default.
-    print('\n=== Vergence (core subset) ===')
+    print('\n=== Near response (vergence + accommodation) ===')
     figs = []
-    print('  1/3  symmetric + asymmetric (both directions) …')
-    figs.append(_vergence_bidir(show))
-    print('  2/3  vergence cascade (4 conditions) …')
-    figs.append(_vergence_cascade(show))
-    print('  3/3  main sequence (sym + asym) …')
+    print('  1/8  basic midline vergence step …')
+    figs.append(_midline_vergence(show))
+    print('  2/8  isolated accommodation step …')
+    figs.append(_accommodation_step(show))
+    print('  3/8  vergence–saccade main sequence …')
     figs.append(_main_sequence(show))
+    print('  4/8  AC/A (lens-driven) …')
+    figs.append(_aca(show))
+    print('  5/8  short-term adaptation (phoria + dark focus) …')
+    figs.append(_near_adaptation(show))
+    print('  6/8  vergence Bode …')
+    figs.append(_vergence_bode(show))
+    print('  7/8  accommodation Bode …')
+    figs.append(_accommodation_bode(show))
+    print('  8/8  vergence cascade (debug) …')
+    figs.append(_vergence_cascade(show))
     return figs
 
 

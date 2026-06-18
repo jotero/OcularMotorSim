@@ -28,6 +28,8 @@ from oculomotor.sim.simulator import (
 )
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import ax_fmt, vs_net, ni_net, fit_tc, extract_spv_states
+from oculomotor.benchmarks.bench_metrics import Metric
+from oculomotor.benchmarks.bode import fit_sinusoid
 from oculomotor.models.sensory_models.sensory_model import PINV_SENS as CANAL_PINV
 from oculomotor.models.sensory_models.canal import N_CANALS, FLOOR, _SOFTNESS
 
@@ -180,13 +182,32 @@ def _ocr(show):
     path, rp = utils.save_fig(fig, 'gravity_ocr', show=show, params=params,
                               conditions='Dark, static head tilt (roll) — OCR torsion vs tilt angle')
     ocr_30 = G_OCR * G0 * np.sin(np.radians(30))
-    return utils.fig_meta(path, rp,
+
+    # ── Metrics: gain + error of SS torsion vs the expected −G_OCR·G0·sin(θ) ──
+    meas = np.array(torsion_ss)
+    exp  = np.array(torsion_expected)
+    ocr_gain = float(np.sum(meas * exp) / np.sum(exp ** 2)) if np.sum(exp ** 2) > 0 else float('nan')
+    ocr_rmse = float(np.sqrt(np.mean((meas - exp) ** 2)))
+    metrics = [
+        Metric('gravity_ocr_gain', ocr_gain, tier='monitor',
+               lo=0.8, hi=1.2, golden_tol=0.1, units='',
+               cite='Laurens & Angelaki (2011)',
+               desc='OCR amplitude ratio: measured SS torsion ÷ −G_OCR·G0·sin(θ)'),
+        Metric('gravity_ocr_sin_rmse', ocr_rmse, tier='monitor',
+               lo=None, hi=1.0, golden_tol=0.2, units='deg',
+               cite='Laurens & Angelaki (2011)',
+               desc='RMS deviation of SS torsion from the expected sine law across tilts'),
+    ]
+
+    fig_meta = utils.fig_meta(path, rp,
         title='Ocular Counterroll (OCR)',
         description=f'Counter-roll traces for tilts {TILTS_DEG}° + SS scatter. g_ocr={G_OCR:.2f}.',
         expected=f'Torsion ≈ −G_OCR×G0×sin(θ). 30° → ≈−{ocr_30:.1f}°. '
                  f'g_est holds flat after tilt (no drift).',
         citation='Boff, Kaufman & Thomas (1986); Laurens & Angelaki (2011)',
         fig_type='behavior')
+    fig_meta['metrics'] = metrics
+    return fig_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -221,6 +242,7 @@ def _ovar(show):
     colors = ['#1b7837', '#762a83', '#e08214', '#c0392b']
     # Track right-axis handles so we can format them after the per-condition loop.
     a_est_axes = []
+    ovar_spv = {}   # tilt_deg -> SPV trace (for modulation + bias metrics)
 
     # Layout: SPV | g_est[x,y,z] (3) | v_lin[x,y,z] (3) | VS | Stimulus = 9 rows
     fig, axes = plt.subplots(9, 1, figsize=(14, 22), sharex=True)
@@ -254,6 +276,7 @@ def _ovar(show):
         eye_pos = (np.array(st.plant.left[:, 0]) + np.array(st.plant.right[:, 0])) / 2.0
         eye_vel = np.gradient(eye_pos, DT)
         spv     = extract_spv_states(st, t)[:, 0]
+        ovar_spv[tilt_deg] = spv
         g_est   = np.array(st.brain.sm.g_est)
         v_lin   = np.array(st.brain.sm.v_lin)
 
@@ -347,7 +370,26 @@ def _ovar(show):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'gravity_ovar', show=show, params=params,
                               conditions='Dark, off-vertical axis rotation (OVAR) — yaw rotation about tilted axis')
-    return utils.fig_meta(path, rp,
+
+    # ── Metrics: per-tilt SPV modulation (amplitude) + steady-state bias (DC) ──
+    # Fit the steady-rotation SPV (after the rotation ramp settles) to a sinusoid
+    # at the rotation frequency: A·sin(ω_rot t + φ) + C → A = modulation, C = bias.
+    f_rot = SPIN_VEL / 360.0
+    win   = t >= (T_ROT_RAMP + 5.0)
+    metrics = []
+    for tilt_deg in TILTS_DEG:
+        amp, _, C = fit_sinusoid(t[win], ovar_spv[tilt_deg][win], f_rot)
+        td = int(tilt_deg)
+        metrics.append(Metric(f'gravity_ovar_mod_{td}', float(amp), tier='monitor',
+            lo=0.0, hi=None, golden_tol=0.2, units='deg/s',
+            cite='Laurens & Angelaki (2011)',
+            desc=f'OVAR SPV modulation amplitude at {td}° tilt (∝ sin tilt)'))
+        metrics.append(Metric(f'gravity_ovar_bias_{td}', float(C), tier='monitor',
+            lo=None, hi=None, golden_tol=0.25, units='deg/s',
+            cite='Laurens & Angelaki (2011)',
+            desc=f'OVAR steady-state average SPV (screw/translation bias) at {td}° tilt'))
+
+    fig_meta = utils.fig_meta(path, rp,
         title='OVAR — Off-Vertical Axis Rotation',
         description=f'{SPIN_VEL:.0f}°/s rotation, tilt angles {TILTS_DEG}°. '
                     'Replicates Laurens & Angelaki (2011) Fig 5.',
@@ -361,6 +403,8 @@ def _ovar(show):
                  'perceived linear translation during OVAR; '
                  'Wood (2002) J Vest Res 12:223 — tilt-translation discrimination',
         fig_type='behavior')
+    fig_meta['metrics'] = metrics
+    return fig_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -395,6 +439,7 @@ def _tilt_suppression(show):
         fontsize=12, fontweight='bold', y=0.995)
 
     taus = {}
+    tilt_spv = {}   # tilt_deg -> version SPV trace (for TC + reversal metrics)
 
     hv_yaw_base = np.where(t_arr < ROT_T, ROT_VEL, 0.0)   # same for all conditions
 
@@ -423,6 +468,7 @@ def _tilt_suppression(show):
         verg      = eye_pos_L - eye_pos_R              # vergence (L − R, deg) → convergence positive
         eye_vel   = np.gradient(eye_pos, DT)
         spv       = extract_spv_states(st, t_arr, eye='version')[:, 0]   # true cyclopean SPV (yaw)
+        tilt_spv[tilt_deg] = spv
         g_est_x   = np.array(st.brain.sm.g_est)[:, 0]    # interaural / right
         g_est_z   = np.array(st.brain.sm.g_est)[:, 2]    # forward / roll-axis
         v_lin    = np.array(st.brain.sm.v_lin)          # (T, 3) heading-estimator v_lin (m/s, head frame)
@@ -536,7 +582,29 @@ def _tilt_suppression(show):
     fig.tight_layout(rect=[0, 0, 1, 0.975])
     path, rp = utils.save_fig(fig, 'gravity_tilt_suppression', show=show, params=params,
                               conditions='Dark, simultaneous tilt + yaw rotation (Laurens & Angelaki tilt suppression)')
-    return utils.fig_meta(path, rp,
+
+    # ── Metrics: per-tilt post-rotatory TC + the "reversal" flip ──────────────
+    # TC: the post-rotatory SPV decay constant (shortens with tilt). Reversal:
+    # mean SPV over the LATE coast window — for big tilts the model suppresses
+    # fast then flips to a SUSTAINED opposite-direction nystagmus (a model
+    # limitation, not in the literature). Tracked as monitor so we watch it shrink.
+    metrics = []
+    for tilt_deg in TILTS_DEG:
+        tau = taus.get(tilt_deg)
+        metrics.append(Metric(f'gravity_tilt_tc_{int(tilt_deg)}',
+            float('nan') if tau is None else float(tau), tier='monitor',
+            lo=None, hi=None, golden_tol=0.2, units='s',
+            cite='Laurens & Angelaki (2011)',
+            desc=f'Post-rotatory version-SPV decay TC at {int(tilt_deg)}° post-stop tilt'))
+    late = (t_rel >= COAST_T - 25.0) & (t_rel <= COAST_T)
+    for tilt_deg in (60.0, 90.0):
+        rev = float(np.mean(tilt_spv[tilt_deg][late])) if late.any() else float('nan')
+        metrics.append(Metric(f'gravity_tilt_reversal_{int(tilt_deg)}', rev, tier='monitor',
+            lo=None, hi=None, golden_tol=0.3, units='deg/s',
+            cite='model limitation (not in literature)',
+            desc=f'Sustained late post-rotatory SPV at {int(tilt_deg)}° — reversal / opposite-direction nystagmus'))
+
+    fig_meta = utils.fig_meta(path, rp,
         title='VOR Tilt Suppression',
         description=f'Upright {ROT_VEL:.0f}°/s yaw; tilt {TILTS_DEG}° applied after stop. '
                     'Replicates Laurens & Angelaki (2011) Fig 6.',
@@ -544,6 +612,8 @@ def _tilt_suppression(show):
                  '0°: TC ≈ τ_vs. 90°: TC ≈ τ_canal.',
         citation='Laurens & Angelaki (2011) Exp Brain Res',
         fig_type='behavior')
+    fig_meta['metrics'] = metrics
+    return fig_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -201,7 +201,7 @@ def generate_html(sections_data):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OculomotorJax — Clinical Benchmark Report</title>
+  <title>ViSiOMlab — Clinical Benchmark Report</title>
   <style>{_HTML_CSS}</style>
 </head>
 <body>
@@ -210,7 +210,7 @@ def generate_html(sections_data):
 {nav_links}
   </nav>
   <main>
-    <h1>OculomotorJax — Clinical Benchmarks</h1>
+    <h1>ViSiOMlab — Clinical Benchmarks</h1>
     <p class="meta">
       Generated: <strong>{ts}</strong> &nbsp;|&nbsp;
       Version: <strong>{ver}</strong> &nbsp;|&nbsp;

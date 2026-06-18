@@ -32,6 +32,8 @@ from oculomotor.sim.simulator import PARAMS_DEFAULT, simulate, with_brain
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import (extract_spv_states, extract_spv, extract_z_opn,
                                  ax_fmt)
+from oculomotor.benchmarks.bench_metrics import Metric
+from oculomotor.benchmarks import bode
 
 SHOW = '--show' in sys.argv
 DT   = 0.001
@@ -226,11 +228,98 @@ def _cascade(show):
     )
 
 
+def _bode(show):
+    """T-VOR lateral (sway) frequency response — sinusoidal interaural translation,
+    NOISELESS. Primary channel: horizontal eye velocity (SPV) ÷ the GEOMETRIC IDEAL
+    (V/d, so gain ≈ 1 = perfect compensation); high-pass. Conditions: dark, scene,
+    scene+target. Bottom panel: the cross-axis effect on torsion (somatogravic/OCR).
+    """
+    from oculomotor.sim.simulator import with_sensory
+    params = with_brain(with_sensory(PARAMS_DEFAULT, sigma_canal=0.0, sigma_slip=0.0,
+                                     sigma_pos=0.0, sigma_vel=0.0), sigma_acc=0.0)
+    V_AMP, D = 0.20, 0.4                       # 20 cm/s peak, target at 40 cm
+    FREQS = np.array([0.1, 0.2, 0.5, 1.0, 2.0, 4.0])
+    N_CYC, SETTLE = 6, 3.0
+    CONDS = [('dark', 0.0, 0.0, '#444444'),
+             ('scene', 1.0, 0.0, '#1b7837'),
+             ('scene+target', 1.0, 1.0, '#c0392b')]
+
+    def measure(scene_p, target_p, f):
+        T_end = min(SETTLE + N_CYC / f, 45.0)
+        t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
+        on = t >= SETTLE
+        hv = np.zeros((Tn, 3), np.float32)
+        hv[:, 0] = np.where(on, V_AMP * np.sin(w * (t - SETTLE)), 0.0).astype(np.float32)
+        head   = km.build_kinematics(t, lin_vel=hv)
+        target = km.build_target(t, lin_pos=np.tile([0.0, 0.0, D], (Tn, 1)).astype(np.float32))
+        st = simulate(params, t, head=head, target=target,
+                      scene_present_array=np.full(Tn, scene_p),
+                      target_present_array=np.full(Tn, target_p),
+                      return_states=True, key=KEY)
+        eye = (np.array(st.plant.left) + np.array(st.plant.right)) / 2.0
+        yaw_spv = extract_spv_states(st, t, eye='version')[:, 0]
+        ideal   = -(hv[:, 0] / D) * (180.0 / np.pi)        # geometric-ideal eye yaw vel (deg/s)
+        g, ph   = bode.bode_point(t, ideal, yaw_spv, f, settle_frac=0.4)
+        m = t >= (t[0] + 0.4 * (t[-1] - t[0]))
+        tor_amp, _, _ = bode.fit_sinusoid(t[m], eye[m, 2], f)   # torsion (roll) amplitude
+        return g, ph, float(tor_amp)
+
+    res = {lab: {'g': [], 'ph': [], 'tor': []} for lab, *_ in CONDS}
+    for lab, sp, tp, col in CONDS:
+        for f in FREQS:
+            g, ph, tor = measure(sp, tp, f)
+            res[lab]['g'].append(g); res[lab]['ph'].append(ph); res[lab]['tor'].append(tor)
+
+    fig, (axg, axp, axt) = plt.subplots(3, 1, figsize=(8, 9.5), sharex=True)
+    fig.suptitle('T-VOR lateral (sway) — Frequency Response (noiseless)\n'
+                 'primary gain vs geometric ideal (V/d)  ·  cross-effect on torsion',
+                 fontsize=11, fontweight='bold')
+    for lab, sp, tp, col in CONDS:
+        axg.loglog(FREQS, res[lab]['g'],   'o-', color=col, lw=1.5, ms=5, label=lab)
+        axp.semilogx(FREQS, res[lab]['ph'], 's-', color=col, lw=1.5, ms=5, label=lab)
+        axt.semilogx(FREQS, res[lab]['tor'], 'd-', color=col, lw=1.5, ms=5, label=lab)
+    axg.axhline(1.0, color='gray', lw=0.7, ls=':', alpha=0.6)
+    axg.set_ylabel('Primary gain\n(eye yaw ÷ ideal)'); axg.legend(fontsize=8); axg.grid(True, which='both', alpha=0.2)
+    axp.axhline(0, color='k', lw=0.4); axp.set_ylabel('Phase (deg)'); axp.grid(True, which='both', alpha=0.2)
+    axt.set_ylabel('Cross torsion\namplitude (deg)'); axt.set_xlabel('Frequency (Hz)')
+    axt.grid(True, which='both', alpha=0.2)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    path, rp = utils.save_fig(fig, 'tvor_bode', show=show, params=params,
+        conditions=f'NOISELESS — sinusoidal lateral (sway) translation 0.1–4 Hz '
+                   f'({V_AMP*100:.0f} cm/s), target {D*100:.0f} cm')
+
+    metrics = []
+    i1 = int(np.argmin(np.abs(FREQS - 1.0)))
+    for lab, sp, tp, col in CONDS:
+        k = lab.replace('+', '_').replace(' ', '')
+        metrics.append(Metric(f'tvor_bode_gain_high_{k}', float(res[lab]['g'][-1]), tier='monitor',
+            lo=0.2, hi=1.4, golden_tol=0.15, units='',
+            cite='Paige & Tomko (1991); Angelaki & Hess (2001)',
+            desc=f'tVOR high-frequency gain vs geometric ideal (4 Hz) — {lab}'))
+        metrics.append(Metric(f'tvor_torsion_cross_{k}', float(res[lab]['tor'][i1]), tier='monitor',
+            lo=None, hi=None, golden_tol=0.3, units='deg',
+            cite='cross-axis somatogravic / OCR coupling',
+            desc=f'Cross-axis torsion amplitude at 1 Hz during lateral translation — {lab}'))
+    fm = utils.fig_meta(path, rp,
+        title='T-VOR — Lateral Bode (primary gain + torsion cross-effect)',
+        description=f'Sinusoidal interaural translation ({V_AMP*100:.0f} cm/s, 0.1–4 Hz), NOISELESS, '
+                    f'target at {D*100:.0f} cm. Top: horizontal eye-velocity gain vs the geometric ideal '
+                    f'(V/d); middle: phase; bottom: cross-axis torsion (somatogravic / OCR coupling).',
+        expected='tVOR is high-pass — gain rises toward 1 at high frequency (otolith tilt/translation '
+                 'disambiguation). Cross torsion rolls off with frequency (somatogravic low-pass).',
+        citation='Paige & Tomko (1991); Angelaki & Hess (2001); Laurens & Angelaki (2011)',
+        fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
+
+
 def run(show=False):
     print('\n=== T-VOR ===')
     figs = []
-    print('  1/1  cascade …')
+    print('  1/2  cascade …')
     figs.append(_cascade(show))
+    print('  2/2  lateral Bode …')
+    figs.append(_bode(show))
     return figs
 
 

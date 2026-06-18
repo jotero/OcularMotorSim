@@ -713,7 +713,7 @@ def generate_html(figs):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OculomotorJax — Experiments</title>
+  <title>ViSiOMlab — Experiments</title>
   <style>{_CSS}</style>
 </head>
 <body>
@@ -728,7 +728,7 @@ def generate_html(figs):
 {nav_sections}
   </nav>
   <main>
-    <h1>OculomotorJax — Experiments</h1>
+    <h1>ViSiOMlab — Experiments</h1>
     <p class="meta">
       Generated: <strong>{ts}</strong> &nbsp;|&nbsp;
       Version: <strong>{ver}</strong>

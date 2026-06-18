@@ -30,7 +30,7 @@ Computational models of the oculomotor system have a long history, beginning wit
 
 Recent advances in differentiable programming and large language models create an opportunity to bridge this gap. Differentiable simulators allow model parameters to be fit to patient data via gradient descent, enabling personalized simulation. LLMs can translate natural language clinical descriptions into structured computational inputs, lowering the barrier to simulation without sacrificing biophysical fidelity.
 
-Here we describe ClaudeOculomotorJax, a JAX-based computational model of the primate oculomotor system that (1) integrates the major oculomotor subsystems in a unified, biophysically grounded framework; (2) faithfully reproduces both normal oculomotor behavior and a broad range of clinical oculomotor syndromes; (3) provides a natural language interface that allows users to specify clinical scenarios in plain English and receive annotated simulation outputs within seconds; and (4) serves as a scalable source of labeled synthetic eye movement data for training and validating machine learning-based oculomotor classifiers.
+Here we describe ViSiOMlab, a JAX-based computational model of the primate oculomotor system that (1) integrates the major oculomotor subsystems in a unified, biophysically grounded framework; (2) faithfully reproduces both normal oculomotor behavior and a broad range of clinical oculomotor syndromes; (3) provides a natural language interface that allows users to specify clinical scenarios in plain English and receive annotated simulation outputs within seconds; and (4) serves as a scalable source of labeled synthetic eye movement data for training and validating machine learning-based oculomotor classifiers.
 
 ---
 
@@ -158,7 +158,7 @@ We have described a unified, differentiable computational model of the primate o
 
 **Future directions.** Immediate priorities include full validation of vergence control and the gravity estimator / translational VOR. Longer-term goals include systematic parameter fitting to published patient datasets, a second-order biomechanical plant, integration with eye-tracking hardware for real-time simulation, and expansion of the LLM interface to comparative simulations (e.g., "show the difference between peripheral and central vestibular nystagmus").
 
-**Conclusion.** ClaudeOculomotorJax provides a biophysically grounded, clinically comprehensive, and computationally accessible platform for simulation of oculomotor behavior in health and disease. By combining a differentiable model architecture with a large language model interface, it bridges the gap between computational neuroscience and clinical neurology, offering new tools for education, hypothesis generation, and, in the future, patient-specific diagnostic inference.
+**Conclusion.** ViSiOMlab provides a biophysically grounded, clinically comprehensive, and computationally accessible platform for simulation of oculomotor behavior in health and disease. By combining a differentiable model architecture with a large language model interface, it bridges the gap between computational neuroscience and clinical neurology, offering new tools for education, hypothesis generation, and, in the future, patient-specific diagnostic inference.
 
 ---
 

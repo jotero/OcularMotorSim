@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from oculomotor.sim.simulator import PARAMS_DEFAULT, with_sensory, with_brain, simulate
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import ax_fmt, extract_burst, extract_spv_states
+from oculomotor.benchmarks.bench_metrics import Metric
 
 SHOW  = '--show' in sys.argv
 DT    = 0.001
@@ -156,7 +157,30 @@ def _noise_comparison(show):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'fixation_noise_comparison', show=show, params=PARAMS_DEFAULT,
                               conditions='Lit, fixation on midline target — each panel sweeps a different sensory noise σ (canal/pos/vel)')
-    return utils.fig_meta(path, rp,
+
+    # ── Metrics: noiseless stability + realistic fixational drift + µsaccade rate ─
+    by_key = {r[5]: r for r in results}     # nkey -> (t_np, eye, ev, burst, noise, nkey, title)
+    def _pos_std(k):
+        e = by_key[k][1][:, 0]
+        return float(np.std(e - np.mean(e)))
+    # microsaccade rate in the realistic 'all' condition: rising edges of |burst|>15 deg/s
+    burst_all = by_key['all'][3][:, 0]
+    is_sac = (np.abs(burst_all) > 15.0).astype(int)
+    n_sac  = int(np.sum(np.diff(is_sac) > 0))
+    usacc_rate = float(n_sac / TEND)
+    metrics = [
+        Metric('fix_noiseless_drift_std', _pos_std('none'), tier='gate',
+               lo=None, hi=0.05, golden_tol=0.3, units='deg',
+               cite='—', desc='Eye-position std with all noise off (should be ≈0 — stability sanity)'),
+        Metric('fix_drift_rms', _pos_std('all'), tier='monitor',
+               lo=0.02, hi=0.6, golden_tol=0.25, units='deg',
+               cite='Rolfs (2009)', desc='Fixational drift (eye-position std) with all noise sources on'),
+        Metric('fix_microsaccade_rate', usacc_rate, tier='monitor',
+               lo=0.0, hi=4.0, golden_tol=0.4, units='Hz',
+               cite='Rolfs (2009)', desc='Microsaccade rate (burst events/s) in the all-noise condition'),
+    ]
+
+    fm = utils.fig_meta(path, rp,
         title='Fixational Eye Movements — Noise Source Comparison',
         description='5-column comparison: noiseless, canal noise only, retinal position OU drift, '
                     'retinal velocity noise, and all three combined. '
@@ -166,6 +190,8 @@ def _noise_comparison(show):
                  'Vel noise: smooth pursuit-like drift.',
         citation='Rolfs (2009) Neurosci Biobehav Rev 33:1597–1627',
         fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
 
 
 SECTION = dict(
