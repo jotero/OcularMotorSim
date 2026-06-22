@@ -133,7 +133,7 @@ N_OUTPUTS = 3   # primary output is u_verg; auxiliaries via tuple
 # ─────────────────────────────────────────────────────────────────────────────
 
 def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
-         brain_params):
+         brain_params, ec_accom=0.0, ec_verg=0.0):
     """Single ODE step for the unified near-response (vergence + accommodation).
 
     Activation-driven: the five vergence/accommodation pop firing rates come
@@ -147,6 +147,9 @@ def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
         target_disparity: (3,)    delayed binocular disparity (deg)
         verg_rate_tvor:   (3,)    T-VOR vergence rate (deg/s)
         z_act:            scalar  saccadic OPN gate (SVBN trigger)
+        ec_accom:         scalar  cerebellar delayed EC of the accommodation
+                                  command (delay-matched to `defocus`) — used for
+                                  the Smith-predictor defocus correction below.
         brain_params:     BrainParams
 
     Returns:
@@ -191,21 +194,39 @@ def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
     # Between saccades (z_act ≈ 0): fast leak (TC = _TAU_COPY_RESET = 20 ms).
     dx_v_copy = u_svbn - (1.0 - z_act) * x_verg_copy / _TAU_COPY_RESET
 
-    # ── Collect all vergence drive (raw target disparity + TVOR + burst) ────
-    # The vergence integrator x_verg_v sees RAW target_disparity (closed-loop
-    # via visual feedback) plus the burst velocity, not the burst-residual
-    # disparity. This avoids double-counting the burst contribution.
-    verg_drive = target_disparity + u_svbn + verg_rate_tvor
+    # ── Smith-predictor correction of the disparity (mirror of accommodation) ──
+    # The raw delayed disparity is stale; with AC/A adding convergence the loop
+    # over-drives and the delayed disparity can't pull it back in time (the
+    # vergence overshoot). The cerebellar EC `ec_verg` is the delayed vergence-H
+    # command (delay-matched to disparity); subtracting the in-flight part
+    # (current vergence − that delayed EC) lets the loop see its own
+    # commanded-but-not-yet-visible convergence. Correction → 0 at steady state.
+    in_flight_verg     = (x_verg_v[_AXIS_H] + x_verg_tonic[_AXIS_H]) - ec_verg
+    disparity_for_loop = target_disparity.at[_AXIS_H].add(
+        -brain_params.K_cereb_verg * in_flight_verg)
 
-    # Vergence integrator (leaky)
-    dx_v = brain_params.K_verg * verg_drive - x_verg_v / brain_params.tau_verg
+    # ── Vergence drive: error path (disparity) vs velocity commands (burst) ────
+    # The disparity is an ERROR → it earns the proportional (K_phasic) and integral
+    # (K_verg) gains. The SVBN burst is already a VELOCITY command (deg/s); it must
+    # enter at UNITY gain, not through K_phasic. Otherwise the fast loop
+    # (K_phasic_verg=12) amplifies the burst ~4× → 280°/s saccade-vergence with
+    # >100% overshoot, AND x_verg_copy (which integrates u_svbn) no longer tracks
+    # the delivered vergence, so the burst fails to self-terminate. At unity gain
+    # the burst delivers velocity u_svbn (direct) and the integrator holds ∫u_svbn,
+    # which x_verg_copy tracks exactly → clean self-termination.
+    verg_drive = disparity_for_loop + verg_rate_tvor   # error path (+ T-VOR rate)
+
+    # Vergence integrator (leaky): integral on the error path + unity hold of the
+    # burst velocity so the vergence holds the burst-delivered position.
+    dx_v = (brain_params.K_verg * verg_drive + u_svbn
+            - x_verg_v / brain_params.tau_verg)
 
     # Direct (bypass) pathway: Robinson plant-compensation pulse (Schor Kb path).
-    #   u_phasic = K_phasic_verg · verg_drive            (velocity command, deg/s)
-    #   direct_path_pos = τ_p · u_phasic                  (position contribution, deg)
-    # Plant velocity at onset ≈ direct_path_pos / τ_p = K_phasic_verg · verg_drive,
-    # so K_phasic_verg directly sets the peak vergence velocity per unit disparity.
-    direct_path_pos = brain_params.K_phasic_verg * brain_params.tau_p * verg_drive
+    #   plant velocity at onset ≈ direct_path_pos / τ_p
+    #     = K_phasic_verg · disparity   (proportional on the error)
+    #     +              u_svbn          (unity-gain burst velocity)
+    direct_path_pos = brain_params.tau_p * (
+        brain_params.K_phasic_verg * verg_drive + u_svbn)
 
     # Cross-link: AC/A from accommodation (H-only, deg)
     tonic_setpoint = jnp.zeros(3).at[_AXIS_H].set(brain_params.tonic_verg)
@@ -225,7 +246,18 @@ def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
     # ── Accommodation (mirror of vergence — only defocus drive) ─────────────
     # Same Schor block-diagram form. Direct pathway scales by τ_acc_plant
     # (the lens-plant TC, analog of τ_p for the eye plant on the vergence side).
-    acc_drive = defocus
+    #
+    # Smith-predictor / forward-model correction (Read 2022): the raw delayed
+    # defocus is stale — it doesn't yet reflect the accommodation already in
+    # flight, so the loop over-drives and rings (~20–33% overshoot), which AC/A
+    # then relays into vergence. The cerebellar EC `ec_accom` is the delayed
+    # accommodation command (delay-matched to `defocus`); subtracting the
+    # in-flight part (current neural accommodation − that delayed EC) lets the
+    # loop "see" its own commanded-but-not-yet-visible accommodation and stop
+    # in time. At steady state the EC equals the current estimate, the
+    # correction → 0, and the closed defocus loop is recovered unchanged.
+    in_flight_acc = (x_acc_fast + x_acc_slow) - ec_accom
+    acc_drive = defocus - brain_params.K_cereb_acc * in_flight_acc
 
     dx_a_fast = brain_params.K_acc_fast * acc_drive - x_acc_fast / brain_params.tau_acc_fast
 

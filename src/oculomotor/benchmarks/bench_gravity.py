@@ -100,7 +100,6 @@ def _ocr(show):
     torsion_ss  = []
     traces_t    = {}
     traces_eye  = {}
-    traces_gest = {}
 
     for i, tilt_deg in enumerate(TILTS_DEG):
         tilt_dur = tilt_deg / TILT_VEL
@@ -116,16 +115,14 @@ def _ocr(show):
                       return_states=True)
 
         eye_roll = (np.array(st.plant.left[:, 2]) + np.array(st.plant.right[:, 2])) / 2.0
-        g_est    = np.array(st.brain.sm.g_est)
         t_hold   = t - tilt_dur
         traces_t[tilt_deg]    = t_hold
         traces_eye[tilt_deg]  = eye_roll
-        traces_gest[tilt_deg] = g_est[:, 0]
         torsion_ss.append(float(eye_roll[-1]))
 
     torsion_expected = [-G_OCR * G0 * np.sin(np.radians(d)) for d in TILTS_DEG]
 
-    fig, axes = plt.subplots(3, 1, figsize=(11, 10))
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7))
     fig.suptitle(f'Ocular Counterroll (OCR)  (g_ocr={G_OCR:.2f}, tau_grav={TAU_GRAV})',
                  fontsize=12, fontweight='bold')
 
@@ -142,27 +139,11 @@ def _ocr(show):
     ax1.set_title('Eye counter-roll (dotted = expected G_OCR×G0×sin(θ))', fontsize=9)
     ax1.legend(fontsize=7, ncol=4, title='Tilt angle', title_fontsize=7)
     ax1.set_xlim(-1.0, HOLD_T)
+    ax1.set_xlabel('Time rel. hold onset (s)', fontsize=8)
 
-    # Row 2: g_est[0] traces (world x = right/interaural)
-    ax2 = axes[1]
-    for i, tilt_deg in enumerate(TILTS_DEG):
-        expected_y = G0 * np.sin(np.radians(tilt_deg))   # +G0·sin(θ) in world frame
-        ax2.plot(traces_t[tilt_deg], traces_gest[tilt_deg],
-                 color=colors[i], lw=1.2, label=f'{tilt_deg:.0f}°')
-        ax2.axhline(expected_y, color=colors[i], lw=0.6, ls=':', alpha=0.5)
-    ax2.axvline(0.0, color='gray', lw=0.8, ls='-')
-    ax2.axhline(0.0, color='k', lw=0.4)
-    ax2.text(-0.85, -0.3, '0 = upright', fontsize=7, color='k', style='italic')
-    ax2.set_ylabel('g_est[0] interaural/right (m/s²)', fontsize=8)
-    ax2.set_title('Gravity estimate (dotted = +G0·sin(θ)); stays flat during hold', fontsize=9)
-    ax2.legend(fontsize=7, ncol=3)
-    ax2.set_xlim(-1.0, HOLD_T)
-    ax2.set_ylim(-1, 12)
-    ax2.grid(True, alpha=0.15)
-    ax2.set_xlabel('Time rel. hold onset (s)', fontsize=8)
-
-    # Row 3: SS scatter — torsion vs tilt angle
-    ax3 = axes[2]
+    # Row 2: SS scatter — torsion vs tilt angle (gravity-estimate trace removed —
+    # it's shown in the OCR cascade figure instead)
+    ax3 = axes[1]
     theta_fine = np.linspace(0, 90, 200)
     ax3.plot(theta_fine, [-G_OCR * G0 * np.sin(np.radians(d)) for d in theta_fine],
              color='tomato', lw=1.5, ls='--',
@@ -201,9 +182,8 @@ def _ocr(show):
 
     fig_meta = utils.fig_meta(path, rp,
         title='Ocular Counterroll (OCR)',
-        description=f'Counter-roll traces for tilts {TILTS_DEG}° + SS scatter. g_ocr={G_OCR:.2f}.',
-        expected=f'Torsion ≈ −G_OCR×G0×sin(θ). 30° → ≈−{ocr_30:.1f}°. '
-                 f'g_est holds flat after tilt (no drift).',
+        description=f'Counter-roll traces for tilts {TILTS_DEG}° + SS torsion-vs-tilt scatter. g_ocr={G_OCR:.2f}.',
+        expected=f'Torsion ≈ −G_OCR×G0×sin(θ). 30° → ≈−{ocr_30:.1f}°.',
         citation='Boff, Kaufman & Thomas (1986); Laurens & Angelaki (2011)',
         fig_type='behavior')
     fig_meta['metrics'] = metrics

@@ -110,9 +110,13 @@ _N_AXES    = 3
 N_PER_PATH = (_N_SHARP + _N_LP) * _N_AXES   # 21 states per cascade
 
 _N_SAT_PER_PATH = (_N_SHARP + _N_LP) * 1    # 7 scalar cascade states for sat-flag
-N_STATES   = 2 * N_PER_PATH + 2 * _N_SAT_PER_PATH
+_N_ACCOM        = (_N_SHARP + _N_LP) * 1    # 7 scalar cascade states for accommodation EC
+_N_VERG         = (_N_SHARP + _N_LP) * 1    # 7 scalar cascade states for vergence EC (H axis)
+N_STATES   = 2 * N_PER_PATH + 2 * _N_SAT_PER_PATH + _N_ACCOM + _N_VERG
                                             # scene + target EC +
-                                            # two scalar saturation-flag cascades
+                                            # two scalar saturation-flag cascades +
+                                            # near-response EC cascades (accommodation +
+                                            # vergence-H, Smith forward models)
                                             # (no plant forward model — see step docstring)
 
 
@@ -131,6 +135,15 @@ class State(NamedTuple):
     target:     jnp.ndarray   # (21,) cascade buffer matching target_vel
     sat_scene:  jnp.ndarray   # (7,)  scene saturation-flag scalar cascade
     sat_target: jnp.ndarray   # (7,)  target saturation-flag scalar cascade
+    accom:      jnp.ndarray   # (7,)  accommodation-command EC cascade (delay-matched
+                              #       to the cyclopean defocus signal). VPF-style
+                              #       forward model for the near-response: the eye's
+                              #       own accommodation is the "self-motion" that
+                              #       contaminates defocus; this delayed EC lets the
+                              #       accommodation loop cancel it (Smith predictor).
+    verg:       jnp.ndarray   # (7,)  vergence-command EC cascade (H axis), delay-matched
+                              #       to the cyclopean disparity signal — mirror of
+                              #       `accom` for the disparity loop (Smith predictor).
 
 
 class Activations(NamedTuple):
@@ -138,6 +151,10 @@ class Activations(NamedTuple):
     # EC delay cascade outputs (delayed self-motion predictions)
     ec_scene:        jnp.ndarray   # (3,) delayed EC for scene path
     ec_target:       jnp.ndarray   # (3,) delayed EC for target path
+    ec_accom:        jnp.ndarray   # scalar delayed EC of the accommodation command,
+                                   #        delay-matched to cyclopean defocus → va.step
+    ec_verg:         jnp.ndarray   # scalar delayed EC of the vergence-H command,
+                                   #        delay-matched to cyclopean disparity → va.step
     # Cerebellar EC corrections (gated by the saccadic-suppression factor).
     # Both have the form `sat · visibility · ec_no_torsion` and sum cleanly
     # with the brainstem direct path (= sat · raw_slip) in brain_model.
@@ -162,7 +179,9 @@ def rest_state():
     return State(scene=jnp.zeros(N_PER_PATH),
                  target=jnp.zeros(N_PER_PATH),
                  sat_scene=jnp.zeros(_N_SAT_PER_PATH),
-                 sat_target=jnp.zeros(_N_SAT_PER_PATH))
+                 sat_target=jnp.zeros(_N_SAT_PER_PATH),
+                 accom=jnp.zeros(_N_ACCOM),
+                 verg=jnp.zeros(_N_VERG))
 
 
 # ── Activation read (thin: just state tail reads) ─────────────────────────────
@@ -203,7 +222,8 @@ def read_activations(brain_state, brain_params):
 
 def step(state, ec_vel, ec_pos, ni_net, ni_null,
          vs_net, vs_null, rf, w_est,
-         target_slip, target_visible, scene_visible, brain_params):
+         target_slip, target_visible, scene_visible, brain_params,
+         accom_cmd=0.0, verg_cmd=0.0):
     """Cerebellum per-step processing.
 
     Three jobs:
@@ -281,6 +301,18 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     ec_scene  = state.scene[-3:]
     ec_target = state.target[-3:]
     ec_no_torsion = ec_target.at[2].set(0.0)
+
+    # ── Near-response forward model: delayed EC of accommodation ───────────────
+    # The eye's own accommodation is the "self-motion" contaminating defocus
+    # (defocus = demand − accommodation). The accommodation command is delayed
+    # by the SAME cascade as the cyclopean defocus signal (tau_vis_sharp +
+    # tau_vis_smooth_defocus), so the tail predicts the self-accommodation
+    # contribution already baked into the delayed defocus. va.step subtracts the
+    # in-flight part (current estimate − this delayed EC) to stop the
+    # accommodation loop driving on stale defocus (the Read-2022 Smith move).
+    ec_accom = state.accom[-1]
+    # Mirror for the disparity loop: delayed EC of the vergence-H command.
+    ec_verg  = state.verg[-1]
 
     # ── Cerebellar pursuit contribution: CB2 ──────────────────────────────────
     # The pursuit input downstream is:
@@ -403,8 +435,17 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
                                   _N_SHARP, _N_AXES, _N_LP),
         sat_scene    = d_sat_scene,
         sat_target   = d_sat_target,
+        accom        = cascade_lp_step(state.accom, accom_cmd,
+                                        bp.tau_vis_sharp,
+                                        bp.tau_vis_smooth_defocus,
+                                        _N_SHARP, 1, _N_LP),
+        verg         = cascade_lp_step(state.verg, verg_cmd,
+                                        bp.tau_vis_sharp,
+                                        bp.tau_vis_smooth_disparity,
+                                        _N_SHARP, 1, _N_LP),
     )
     acts = Activations(ec_scene=ec_scene, ec_target=ec_target,
+                       ec_accom=ec_accom, ec_verg=ec_verg,
                        pred_err=pred_err, vpf_drive=vpf_drive,
                        fl_okr_drive=fl_okr_drive,
                        saccadic_suppression_scene=saccadic_suppression_scene,

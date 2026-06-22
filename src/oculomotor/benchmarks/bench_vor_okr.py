@@ -488,7 +488,11 @@ def _cascade(show):
 
 # ── Figures: VOR / OKR frequency response (Bode, noiseless) ──────────────────
 
-_BODE_FREQS = np.array([0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 2.0])
+# Extends well past the canal/plant corner so the VOR high-frequency rolloff +
+# phase lead are visible (the VOR is broadband, ~flat to several Hz). dt=0.001 s
+# resolves up to 20 Hz with ≥50 samples/cycle for the sinusoid fit.
+_BODE_FREQS = np.array([0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0,
+                        5.0, 7.0, 10.0, 15.0, 20.0])
 
 
 def _vor_bode(show):
@@ -501,7 +505,10 @@ def _vor_bode(show):
 
     def make(scene_p, target_p):
         def run_fn(f):
-            T_end = min(SETTLE + N_CYC / f, 50.0)
+            # Floor the oscillation duration (≥5 s) so the settle_frac analysis
+            # window always lands inside the oscillation, not the pre-oscillation
+            # dead time — otherwise high-f points (short records) fit garbage.
+            T_end = min(SETTLE + max(N_CYC / f, 5.0), 50.0)
             t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
             on = t >= SETTLE
             hv = np.zeros((Tn, 3)); hv[:, 0] = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
@@ -520,7 +527,7 @@ def _vor_bode(show):
         'VOR — Frequency Response (body yaw rotation, noiseless)',
         ref_hz=0.5, gain_label='Gain (eye vel ÷ head vel)')
     path, rp = utils.save_fig(fig, 'vor_bode', show=show, params=THETA_NOISELESS,
-        conditions='Dark / light / light+target, NOISELESS — sinusoidal head yaw 0.05–2 Hz (30 deg/s)')
+        conditions='Dark / light / light+target, NOISELESS — sinusoidal head yaw 0.05–20 Hz (30 deg/s)')
     metrics = []
     for lab, *_ in CONDS:
         m = out[lab]; k = lab.replace('+', '_').replace(' ', '')
@@ -534,7 +541,7 @@ def _vor_bode(show):
             cite='Cohen, Matsuo & Raphan (1977)', desc=f'VOR phase at 0.5 Hz (− = lag) — {lab}'))
     fm = utils.fig_meta(path, rp,
         title='VOR — Bode (body rotation)',
-        description='Sinusoidal head yaw sweep (0.05–2 Hz, 30 deg/s), NOISELESS. '
+        description='Sinusoidal head yaw sweep (0.05–20 Hz, 30 deg/s), NOISELESS. '
                     'Eye velocity (SPV) ÷ head velocity in dark, light, light+target.',
         expected='Light gain ≈ 1 across frequency (VVOR); dark gain drops below ~0.2 Hz (canal high-pass).',
         citation='Cohen, Matsuo & Raphan (1977); Raphan et al. (1979)',
@@ -551,7 +558,10 @@ def _okr_bode(show):
 
     def make(target_p):
         def run_fn(f):
-            T_end = min(SETTLE + N_CYC / f, 50.0)
+            # Floor the oscillation duration (≥5 s) so the settle_frac analysis
+            # window always lands inside the oscillation, not the pre-oscillation
+            # dead time — otherwise high-f points (short records) fit garbage.
+            T_end = min(SETTLE + max(N_CYC / f, 5.0), 50.0)
             t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
             on = t >= SETTLE
             sv = np.zeros((Tn, 3)); sv[:, 0] = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
@@ -570,7 +580,7 @@ def _okr_bode(show):
         'OKR — Frequency Response (full-field scene motion, noiseless)',
         ref_hz=0.5, gain_label='Gain (eye vel ÷ scene vel)')
     path, rp = utils.save_fig(fig, 'okr_bode', show=show, params=THETA_NOISELESS,
-        conditions='Scene / scene+target, NOISELESS — sinusoidal scene velocity 0.05–2 Hz (20 deg/s)')
+        conditions='Scene / scene+target, NOISELESS — sinusoidal scene velocity 0.05–20 Hz (20 deg/s)')
     metrics = []
     for lab, tp, col in CONDS:
         m = out[lab]; k = lab.replace('+', '_').replace(' ', '')
@@ -582,7 +592,7 @@ def _okr_bode(show):
             cite='Cohen, Matsuo & Raphan (1977)', desc=f'OKR −3 dB bandwidth — {lab}'))
     fm = utils.fig_meta(path, rp,
         title='OKR — Bode (full-field scene motion)',
-        description='Sinusoidal scene-velocity sweep (0.05–2 Hz, 20 deg/s), NOISELESS. '
+        description='Sinusoidal scene-velocity sweep (0.05–20 Hz, 20 deg/s), NOISELESS. '
                     'Eye velocity (SPV) ÷ scene velocity for scene-only and scene+target. '
                     'OKR is low-pass — gain rolls off above ~0.5 Hz; a stationary target suppresses it.',
         expected='Gain ≈ 1 at low f, rolls off above ~0.5 Hz.',

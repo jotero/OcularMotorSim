@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 from dataclasses import dataclass, replace
 from typing import Optional
@@ -131,6 +132,21 @@ def data_path():
 
 def load_ranges(path=None) -> dict:
     path = path or ranges_path()
+    if not os.path.isfile(path):
+        return {}
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def references_path():
+    return os.path.join(_web_dir(), 'references.json')
+
+
+def load_references(path=None) -> dict:
+    """Full titled references for the bibliography, keyed by cite_key (see
+    cite_key()). Optional + hand-editable; missing keys fall back to the short
+    citation strings carried in the benchmark data."""
+    path = path or references_path()
     if not os.path.isfile(path):
         return {}
     with open(path, 'r', encoding='utf-8') as f:
@@ -344,8 +360,52 @@ def _html_num(x, unit='', nan='—'):
     return f'{x:.4g}{(" " + unit) if unit else ""}'
 
 
-def _metric_table_html(metrics: list, golden: dict) -> str:
-    """Right-column metrics table for one figure, or a visual-check note."""
+# ── Citation numbering (shared by the metric table + the page bibliography) ────
+
+_CITE_YEAR_RE = re.compile(r'(1[89]\d\d|20\d\d)')
+
+
+def split_cites(s: str) -> list:
+    """Split a citation string into individual references on ';'."""
+    return [p.strip() for p in (s or '').split(';') if p.strip()]
+
+
+def cite_key(s: str):
+    """Dedup key for one reference: first-author token + 4-digit year. Returns
+    None when there's no year (i.e. not a real paper — e.g. a 'numerical sanity'
+    note or a 'Debug diagnostic'), so such entries are never numbered."""
+    m = _CITE_YEAR_RE.search(s or '')
+    if not m:
+        return None
+    head = (s[:m.start()]).replace('(', ' ')
+    toks = re.sub(r'[^A-Za-z ]', ' ', head).split()
+    return f'{toks[0].lower()}{m.group(1)}' if toks else None
+
+
+def cite_links(cite_str: str, cite_map: dict) -> str:
+    """Render a (possibly multi-paper) citation as bracketed, linked reference
+    numbers — '[3]' / '[3, 7]' — each anchored to the page bibliography with the
+    full reference as a hover tooltip. Non-paper / unknown cites render ''."""
+    if not cite_map:
+        return ''
+    nums = {}
+    for part in split_cites(cite_str):
+        ent = cite_map.get(cite_key(part))
+        if ent:
+            nums[ent[0]] = ent[1]
+    if not nums:
+        return ''
+    links = ', '.join(
+        f'<a class="cref" href="#ref-{n}" title="{full}">{n}</a>'
+        for n, full in sorted(nums.items()))
+    return f'<span class="crefs">[{links}]</span>'
+
+
+def _metric_table_html(metrics: list, golden: dict, cite_map: dict = None) -> str:
+    """Right-column metrics table for one figure, or a visual-check note.
+
+    When ``cite_map`` (reference key → (number, full text)) is supplied, each
+    band's literature source is shown as a numbered link into the bibliography."""
     results = evaluate(metrics, golden)
     if not results:
         return ('<div class="novis">Visual check — no quantitative metric '
@@ -353,17 +413,15 @@ def _metric_table_html(metrics: list, golden: dict) -> str:
     rows = []
     for r in results:
         m = r.metric
-        # Band cell carries its literature source as a hover tooltip, so every
-        # acceptance band is visibly anchored to a reference (dotted underline =
-        # hoverable). Bands without a source render plain.
+        # Band cell shows its bounds plus the numbered reference(s) that anchor
+        # them (links to the bibliography, full cite on hover). Bands without a
+        # literature source (e.g. numerical sanity gates) render plain.
         band = '—'
         if m.lo is not None or m.hi is not None:
             lo = '−∞' if m.lo is None else f'{m.lo:g}'
             hi = '+∞' if m.hi is None else f'{m.hi:g}'
-            if m.cite:
-                band = f'<span class="band-src" title="source: {m.cite}">[{lo}, {hi}]</span>'
-            else:
-                band = f'[{lo}, {hi}]'
+            refs = cite_links(m.cite, cite_map)
+            band = f'[{lo}, {hi}]' + (f' {refs}' if refs else '')
         drift = '—' if r.drift is None else f'{r.drift * 100:+.1f}%'
         # Tier (gate/monitor) stays in the data + CLI table; it's dropped from the
         # rendered page per request (the PASS/WARN chip already conveys severity).

@@ -187,7 +187,7 @@ def _main_sequence(show):
     T_end, t_jump = 0.8, 0.1
     t_np = np.arange(0.0, T_end, DT)
 
-    amps_out, peak_vels = [], []
+    amps_out, peak_vels, durations = [], [], []
     traces = {}
     for i, amp in enumerate(amplitudes):
         pt3 = _pt3(t_np, amp, t_jump=t_jump)
@@ -195,38 +195,74 @@ def _main_sequence(show):
         # version = average of left and right eye (conjugate movement hits target)
         eye   = (np.array(st.plant.left[:, 0]) + np.array(st.plant.right[:, 0])) / 2.0
         burst = extract_burst(st, THETA)[:, 0]
-        a_out, v_peak = _primary_saccade(burst, eye, t_np, t_jump)
+        a_out, v_peak, dur = _primary_saccade(burst, eye, t_np, t_jump)
         amps_out.append(a_out)
         peak_vels.append(v_peak)
-        traces[amp] = (t_np - t_jump, eye - eye[int(t_jump / DT)])
+        durations.append(dur)
+        # store both the position trace and its velocity (aligned to the step)
+        traces[amp] = (t_np - t_jump, eye - eye[int(t_jump / DT)], np.gradient(eye, DT))
 
     A_ref = np.linspace(0, 22, 300)
     v_ref = 700.0 * (1.0 - np.exp(-A_ref / 7.0))
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    # Duration main-sequence reference: human linear law D(ms) ≈ 2.2·A + 21.
+    dur_ms  = np.array(durations) * 1000.0
+    A_dref  = np.linspace(0, 22, 300)
+    dur_ref = 2.2 * A_dref + 21.0
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 10))
     fig.suptitle('Saccade Main Sequence', fontsize=12)
-
-    axes[0].plot(A_ref, v_ref, color=utils.C['dark'], lw=1.5, ls='--',
-                 label='700(1−e^{−A/7})')
-    axes[0].scatter(amps_out, peak_vels, color=utils.C['eye'], s=70, zorder=5)
-    for a, v in zip(amps_out, peak_vels):
-        axes[0].annotate(f'{a:.0f}°', (a, v), fontsize=7,
-                         xytext=(3, 3), textcoords='offset points')
-    axes[0].set_xlabel('Amplitude (deg)'); axes[0].set_ylabel('Peak velocity (deg/s)')
-    axes[0].set_title('Main Sequence (scatter + reference curve)')
-    axes[0].legend(fontsize=9); axes[0].set_xlim(0, 22); axes[0].set_ylim(0)
-    axes[0].grid(True, alpha=0.25)
-
     cmap = plt.get_cmap('plasma')
+
+    # [0,0] peak-velocity main sequence
+    ax = axes[0, 0]
+    ax.plot(A_ref, v_ref, color=utils.C['dark'], lw=1.5, ls='--',
+            label='700(1−e^{−A/7})')
+    ax.scatter(amps_out, peak_vels, color=utils.C['eye'], s=70, zorder=5)
+    for a, v in zip(amps_out, peak_vels):
+        ax.annotate(f'{a:.0f}°', (a, v), fontsize=7,
+                    xytext=(3, 3), textcoords='offset points')
+    ax.set_xlabel('Amplitude (deg)'); ax.set_ylabel('Peak velocity (deg/s)')
+    ax.set_title('Peak-velocity main sequence')
+    ax.legend(fontsize=9); ax.set_xlim(0, 22); ax.set_ylim(0)
+    ax.grid(True, alpha=0.25)
+
+    # [0,1] duration main sequence
+    ax = axes[0, 1]
+    ax.plot(A_dref, dur_ref, color=utils.C['dark'], lw=1.5, ls='--',
+            label='2.2·A + 21 ms (human)')
+    ax.scatter(amps_out, dur_ms, color=utils.C['eye'], s=70, zorder=5)
+    for a, d in zip(amps_out, dur_ms):
+        ax.annotate(f'{a:.0f}°', (a, d), fontsize=7,
+                    xytext=(3, 3), textcoords='offset points')
+    ax.set_xlabel('Amplitude (deg)'); ax.set_ylabel('Duration (ms)')
+    ax.set_title('Duration main sequence')
+    ax.legend(fontsize=9); ax.set_xlim(0, 22); ax.set_ylim(0)
+    ax.grid(True, alpha=0.25)
+
+    # [1,0] aligned eye-position traces
+    ax = axes[1, 0]
     for i, amp in enumerate(amplitudes):
-        t_al, eye_al = traces[amp]
-        axes[1].plot(t_al, eye_al, color=cmap(i / (len(amplitudes) - 1)), lw=1.3,
-                     label=f'{amp:.0f}°' if amp in [1, 5, 10, 20] else None)
-    axes[1].set_xlabel('Time from step (s)'); axes[1].set_ylabel('Eye position (deg)')
-    axes[1].set_title('Eye Traces (aligned to target step)')
-    axes[1].set_xlim(-0.05, 0.55); axes[1].axvline(0, color='gray', lw=0.7, ls='--')
-    axes[1].axhline(0, color='k', lw=0.4); axes[1].legend(fontsize=8)
-    axes[1].grid(True, alpha=0.25)
+        t_al, eye_al, _ = traces[amp]
+        ax.plot(t_al, eye_al, color=cmap(i / (len(amplitudes) - 1)), lw=1.3,
+                label=f'{amp:.0f}°' if amp in [1, 5, 10, 20] else None)
+    ax.set_xlabel('Time from step (s)'); ax.set_ylabel('Eye position (deg)')
+    ax.set_title('Position traces (aligned to target step)')
+    ax.set_xlim(-0.05, 0.55); ax.axvline(0, color='gray', lw=0.7, ls='--')
+    ax.axhline(0, color='k', lw=0.4); ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.25)
+
+    # [1,1] aligned eye-velocity traces (same alignment as the position panel)
+    ax = axes[1, 1]
+    for i, amp in enumerate(amplitudes):
+        t_al, _, vel_al = traces[amp]
+        ax.plot(t_al, vel_al, color=cmap(i / (len(amplitudes) - 1)), lw=1.3,
+                label=f'{amp:.0f}°' if amp in [1, 5, 10, 20] else None)
+    ax.set_xlabel('Time from step (s)'); ax.set_ylabel('Eye velocity (deg/s)')
+    ax.set_title('Velocity traces (aligned to target step)')
+    ax.set_xlim(-0.05, 0.55); ax.axvline(0, color='gray', lw=0.7, ls='--')
+    ax.axhline(0, color='k', lw=0.4); ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.25)
 
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'saccade_main_sequence', show=show, params=THETA,
@@ -259,8 +295,10 @@ def _main_sequence(show):
 
     fig = utils.fig_meta(path, rp,
         title='Saccade Main Sequence',
-        description='Peak velocity vs amplitude scatter (left) and aligned eye traces (right) for amplitudes 0.5–20°.',
-        expected='All data within ±20% of 700(1−e^{−A/7}). Peak ≈660 deg/s at 20°.',
+        description='Top: peak-velocity and duration main sequences (scatter + reference curves) vs amplitude. '
+                    'Bottom: eye position and velocity traces aligned to the target step, for amplitudes 0.5–20°.',
+        expected='Peak velocity within ±20% of 700(1−e^{−A/7}) (≈660 deg/s at 20°); duration grows roughly '
+                 'linearly with amplitude; velocity profiles are single-peaked and scale with amplitude.',
         citation='Bahill et al. (1975) Science; Robinson (1975) J Neurophysiol',
         fig_type='behavior')
     fig['metrics'] = metrics
@@ -517,22 +555,23 @@ def _refractoriness(show):
 
 # ── Figure 4: signal cascade ──────────────────────────────────────────────────
 
-def _cascade(show, noisy=False):
-    params     = THETA if noisy else THETA_NOISELESS
-    fname      = 'saccade_cascade_noisy' if noisy else 'saccade_cascade'
-    noise_tag  = ' (with noise)' if noisy else ' (noiseless)'
-
-    amplitudes = [1.0, 5.0, 20.0, 40.0]
+def _cascade(show):
+    # One figure: the noiseless cascade across 1°/5°/20°/40°, plus a single 1°
+    # column WITH noise (last). The noise condition only needs the small saccade
+    # — that's where fixational drift + microsaccadic RT variability show; at
+    # large amplitudes the burst dominates and noisy ≈ noiseless.
+    columns = [(1.0, False), (5.0, False), (20.0, False), (40.0, False), (1.0, True)]
+    fname   = 'saccade_cascade'
     T_end, t_jump = 0.9, 0.1
     t_np = np.arange(0.0, T_end, DT)
     T    = len(t_np)
 
-    n_rows, n_cols = 9, len(amplitudes)
+    n_rows, n_cols = 9, len(columns)
     # Row 5 (pre-cascade) is zoomed in on the time axis, so x-axes are not
     # shared across rows.  All other rows display the full 0-T_end window.
     fig, axes = plt.subplots(n_rows, n_cols,
-                             figsize=(4.5 * n_cols, 2.2 * n_rows), sharex=False)
-    fig.suptitle('Saccade Signal Cascade' + noise_tag + '  ·  '
+                             figsize=(3.6 * n_cols, 2.2 * n_rows), sharex=False)
+    fig.suptitle('Saccade Signal Cascade  ·  '
                  'cascade → accumulate → latch/freeze → burst → copy → refractory',
                  fontsize=11)
 
@@ -554,10 +593,14 @@ def _cascade(show, noisy=False):
     # "without" (correctives masked via the OPN fast-phase latch).
     POST_T0, POST_T1 = 0.5, 0.85
     post_win = (t_np >= POST_T0) & (t_np <= POST_T1)
-    acc_final, acc_primary = [], []   # endpoint err: with / without correctives
-    spd_drift = []                    # residual slow-phase speed (correctives masked)
+    # Accuracy / drift collected per column, split by condition so the noiseless
+    # columns and the single noisy column yield separate metric sets.
+    acc_final   = {False: [], True: []}   # endpoint err: with correctives
+    acc_primary = {False: [], True: []}   # primary-only endpoint err (no correctives)
+    spd_drift   = {False: [], True: []}   # residual slow-phase speed (correctives masked)
 
-    for ci, amp in enumerate(amplitudes):
+    for ci, (amp, noisy) in enumerate(columns):
+        params = THETA if noisy else THETA_NOISELESS
         pt3 = _pt3(t_np, amp, t_jump=t_jump)
         st  = _run(t_np, pt3, key=ci, max_s=int(T_end/DT)+200, params=params)
         sg  = extract_sg(st, params)
@@ -572,17 +615,20 @@ def _cascade(show, noisy=False):
         # phase, detected via the OPN latch (z_opn < 50 ⇒ saccade in progress).
         z_opn = extract_z_opn(st)
         slow  = post_win & (z_opn >= 50.0)
-        prim_amp, _ = _primary_saccade(sg['u_burst'][:, 0], eye, t_np, t_jump)
+        prim_amp, _, _ = _primary_saccade(sg['u_burst'][:, 0], eye, t_np, t_jump)
         # Endpoint error: final (after correctives) vs primary-only (open loop).
-        acc_final.append(float(np.mean(np.abs(eye[post_win] - tgt[post_win]))))
-        acc_primary.append(float(abs(amp - prim_amp)))
+        acc_final[noisy].append(float(np.mean(np.abs(eye[post_win] - tgt[post_win]))))
+        acc_primary[noisy].append(float(abs(amp - prim_amp)))
         # Residual slow-phase speed: corrective fast phases masked out (drift only).
-        spd_drift.append(float(np.mean(np.abs(vel[slow]))) if slow.any() else float('nan'))
+        spd_drift[noisy].append(float(np.mean(np.abs(vel[slow]))) if slow.any() else float('nan'))
 
-        axes[0, ci].set_title(f'{amp:.0f}°', fontsize=11)
+        col_title = f'{amp:.0f}°' + ('\n(with noise)' if noisy else '')
+        axes[0, ci].set_title(col_title, fontsize=10,
+                              color=('#b2182b' if noisy else 'black'))
         vl  = dict(color='gray', lw=0.6, ls='--', alpha=0.5)
         for ax in axes[:, ci]:
             ax.axvline(t_jump, **vl); ax.grid(True, alpha=0.15)
+            if noisy: ax.set_facecolor('#fbf7ef')   # tint the noise column
 
         axes[0, ci].plot(t_np, tgt, color=utils.C['target'], lw=1.5, label='target')
         axes[0, ci].plot(t_np, eye, color=utils.C['eye'],    lw=1.5, label='eye')
@@ -746,37 +792,39 @@ def _cascade(show, noisy=False):
                 ax.set_xlabel('Time (s)', fontsize=8)
 
     fig.tight_layout()
-    path, rp = utils.save_fig(fig, fname, show=show, params=params,
-                              conditions=f'Lit, foveal targets at 1°/5°/20°/40° horizontal{noise_tag}')
-    # ── Quantitative metrics (averaged over the 4 amplitudes) ────────────────
-    # Suffixed by noise condition so the noiseless and noisy cascades contribute
-    # separate, comparable metrics. "with corrective saccades" = final endpoint /
-    # raw speed; "without" = primary-only endpoint / fast-phase-masked drift.
-    cond = 'noisy' if noisy else 'noiseless'
-    _agg = lambda xs: float(np.nanmean(xs))
-    metrics = [
-        Metric(f'sac_endpoint_err_{cond}', _agg(acc_final),
-               tier=('gate' if not noisy else 'monitor'),
-               lo=None, hi=(0.6 if not noisy else 1.2), golden_tol=0.20, units='deg',
-               cite='Robinson (1975)',
-               desc='Final endpoint error vs target in hold window — WITH corrective saccades'),
-        Metric(f'sac_primary_err_{cond}', _agg(acc_primary), tier='monitor',
-               lo=None, hi=None, golden_tol=0.20, units='deg',
-               cite='Becker & Jürgens (1979)',
-               desc='Primary-saccade endpoint error — WITHOUT correctives (open-loop undershoot)'),
-        Metric(f'sac_postsac_drift_{cond}', _agg(spd_drift), tier='monitor',
-               lo=(0.1 if noisy else 0.0), hi=(1.0 if noisy else 0.2),
-               golden_tol=0.25, units='deg/s', cite='',
-               desc='Mean slow-phase speed in hold window — WITHOUT fast phases (drift / oscillation)'),
-    ]
+    path, rp = utils.save_fig(fig, fname, show=show, params=THETA_NOISELESS,
+                              conditions='Lit, foveal targets at 1°/5°/20°/40° (noiseless) + 1° (with noise)')
+    # ── Quantitative metrics ─────────────────────────────────────────────────
+    # Noiseless metrics average over the 1/5/20/40° columns; noisy metrics come
+    # from the single 1° noise column. Same metric names as before, so the bands
+    # in metrics_ranges.json still apply.
+    _agg = lambda xs: float(np.nanmean(xs)) if len(xs) else float('nan')
+    metrics = []
+    for cond, noisy in (('noiseless', False), ('noisy', True)):
+        metrics += [
+            Metric(f'sac_endpoint_err_{cond}', _agg(acc_final[noisy]),
+                   tier=('gate' if not noisy else 'monitor'),
+                   lo=None, hi=(0.6 if not noisy else 1.2), golden_tol=0.20, units='deg',
+                   cite='Robinson (1975)',
+                   desc='Final endpoint error vs target in hold window — WITH corrective saccades'),
+            Metric(f'sac_primary_err_{cond}', _agg(acc_primary[noisy]), tier='monitor',
+                   lo=None, hi=None, golden_tol=0.20, units='deg',
+                   cite='Becker & Jürgens (1979)',
+                   desc='Primary-saccade endpoint error — WITHOUT correctives (open-loop undershoot)'),
+            Metric(f'sac_postsac_drift_{cond}', _agg(spd_drift[noisy]), tier='monitor',
+                   lo=(0.1 if noisy else 0.0), hi=(1.0 if noisy else 0.2),
+                   golden_tol=0.25, units='deg/s', cite='Kapoula, Robinson & Hain (1986)',
+                   desc='Mean slow-phase speed in hold window — WITHOUT fast phases (drift / oscillation)'),
+        ]
 
     fig = utils.fig_meta(path, rp,
-        title='Saccade Signal Cascade' + noise_tag,
-        description='Row-by-row signal flow for 1°, 5°, 20°, 40° saccades: position, visual cascade + hold, '
-                    'accumulator/latch, residual error, burst, eye velocity, refractory state.',
-        expected='e_held freezes at saccade onset; burst proportional to e_res; '
-                 'accumulator floor locks out next saccade for ~270 ms.',
-        citation='Robinson (1975) J Neurophysiol; Scudder et al. (2002)',
+        title='Saccade Signal Cascade',
+        description='Row-by-row signal flow for the 1°/5°/20°/40° saccades (noiseless) plus a 1° saccade WITH '
+                    'noise (last column, tinted): position, visual cascade + hold, accumulator/latch, residual '
+                    'error, burst, eye velocity, suppression gates, EC vs slip, and pursuit/VS drives.',
+        expected='e_held freezes at saccade onset; burst proportional to e_res; accumulator floor locks out the '
+                 'next saccade for ~270 ms; the noise column adds fixational drift + occasional microsaccades.',
+        citation='Robinson (1975) J Neurophysiol; Scudder et al. (2002); Kapoula, Robinson & Hain (1986)',
         fig_type='cascade')
     fig['metrics'] = metrics
     return fig
@@ -801,12 +849,10 @@ def run(show=False):
     figs.append(_main_sequence(show))
     print('  2/4  oblique saccades …')
     figs.append(_oblique(show))
-    print('  3/5  double-step refractoriness …')
+    print('  3/4  double-step refractoriness …')
     figs.append(_refractoriness(show))
-    print('  4/5  signal cascade (noiseless) …')
-    figs.append(_cascade(show, noisy=False))
-    print('  5/5  signal cascade (noisy) …')
-    figs.append(_cascade(show, noisy=True))
+    print('  4/4  signal cascade (noiseless + 1° noise) …')
+    figs.append(_cascade(show))
     return figs
 
 

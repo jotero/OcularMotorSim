@@ -35,6 +35,60 @@
     "cite": "Stark et al. (1965)",
     "desc": "Accommodation low-frequency gain"
   },
+  "acc_darkfocus_adapt": {
+    "lo": 0.05,
+    "hi": 0.8,
+    "tier": "monitor",
+    "golden_tol": 0.3,
+    "units": "D",
+    "cite": "Hung (1992); Schor (1988)",
+    "desc": "Tonic-accommodation (dark focus) adaptation after 32 s near (open-loop residual, near-conditioned \u2212 far control). Physiological near-induced dark-focus shift \u2248 0.1\u20130.6 D."
+  },
+  "acc_darkfocus_tc_s": {
+    "lo": 5.0,
+    "hi": 40.0,
+    "tier": "monitor",
+    "golden_tol": 0.3,
+    "units": "s",
+    "cite": "Hung (1992)",
+    "desc": "Dark-hold persistence TC of the adapted dark focus (Hung target ~15\u201320 s)."
+  },
+  "acc_step_gain": {
+    "lo": 0.75,
+    "hi": 1.05,
+    "tier": "monitor",
+    "golden_tol": 0.1,
+    "units": "",
+    "cite": "Del \u00c1guila-Carrasco (2017)",
+    "desc": "Accommodation SS gain (response \u00f7 demand)"
+  },
+  "acc_step_latency_ms": {
+    "lo": 150.0,
+    "hi": 500.0,
+    "tier": "monitor",
+    "golden_tol": 0.2,
+    "units": "ms",
+    "cite": "Del \u00c1guila-Carrasco (2017); Read (2022)",
+    "desc": "Accommodation step latency (demand step \u2192 10% of response)"
+  },
+  "acc_step_peak_vel": {
+    "lo": 1.0,
+    "hi": null,
+    "tier": "monitor",
+    "golden_tol": 0.25,
+    "units": "D/s",
+    "cite": "Del \u00c1guila-Carrasco (2017)",
+    "desc": "Peak accommodation velocity (far\u2192near step)"
+  },
+  "acc_step_tc_s": {
+    "lo": 0.1,
+    "hi": 1.2,
+    "tier": "monitor",
+    "golden_tol": 0.25,
+    "units": "s",
+    "cite": "Read (2022)",
+    "desc": "Accommodation rise time constant (exp fit)"
+  },
   "fix_drift_rms": {
     "lo": 0.02,
     "hi": 0.6,
@@ -520,6 +574,24 @@
     "units": "",
     "cite": "Hung et al. (1986)",
     "desc": "Convergence overshoot fraction (peak \u2212 SS)/(SS \u2212 start)"
+  },
+  "verg_phoria_adapt": {
+    "lo": 0.3,
+    "hi": 3.0,
+    "tier": "monitor",
+    "golden_tol": 0.25,
+    "units": "deg",
+    "cite": "Hung (1992); Schor (1988)",
+    "desc": "Tonic-vergence (phoria) adaptation after 32 s near (open-loop residual, near-conditioned \u2212 far control). Physiological retained phoria \u2248 a few \u0394 (~0.3\u20133\u00b0); current model over-retains (cross-coupled AC/A holds convergence)."
+  },
+  "verg_phoria_tc_s": {
+    "lo": 5.0,
+    "hi": 40.0,
+    "tier": "monitor",
+    "golden_tol": 0.3,
+    "units": "s",
+    "cite": "Hung (1992)",
+    "desc": "Dark-hold persistence TC of the adapted phoria (Hung target ~15\u201320 s). A railed value (\u2265~150 s) means vergence does NOT relax in the dark \u2014 AC/A keeps converting the still-wound accommodation tonic into convergence."
   },
   "verg_sym_conv_err": {
     "lo": null,

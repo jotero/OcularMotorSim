@@ -6,6 +6,7 @@
   <title>ViSiOMlab — Benchmark Report</title>
   <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
        background: #f5f5f5; color: #222; display: flex; }
 nav  { width: 200px; height: 100vh; background: #1a1a2e; color: #eee;
@@ -58,7 +59,18 @@ h1   { font-size: 22px; margin-bottom: 4px; }
                letter-spacing: .05em; color: #94a3b8; margin: 0 0 8px; }
 .narrative .desc { font-size: 12px; color: #444; line-height: 1.55; margin: 0 0 8px; }
 .narrative .citation { font-size: 11px; color: #888; font-style: italic; margin: 0; }
-.fig-metrics .band-src { border-bottom: 1px dotted #999; cursor: help; }
+/* In-text numbered citations [n] → bibliography (full cite on hover). */
+.cref  { color: #2563eb; text-decoration: none; font-weight: 600; }
+.cref:hover { text-decoration: underline; }
+.crefs { white-space: nowrap; }
+.fig-metrics .crefs { font-size: 11px; margin-left: 2px; }
+.biblio { margin-top: 4px; }
+.biblio .ref   { display: flex; gap: 8px; font-size: 12px; color: #333;
+                 padding: 5px 2px; border-top: 1px solid #f0f0f0; line-height: 1.5;
+                 scroll-margin-top: 16px; }
+.biblio .ref-n { color: #888; min-width: 24px; text-align: right;
+                 font-variant-numeric: tabular-nums; }
+.biblio .ref:target { background: #fffbea; }
 .fig-pair       { display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
                   align-items: start; }
 .fig-pair .lbl  { font-size: 10px; color: #888; text-transform: uppercase;
@@ -88,19 +100,20 @@ h1   { font-size: 22px; margin-bottom: 4px; }
     <a href="#tvor">8. Translational VOR (T-VOR)</a>
     <a href="#fixation">6. Fixation</a>
     <a href="#listing">7. Listing's Law</a>
+    <a href="#bibliography">References</a>
   </nav>
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-06-18 09:39</strong> &nbsp;|&nbsp;
-      Version: <strong>82deecd-dirty.25eebb3</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-06-20 04:52</strong> &nbsp;|&nbsp;
+      Version: <strong>ca9ae0f-dirty.38fa89b</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
-    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 2 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 62 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span> 9</p>
-    <div class="warn-banner">&#9888; <b>8 of 8</b> sections were run on an older version (current build <b>82deecd-dirty.25eebb3</b>). Versions present: 82deecd-dirty.406d9dd. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 8. Translational VOR (T-VOR), 6. Fixation, 7. Listing's Law.</div>
+    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 3 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span> 1 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 45 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span> 32</p>
+    <div class="warn-banner">&#9888; <b>7 of 8</b> sections were run on an older version (current build <b>ca9ae0f-dirty.38fa89b</b>). Versions present: ca9ae0f-dirty.38fa89b, ca9ae0f-dirty.95f9254. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator, 4. Smooth Pursuit, 8. Translational VOR (T-VOR), 6. Fixation, 7. Listing's Law.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 184.1s · 82deecd-dirty.406d9dd · 2026-06-17 19:31</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>1. Saccades <span class="rt">· 183.4s · ca9ae0f-dirty.95f9254 · 2026-06-19 13:53</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
@@ -118,28 +131,28 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_peak_vel_20deg">Peak velocity of a 20° saccade (main-sequence saturation)</td>
-            <td class="num">697.6 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Bahill et al. (1975)">[550, 750]</span></td>
+            <td class="num">698.1 deg/s</td>
+            <td class="num">[550, 750] <span class="crefs">[<a class="cref" href="#ref-1" title="Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.">1</a>]</span></td>
             <td class="num">697.6</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.1%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_mainseq_resid_max">Max fractional deviation from 700(1−e^−A/7), amplitudes ≥5°</td>
+            <td class="num">0.05396</td>
+            <td class="num">[−∞, 0.2] <span class="crefs">[<a class="cref" href="#ref-1" title="Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.">1</a>]</span></td>
             <td class="num">0.0546</td>
-            <td class="num"><span class="band-src" title="source: Bahill et al. (1975)">[−∞, 0.2]</span></td>
-            <td class="num">0.0546</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-1.2%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_primary_gain">Mean primary-saccade amplitude / target amplitude (≥5°)</td>
+            <td class="num">1.034</td>
+            <td class="num">[0.8, 1.05] <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></td>
             <td class="num">1.015</td>
-            <td class="num"><span class="band-src" title="source: Robinson (1975)">[0.8, 1.05]</span></td>
-            <td class="num">1.015</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+1.9%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Peak velocity vs amplitude scatter (left) and aligned eye traces (right) for amplitudes 0.5–20°. All data within ±20% of 700(1−e^{−A/7}). Peak ≈660 deg/s at 20°.</p><p class="citation">&#128214; Bahill et al. (1975) Science; Robinson (1975) J Neurophysiol</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Top: peak-velocity and duration main sequences (scatter + reference curves) vs amplitude. Bottom: eye position and velocity traces aligned to the target step, for amplitudes 0.5–20°. Peak velocity within ±20% of 700(1−e^{−A/7}) (≈660 deg/s at 20°); duration grows roughly linearly with amplitude; velocity profiles are single-peaked and scale with amplitude.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-1" title="Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.">1</a>, <a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></p></div>
       </div>
     </div>
 
@@ -157,20 +170,20 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_oblique_straightness">Max trajectory curvature (perp dev ÷ amplitude) over oblique directions</td>
+            <td class="num">0.02776</td>
+            <td class="num">[−∞, 0.08] <span class="crefs">[<a class="cref" href="#ref-3" title="Smit AC, Van Opstal AJ, Van Gisbergen JAM (1990). Component stretching in fast and slow oblique saccades in the human. Experimental Brain Research 81:325–343.">3</a>, <a class="cref" href="#ref-4" title="Van Gisbergen JAM, Van Opstal AJ, Schoenmakers JJM (1985). Experimental test of two models for the generation of oblique saccades. Experimental Brain Research 57:321–336.">4</a>]</span></td>
             <td class="num">0.1879</td>
-            <td class="num"><span class="band-src" title="source: Smit et al. (1990); van Gisbergen et al. (1985)">[−∞, 0.08]</span></td>
-            <td class="num">0.1879</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-85.2%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_oblique_sync_ms">Max H–V component desynchrony (|90%-reach time difference|), oblique directions</td>
-            <td class="num">334 ms</td>
-            <td class="num"><span class="band-src" title="source: Smit et al. (1990)">[−∞, 20]</span></td>
+            <td class="num">1 ms</td>
+            <td class="num">[−∞, 20] <span class="crefs">[<a class="cref" href="#ref-3" title="Smit AC, Van Opstal AJ, Van Gisbergen JAM (1990). Component stretching in fast and slow oblique saccades in the human. Experimental Brain Research 81:325–343.">3</a>]</span></td>
             <td class="num">334</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-99.7%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">12° saccades from centre to 8 directions (45° apart), noiseless. Left: 2-D trajectories. Centre: 45° H/V components (synchrony). Right: per-direction trajectory curvature. Straight radial trajectories (curvature < ~5% of amplitude). H and V components start and end together (oblique synchrony).</p><p class="citation">&#128214; Smit et al. (1990) J Neurophysiol; van Gisbergen et al. (1985)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">12° saccades from centre to 8 directions (45° apart), noiseless. Left: 2-D trajectories. Centre: 45° H/V components (synchrony). Right: per-direction trajectory curvature. Straight radial trajectories (curvature < ~5% of amplitude). H and V components start and end together (oblique synchrony).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-3" title="Smit AC, Van Opstal AJ, Van Gisbergen JAM (1990). Component stretching in fast and slow oblique saccades in the human. Experimental Brain Research 81:325–343.">3</a>, <a class="cref" href="#ref-4" title="Van Gisbergen JAM, Van Opstal AJ, Schoenmakers JJM (1985). Experimental test of two models for the generation of oblique saccades. Experimental Brain Research 57:321–336.">4</a>]</span></p></div>
       </div>
     </div>
 
@@ -189,19 +202,19 @@ h1   { font-size: 22px; margin-bottom: 4px; }
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_refractory_isi_ms">Smallest double-step ISI yielding a distinct 2nd saccade (A=20°)</td>
             <td class="num">20 ms</td>
-            <td class="num"><span class="band-src" title="source: Becker & Jürgens (1979)">[50, 260]</span></td>
+            <td class="num">[50, 260] <span class="crefs">[<a class="cref" href="#ref-5" title="Becker W, Jürgens R (1979). An analysis of the saccadic system by means of double step stimuli. Vision Research 19:967–983.">5</a>]</span></td>
             <td class="num">20</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Double-step paradigm: target jumps 0→A/2 then A/2→A for A=10,20,30,40° after variable ISI (20–500 ms). Target shown dashed in same colour as eye trace. Short ISIs produce one amended saccade; longer ISIs produce two. ISI < ~100 ms: 1 saccade (merged). ISI > ~150 ms: 2 separate saccades. Refractory period roughly constant across amplitudes (~150 ms).</p><p class="citation">&#128214; Becker & Jürgens (1979) Vision Res</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Double-step paradigm: target jumps 0→A/2 then A/2→A for A=10,20,30,40° after variable ISI (20–500 ms). Target shown dashed in same colour as eye trace. Short ISIs produce one amended saccade; longer ISIs produce two. ISI < ~100 ms: 1 saccade (merged). ISI > ~150 ms: 2 separate saccades. Refractory period roughly constant across amplitudes (~150 ms).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-5" title="Becker W, Jürgens R (1979). An analysis of the saccadic system by means of double step stimuli. Vision Research 19:967–983.">5</a>]</span></p></div>
       </div>
     </div>
 
     <div class="fig-card">
       <div class="fig-main">
-        <h3>Saccade Signal Cascade (noiseless)</h3>
+        <h3>Saccade Signal Cascade</h3>
         
-        <a href="figures/saccade_cascade.png" target="_blank"><img src="figures/saccade_cascade.png" alt="Saccade Signal Cascade (noiseless)"></a>
+        <a href="figures/saccade_cascade.png" target="_blank"><img src="figures/saccade_cascade.png" alt="Saccade Signal Cascade"></a>
       </div>
       <div class="fig-metrics">
         <table>
@@ -211,74 +224,59 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_endpoint_err_noiseless">Final endpoint error vs target in hold window — WITH corrective saccades</td>
-            <td class="num">0.1933 deg</td>
-            <td class="num"><span class="band-src" title="source: Robinson (1975)">[−∞, 0.6]</span></td>
+            <td class="num">0.172 deg</td>
+            <td class="num">[−∞, 0.6] <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></td>
             <td class="num">0.1933</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-11.0%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_primary_err_noiseless">Primary-saccade endpoint error — WITHOUT correctives (open-loop undershoot)</td>
-            <td class="num">0.2315 deg</td>
+            <td class="num">0.3046 deg</td>
             <td class="num">—</td>
             <td class="num">0.2315</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+31.6%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_postsac_drift_noiseless">Mean slow-phase speed in hold window — WITHOUT fast phases (drift / oscillation)</td>
-            <td class="num">0.5613 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Kapoula, Robinson & Hain (1986)">[0, 0.2]</span></td>
+            <td class="num">0.5418 deg/s</td>
+            <td class="num">[0, 0.2] <span class="crefs">[<a class="cref" href="#ref-6" title="Kapoula Z, Robinson DA, Hain TC (1986). Motion of the eye immediately after a saccade. Experimental Brain Research 61:386–394.">6</a>]</span></td>
             <td class="num">0.5613</td>
-            <td class="num">+0.0%</td>
-          </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Row-by-row signal flow for 1°, 5°, 20°, 40° saccades: position, visual cascade + hold, accumulator/latch, residual error, burst, eye velocity, refractory state. e_held freezes at saccade onset; burst proportional to e_res; accumulator floor locks out next saccade for ~270 ms.</p><p class="citation">&#128214; Robinson (1975) J Neurophysiol; Scudder et al. (2002)</p></div>
-      </div>
-    </div>
-
-    <div class="fig-card">
-      <div class="fig-main">
-        <h3>Saccade Signal Cascade (with noise)</h3>
-        
-        <a href="figures/saccade_cascade_noisy.png" target="_blank"><img src="figures/saccade_cascade_noisy.png" alt="Saccade Signal Cascade (with noise)"></a>
-      </div>
-      <div class="fig-metrics">
-        <table>
-      <thead><tr><th></th><th>measure</th><th>value</th><th>band</th>
-        <th>golden</th><th>drift</th></tr></thead>
-      <tbody>
+            <td class="num">-3.5%</td>
+          </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_endpoint_err_noisy">Final endpoint error vs target in hold window — WITH corrective saccades</td>
-            <td class="num">0.1636 deg</td>
-            <td class="num"><span class="band-src" title="source: Robinson (1975)">[−∞, 1.2]</span></td>
+            <td class="num">0.1314 deg</td>
+            <td class="num">[−∞, 1.2] <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></td>
             <td class="num">0.1636</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-19.7%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_primary_err_noisy">Primary-saccade endpoint error — WITHOUT correctives (open-loop undershoot)</td>
-            <td class="num">0.3247 deg</td>
+            <td class="num">0.004395 deg</td>
             <td class="num">—</td>
             <td class="num">0.3247</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-98.6%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="sac_postsac_drift_noisy">Mean slow-phase speed in hold window — WITHOUT fast phases (drift / oscillation)</td>
-            <td class="num">0.8459 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Kapoula, Robinson & Hain (1986)">[0.1, 1]</span></td>
+            <td class="num">0.5011 deg/s</td>
+            <td class="num">[0.1, 1] <span class="crefs">[<a class="cref" href="#ref-6" title="Kapoula Z, Robinson DA, Hain TC (1986). Motion of the eye immediately after a saccade. Experimental Brain Research 61:386–394.">6</a>]</span></td>
             <td class="num">0.8459</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-40.8%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Row-by-row signal flow for 1°, 5°, 20°, 40° saccades: position, visual cascade + hold, accumulator/latch, residual error, burst, eye velocity, refractory state. e_held freezes at saccade onset; burst proportional to e_res; accumulator floor locks out next saccade for ~270 ms.</p><p class="citation">&#128214; Robinson (1975) J Neurophysiol; Scudder et al. (2002)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Row-by-row signal flow for the 1°/5°/20°/40° saccades (noiseless) plus a 1° saccade WITH noise (last column, tinted): position, visual cascade + hold, accumulator/latch, residual error, burst, eye velocity, suppression gates, EC vs slip, and pursuit/VS drives. e_held freezes at saccade onset; burst proportional to e_res; accumulator floor locks out the next saccade for ~270 ms; the noise column adds fixational drift + occasional microsaccades.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>, <a class="cref" href="#ref-6" title="Kapoula Z, Robinson DA, Hain TC (1986). Motion of the eye immediately after a saccade. Experimental Brain Research 61:386–394.">6</a>, <a class="cref" href="#ref-7" title="Scudder CA, Kaneko CRS, Fuchs AF (2002). The brainstem burst generator for saccadic eye movements: a modern synthesis. Experimental Brain Research 142:439–462.">7</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 794.3s · 82deecd-dirty.406d9dd · 2026-06-17 19:45</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 996.1s · ca9ae0f-dirty.95f9254 · 2026-06-19 14:10</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -296,36 +294,36 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="vor_okr_vvor_gain">VVOR slow-phase gain during rotation in light (10–25 s)</td>
+            <td class="num">0.8484</td>
+            <td class="num">[0.85, 1.1] <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></td>
             <td class="num">0.8476</td>
-            <td class="num"><span class="band-src" title="source: Raphan, Matsuo & Cohen (1979)">[0.85, 1.1]</span></td>
-            <td class="num">0.8476</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.1%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="vor_okr_postrot_tc">VOR post-rotatory SPV decay time constant (VS-extended)</td>
-            <td class="num">32.94 s</td>
-            <td class="num"><span class="band-src" title="source: Raphan, Matsuo & Cohen (1979)">[10, 30]</span></td>
+            <td class="num">33.55 s</td>
+            <td class="num">[10, 30] <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></td>
             <td class="num">32.94</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+1.8%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_okan_tc">OKAN SPV decay time constant after scene off (~tau_vs)</td>
-            <td class="num">26.3 s</td>
-            <td class="num"><span class="band-src" title="source: Raphan, Matsuo & Cohen (1979)">[10, 30]</span></td>
+            <td class="num">23.29 s</td>
+            <td class="num">[10, 30] <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></td>
             <td class="num">26.3</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-11.5%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_okn_ss_gain">OKN steady-state SPV gain (last 10 s of scene-on)</td>
+            <td class="num">0.8034</td>
+            <td class="num">[0.75, 1.1] <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></td>
             <td class="num">0.8017</td>
-            <td class="num"><span class="band-src" title="source: Raphan, Matsuo & Cohen (1979)">[0.75, 1.1]</span></td>
-            <td class="num">0.8017</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.2%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Panels A–F matching Raphan et al. (1979) Fig.9. Left col: SPV only. Right col: CUP (canal estimate), INT (velocity storage), SPV overlaid. A/B: VOR in dark. C/D: OKN+OKAN. E/F: VVOR (light→dark). A: post-rot SPV TC 10–30 s. C: OKN gain~1, OKAN TC~20 s. E: VVOR gain>0.85 during rotation; post-rot TC similar to A. B/D/F: INT follows SPV; CUP decays at canal TC (~5 s).</p><p class="citation">&#128214; Raphan, Matsuo & Cohen (1979) Exp Brain Res 35:229–248</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Panels A–F matching Raphan et al. (1979) Fig.9. Left col: SPV only. Right col: CUP (canal estimate), INT (velocity storage), SPV overlaid. A/B: VOR in dark. C/D: OKN+OKAN. E/F: VVOR (light→dark). A: post-rot SPV TC 10–30 s. C: OKN gain~1, OKAN TC~20 s. E: VVOR gain>0.85 during rotation; post-rot TC similar to A. B/D/F: INT follows SPV; CUP decays at canal TC (~5 s).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></p></div>
       </div>
     </div>
 
@@ -344,9 +342,9 @@ h1   { font-size: 22px; margin-bottom: 4px; }
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_dark">VOR low-frequency gain — dark</td>
             <td class="num">1.062</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.4, 1.1]</span></td>
+            <td class="num">[0.4, 1.1] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">1.062</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
@@ -360,9 +358,9 @@ h1   { font-size: 22px; margin-bottom: 4px; }
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_light">VOR low-frequency gain — light</td>
             <td class="num">1.018</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.4, 1.1]</span></td>
+            <td class="num">[0.4, 1.1] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">1.018</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
@@ -375,20 +373,20 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_light_target">VOR low-frequency gain — light+target</td>
+            <td class="num">0.4138</td>
+            <td class="num">[0.4, 1.1] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">0.4141</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.4, 1.1]</span></td>
-            <td class="num">0.4141</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.1%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_phase_light_target">VOR phase at 0.5 Hz (− = lag) — light+target</td>
-            <td class="num">-0.7201 deg</td>
+            <td class="num">-0.636 deg</td>
             <td class="num">—</td>
             <td class="num">-0.7201</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+11.7%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal head yaw sweep (0.05–2 Hz, 30 deg/s), NOISELESS. Eye velocity (SPV) ÷ head velocity in dark, light, light+target. Light gain ≈ 1 across frequency (VVOR); dark gain drops below ~0.2 Hz (canal high-pass).</p><p class="citation">&#128214; Cohen, Matsuo & Raphan (1977); Raphan et al. (1979)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal head yaw sweep (0.05–20 Hz, 30 deg/s), NOISELESS. Eye velocity (SPV) ÷ head velocity in dark, light, light+target. Light gain ≈ 1 across frequency (VVOR); dark gain drops below ~0.2 Hz (canal high-pass).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>, <a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></p></div>
       </div>
     </div>
 
@@ -406,36 +404,36 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_gain_scene">OKR low-frequency gain — scene</td>
+            <td class="num">0.5017</td>
+            <td class="num">[0.4, 1.05] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">0.5018</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.4, 1.05]</span></td>
-            <td class="num">0.5018</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_bw_scene">OKR −3 dB bandwidth — scene</td>
-            <td class="num">0.8353 Hz</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.1, +∞]</span></td>
+            <td class="num">0.8367 Hz</td>
+            <td class="num">[0.1, +∞] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">0.8353</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.2%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="okr_bode_gain_scene_target">OKR low-frequency gain — scene+target</td>
+            <td class="num">0.1076</td>
+            <td class="num">[0.4, 1.05] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">0.116</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.4, 1.05]</span></td>
-            <td class="num">0.116</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-7.3%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
             <td class="what" title="okr_bode_bw_scene_target">OKR −3 dB bandwidth — scene+target</td>
-            <td class="num">nan</td>
-            <td class="num"><span class="band-src" title="source: Cohen, Matsuo & Raphan (1977)">[0.1, +∞]</span></td>
+            <td class="num">14.7 Hz</td>
+            <td class="num">[0.1, +∞] <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></td>
             <td class="num">—</td>
             <td class="num">—</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal scene-velocity sweep (0.05–2 Hz, 20 deg/s), NOISELESS. Eye velocity (SPV) ÷ scene velocity for scene-only and scene+target. OKR is low-pass — gain rolls off above ~0.5 Hz; a stationary target suppresses it. Gain ≈ 1 at low f, rolls off above ~0.5 Hz.</p><p class="citation">&#128214; Cohen, Matsuo & Raphan (1977) J Neurophysiol</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal scene-velocity sweep (0.05–20 Hz, 20 deg/s), NOISELESS. Eye velocity (SPV) ÷ scene velocity for scene-only and scene+target. OKR is low-pass — gain rolls off above ~0.5 Hz; a stationary target suppresses it. Gain ≈ 1 at low f, rolls off above ~0.5 Hz.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-9" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">9</a>]</span></p></div>
       </div>
     </div>
 
@@ -453,27 +451,27 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_vor_direct_gain">VOR-in-dark SPV gain at early plateau (2–5 s, noiseless)</td>
+            <td class="num">0.8704</td>
+            <td class="num">[0.6, 1.05] <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></td>
             <td class="num">0.8696</td>
-            <td class="num"><span class="band-src" title="source: Robinson (1975)">[0.6, 1.05]</span></td>
-            <td class="num">0.8696</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.1%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_okr_ss_gain">OKR steady-state SPV gain (14–18 s, noiseless)</td>
+            <td class="num">0.792</td>
+            <td class="num">[0.7, 1.1] <span class="crefs">[<a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></td>
             <td class="num">0.7934</td>
-            <td class="num"><span class="band-src" title="source: Raphan et al. (1979)">[0.7, 1.1]</span></td>
-            <td class="num">0.7934</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.2%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Left column (VOR in dark): head velocity → canal afferents → VS state → NI state → eye velocity. Right column (OKN): scene velocity → delayed retinal slip → VS → NI → eye velocity. VOR: canal signal decays (TC ~5 s), VS extends it. OKR: slip_delayed drives VS and NI until eye velocity matches scene.</p><p class="citation">&#128214; Raphan et al. (1979); Robinson (1975)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Left column (VOR in dark): head velocity → canal afferents → VS state → NI state → eye velocity. Right column (OKN): scene velocity → delayed retinal slip → VS → NI → eye velocity. VOR: canal signal decays (TC ~5 s), VS extends it. OKR: slip_delayed drives VS and NI until eye velocity matches scene.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>, <a class="cref" href="#ref-8" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">8</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator <span class="rt">· 647.4s · 82deecd-dirty.406d9dd · 2026-06-17 19:56</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>3. Gravity Estimator <span class="rt">· 652.3s · ca9ae0f-dirty.95f9254 · 2026-06-19 14:21</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -491,20 +489,20 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ocr_gain">OCR amplitude ratio: measured SS torsion ÷ −G_OCR·G0·sin(θ)</td>
+            <td class="num">1.036</td>
+            <td class="num">[0.8, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></td>
             <td class="num">1.032</td>
-            <td class="num"><span class="band-src" title="source: Laurens & Angelaki (2011)">[0.8, 1.2]</span></td>
-            <td class="num">1.032</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.5%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ocr_sin_rmse">RMS deviation of SS torsion from the expected sine law across tilts</td>
-            <td class="num">0.2317 deg</td>
-            <td class="num"><span class="band-src" title="source: Laurens & Angelaki (2011)">[−∞, 1]</span></td>
+            <td class="num">0.2708 deg</td>
+            <td class="num">[−∞, 1] <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></td>
             <td class="num">0.2317</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+16.9%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Counter-roll traces for tilts [15.0, 30.0, 45.0, 90.0]° + SS scatter. g_ocr=1.02. Torsion ≈ −G_OCR×G0×sin(θ). 30° → ≈−5.0°. g_est holds flat after tilt (no drift).</p><p class="citation">&#128214; Boff, Kaufman & Thomas (1986); Laurens & Angelaki (2011)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Counter-roll traces for tilts [15.0, 30.0, 45.0, 90.0]° + SS torsion-vs-tilt scatter. g_ocr=1.02. Torsion ≈ −G_OCR×G0×sin(θ). 30° → ≈−5.0°.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>, <a class="cref" href="#ref-11" title="Boff KR, Kaufman L, Thomas JP (eds) (1986). Handbook of Perception and Human Performance. Wiley, New York.">11</a>]</span></p></div>
       </div>
     </div>
 
@@ -516,7 +514,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">30.0° roll tilt — OCR cascade across dark / scene-on / scene+target-on conditions, 15 s hold, noiseless. Eye torsion stabilises at ≈-4.97° in all conditions. SPV row: -VS (dashed) and -canal FT (dotted) should bracket the measured SPV.</p><p class="citation">&#128214; Debug diagnostic</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">30.0° roll tilt — OCR cascade across dark / scene-on / scene+target-on conditions, 15 s hold, noiseless. Eye torsion stabilises at ≈-4.97° in all conditions. SPV row: -VS (dashed) and -canal FT (dotted) should bracket the measured SPV.</p></div>
       </div>
     </div>
 
@@ -532,70 +530,70 @@ h1   { font-size: 22px; margin-bottom: 4px; }
         <th>golden</th><th>drift</th></tr></thead>
       <tbody>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_ovar_mod_10">OVAR SPV modulation amplitude at 10° tilt (∝ sin tilt)</td>
-            <td class="num">19.14 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Laurens & Angelaki (2011)">[0, +∞]</span></td>
+            <td class="num">12.61 deg/s</td>
+            <td class="num">[0, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></td>
             <td class="num">19.14</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-34.1%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_10">OVAR steady-state average SPV (screw/translation bias) at 10° tilt</td>
-            <td class="num">-22.85 deg/s</td>
+            <td class="num">-24.34 deg/s</td>
             <td class="num">—</td>
             <td class="num">-22.85</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-6.5%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_ovar_mod_30">OVAR SPV modulation amplitude at 30° tilt (∝ sin tilt)</td>
-            <td class="num">20.81 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Laurens & Angelaki (2011)">[0, +∞]</span></td>
+            <td class="num">13.69 deg/s</td>
+            <td class="num">[0, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></td>
             <td class="num">20.81</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-34.2%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_30">OVAR steady-state average SPV (screw/translation bias) at 30° tilt</td>
-            <td class="num">-26.4 deg/s</td>
+            <td class="num">-28.03 deg/s</td>
             <td class="num">—</td>
             <td class="num">-26.4</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-6.2%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_ovar_mod_60">OVAR SPV modulation amplitude at 60° tilt (∝ sin tilt)</td>
-            <td class="num">15.29 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Laurens & Angelaki (2011)">[0, +∞]</span></td>
+            <td class="num">10.13 deg/s</td>
+            <td class="num">[0, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></td>
             <td class="num">15.29</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-33.7%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_60">OVAR steady-state average SPV (screw/translation bias) at 60° tilt</td>
-            <td class="num">-31.87 deg/s</td>
+            <td class="num">-32.88 deg/s</td>
             <td class="num">—</td>
             <td class="num">-31.87</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-3.2%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_ovar_mod_90">OVAR SPV modulation amplitude at 90° tilt (∝ sin tilt)</td>
-            <td class="num">13.54 deg/s</td>
-            <td class="num"><span class="band-src" title="source: Laurens & Angelaki (2011)">[0, +∞]</span></td>
+            <td class="num">9.11 deg/s</td>
+            <td class="num">[0, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></td>
             <td class="num">13.54</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-32.7%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_90">OVAR steady-state average SPV (screw/translation bias) at 90° tilt</td>
-            <td class="num">-33.75 deg/s</td>
+            <td class="num">-34.44 deg/s</td>
             <td class="num">—</td>
             <td class="num">-33.75</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-2.0%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">60°/s rotation, tilt angles [10.0, 30.0, 60.0, 90.0]°. Replicates Laurens & Angelaki (2011) Fig 5. SPV sinusoidally modulated at rotation period. Modulation amplitude ∝ sin(tilt). g_est oscillates ±G₀ sin(α). A small residual v_lin DC bias along the rotation axis ("screw direction") reflects the perceived sustained linear translation reported by subjects during prolonged OVAR (Denise et al. 1988; Wood 2002).</p><p class="citation">&#128214; Laurens & Angelaki (2011) Exp Brain Res 210:407; Denise, Darlot, Droulez, Cohen, Berthoz (1988) Exp Brain Res 67:629 — perceived linear translation during OVAR; Wood (2002) J Vest Res 12:223 — tilt-translation discrimination</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">60°/s rotation, tilt angles [10.0, 30.0, 60.0, 90.0]°. Replicates Laurens & Angelaki (2011) Fig 5. SPV sinusoidally modulated at rotation period. Modulation amplitude ∝ sin(tilt). g_est oscillates ±G₀ sin(α). A small residual v_lin DC bias along the rotation axis ("screw direction") reflects the perceived sustained linear translation reported by subjects during prolonged OVAR (Denise et al. 1988; Wood 2002).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>, <a class="cref" href="#ref-12" title="Denise P, Darlot C, Droulez J, Cohen B, Berthoz A (1988). Motion perceptions induced by off-vertical axis rotation (OVAR) at small angles of tilt. Experimental Brain Research 67:604–611.">12</a>, <a class="cref" href="#ref-13" title="Wood SJ (2002). Human otolith–ocular reflexes during off-vertical axis rotation: effect of frequency on tilt–translation ambiguity and motion sickness. Neuroscience Letters 323:41–44.">13</a>]</span></p></div>
       </div>
     </div>
 
@@ -613,52 +611,52 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_tc_0">Post-rotatory version-SPV decay TC at 0° post-stop tilt</td>
-            <td class="num">34.22 s</td>
+            <td class="num">34.26 s</td>
             <td class="num">—</td>
             <td class="num">34.22</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+0.1%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_tilt_tc_30">Post-rotatory version-SPV decay TC at 30° post-stop tilt</td>
-            <td class="num">3.111 s</td>
+            <td class="num">4.637 s</td>
             <td class="num">—</td>
             <td class="num">3.111</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+49.1%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_tilt_tc_60">Post-rotatory version-SPV decay TC at 60° post-stop tilt</td>
-            <td class="num">3.114 s</td>
+            <td class="num">4.239 s</td>
             <td class="num">—</td>
             <td class="num">3.114</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+36.1%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_tilt_tc_90">Post-rotatory version-SPV decay TC at 90° post-stop tilt</td>
-            <td class="num">3.189 s</td>
+            <td class="num">4.217 s</td>
             <td class="num">—</td>
             <td class="num">3.189</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+32.2%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_reversal_60">Sustained late post-rotatory SPV at 60° — reversal / opposite-direction nystagmus</td>
-            <td class="num">2.015 deg/s</td>
+            <td class="num">1.719 deg/s</td>
             <td class="num">—</td>
             <td class="num">2.015</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-14.7%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="gravity_tilt_reversal_90">Sustained late post-rotatory SPV at 90° — reversal / opposite-direction nystagmus</td>
-            <td class="num">0.418 deg/s</td>
+            <td class="num">0.2479 deg/s</td>
             <td class="num">—</td>
             <td class="num">0.418</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-40.7%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Upright 60°/s yaw; tilt [0.0, 30.0, 60.0, 90.0]° applied after stop. Replicates Laurens & Angelaki (2011) Fig 6. Per-rotatory identical. TC decreases with post-stop tilt. 0°: TC ≈ τ_vs. 90°: TC ≈ τ_canal.</p><p class="citation">&#128214; Laurens & Angelaki (2011) Exp Brain Res</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Upright 60°/s yaw; tilt [0.0, 30.0, 60.0, 90.0]° applied after stop. Replicates Laurens & Angelaki (2011) Fig 6. Per-rotatory identical. TC decreases with post-stop tilt. 0°: TC ≈ τ_vs. 90°: TC ≈ τ_canal.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>]</span></p></div>
       </div>
     </div>
 
@@ -670,14 +668,14 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal lateral translation at [0.03, 0.07, 0.15, 0.3, 0.7, 1.5] Hz, 2.0 m/s² peak. OCR via gravity estimator LP filter. Corner frequency fc = K_grav/(2π) ≈ 0.040 Hz. OCR amplitude ∝ 1/√(1+(f/fc)²). Low f → peak ≈ 2.04°; high f → near 0°.</p><p class="citation">&#128214; Mayne (1974); Laurens & Angelaki (2011)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal lateral translation at [0.03, 0.07, 0.15, 0.3, 0.7, 1.5] Hz, 2.0 m/s² peak. OCR via gravity estimator LP filter. Corner frequency fc = K_grav/(2π) ≈ 0.040 Hz. OCR amplitude ∝ 1/√(1+(f/fc)²). Low f → peak ≈ 2.04°; high f → near 0°.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>, <a class="cref" href="#ref-14" title="Mayne R (1974). A systems concept of the vestibular organs. In: Kornhuber HH (ed), Handbook of Sensory Physiology, Vol. VI/2: Vestibular System. Springer, pp. 493–580.">14</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 261.6s · 82deecd-dirty.406d9dd · 2026-06-17 20:00</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 272.3s · ca9ae0f-dirty.95f9254 · 2026-06-19 14:25</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -693,30 +691,30 @@ h1   { font-size: 22px; margin-bottom: 4px; }
         <th>golden</th><th>drift</th></tr></thead>
       <tbody>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="pursuit_ss_gain_5degs">Steady-state pursuit gain (SPV ÷ target vel) at 5 deg/s ramp</td>
+            <td class="num">1.169</td>
+            <td class="num">[0.8, 1.1] <span class="crefs">[<a class="cref" href="#ref-15" title="Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.">15</a>]</span></td>
             <td class="num">1.036</td>
-            <td class="num"><span class="band-src" title="source: Lisberger & Westbrook (1985)">[0.8, 1.1]</span></td>
-            <td class="num">1.036</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+12.9%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_ss_gain_10degs">Steady-state pursuit gain at 10 deg/s ramp</td>
+            <td class="num">1.054</td>
+            <td class="num">[0.8, 1.1] <span class="crefs">[<a class="cref" href="#ref-15" title="Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.">15</a>]</span></td>
             <td class="num">1.022</td>
-            <td class="num"><span class="band-src" title="source: Lisberger & Westbrook (1985)">[0.8, 1.1]</span></td>
-            <td class="num">1.022</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+3.1%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_latency_ms">Pursuit onset latency at 10 deg/s (ramp onset → SPV > 2 deg/s)</td>
             <td class="num">62 ms</td>
-            <td class="num"><span class="band-src" title="source: Rashbass (1961); Carl & Gellman (1987)">[60, 180]</span></td>
+            <td class="num">[60, 180] <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>, <a class="cref" href="#ref-17" title="Carl JR, Gellman RS (1987). Human smooth pursuit: stimulus-dependent responses. Journal of Neurophysiology 57:1446–1463.">17</a>]</span></td>
             <td class="num">62</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Step-ramp target at 5, 10, 20, 40 deg/s. Blue: smooth pursuit enabled. Gray: saccades only (pursuit off). Rows: position, velocity, pursuit drive (total + integrator + phasic). At 5–10 deg/s: pursuit tracks closely, steady-state gain > 0.8. At higher velocities: catch-up saccades + partial pursuit.</p><p class="citation">&#128214; Lisberger & Westbrook (1985) J Neurosci; Rashbass (1961)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Step-ramp target at 5, 10, 20, 40 deg/s. Blue: smooth pursuit enabled. Gray: saccades only (pursuit off). Rows: position, velocity, pursuit drive (total + integrator + phasic). At 5–10 deg/s: pursuit tracks closely, steady-state gain > 0.8. At higher velocities: catch-up saccades + partial pursuit.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-15" title="Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.">15</a>, <a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></p></div>
       </div>
     </div>
 
@@ -734,28 +732,28 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_bode_gain_low">Pursuit low-frequency velocity gain</td>
+            <td class="num">0.8762</td>
+            <td class="num">[0.7, 1.1] <span class="crefs">[<a class="cref" href="#ref-18" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">18</a>]</span></td>
             <td class="num">0.8594</td>
-            <td class="num"><span class="band-src" title="source: Lisberger et al. (1981)">[0.7, 1.1]</span></td>
-            <td class="num">0.8594</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+2.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_bode_bw_hz">Pursuit −3 dB bandwidth (corner frequency)</td>
-            <td class="num">1.174 Hz</td>
-            <td class="num"><span class="band-src" title="source: Lisberger et al. (1981)">[0.3, +∞]</span></td>
+            <td class="num">1.205 Hz</td>
+            <td class="num">[0.3, +∞] <span class="crefs">[<a class="cref" href="#ref-18" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">18</a>]</span></td>
             <td class="num">1.174</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+2.6%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_bode_phase_0p5hz">Pursuit phase at 0.5 Hz (− = lag)</td>
-            <td class="num">-26.91 deg</td>
-            <td class="num"><span class="band-src" title="source: Lisberger et al. (1981)">[-90, 10]</span></td>
+            <td class="num">-30.61 deg</td>
+            <td class="num">[-90, 10] <span class="crefs">[<a class="cref" href="#ref-18" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">18</a>]</span></td>
             <td class="num">-26.91</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-13.8%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. Gain = eye-velocity (SPV) ÷ target-velocity; phase lag vs frequency. Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.</p><p class="citation">&#128214; Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. Gain = eye-velocity (SPV) ÷ target-velocity; phase lag vs frequency. Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-18" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">18</a>]</span></p></div>
       </div>
     </div>
 
@@ -767,14 +765,14 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Full signal chain for 20 deg/s pursuit: target ramps 0.2–2.0 s then holds. Pursuit integrator persists after target stop (τ ≈ 40 s). Rows: position, velocity, pursuit drive (total/integrator/phasic), visual error, saccade accumulator, burst, refractory state. Phasic drive rises fast at onset, decays to 0 at steady state. After target stops at 2 s: phasic reverses (retinal slip now backward), integrator decays slowly — eye coasts then corrects with catch-up saccades. Integrator TC visible as slow drift in x_p post-stop.</p><p class="citation">&#128214; Lisberger & Westbrook (1985)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Full signal chain for 20 deg/s pursuit: target ramps 0.2–2.0 s then holds. Pursuit integrator persists after target stop (τ ≈ 40 s). Rows: position, velocity, pursuit drive (total/integrator/phasic), visual error, saccade accumulator, burst, refractory state. Phasic drive rises fast at onset, decays to 0 at steady state. After target stops at 2 s: phasic reverses (retinal slip now backward), integrator decays slowly — eye coasts then corrects with catch-up saccades. Integrator TC visible as slow drift in x_p post-stop.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-15" title="Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.">15</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 358.1s · 82deecd-dirty.406d9dd · 2026-06-17 20:06</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 503.8s · ca9ae0f-dirty.38fa89b · 2026-06-20 04:52</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -790,46 +788,93 @@ h1   { font-size: 22px; margin-bottom: 4px; }
         <th>golden</th><th>drift</th></tr></thead>
       <tbody>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="verg_sym_conv_err">Steady-state vergence error vs geometric target (convergence)</td>
-            <td class="num">0.4046 deg</td>
-            <td class="num"><span class="band-src" title="source: Mays (1984)">[−∞, 1.5]</span></td>
+            <td class="num">0.09342 deg</td>
+            <td class="num">[−∞, 1.5] <span class="crefs">[<a class="cref" href="#ref-19" title="Mays LE (1984). Neural control of vergence eye movements: convergence and divergence neurons in midbrain. Journal of Neurophysiology 51:1091–1108.">19</a>]</span></td>
             <td class="num">0.4046</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-76.9%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="verg_sym_version_leak">Max |version| during symmetric vergence (conjugacy — should be ≈0)</td>
-            <td class="num">0.1415 deg</td>
-            <td class="num"><span class="band-src" title="source: Mays (1984)">[−∞, 1]</span></td>
+            <td class="num">0.05041 deg</td>
+            <td class="num">[−∞, 1] <span class="crefs">[<a class="cref" href="#ref-19" title="Mays LE (1984). Neural control of vergence eye movements: convergence and divergence neurons in midbrain. Journal of Neurophysiology 51:1091–1108.">19</a>]</span></td>
             <td class="num">0.1415</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-64.4%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="verg_latency_ms">Vergence latency (step → 10% of change)</td>
-            <td class="num">163 ms</td>
-            <td class="num"><span class="band-src" title="source: Rashbass & Westheimer (1961)">[80, 300]</span></td>
+            <td class="num">110 ms</td>
+            <td class="num">[80, 300] <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></td>
             <td class="num">163</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-32.5%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="verg_tc_s">Vergence rise time constant (exp fit)</td>
-            <td class="num">0.2379 s</td>
-            <td class="num"><span class="band-src" title="source: Rashbass & Westheimer (1961)">[0.1, 2]</span></td>
+            <td class="num">0.2269 s</td>
+            <td class="num">[0.1, 2] <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></td>
             <td class="num">0.2379</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-4.6%</td>
+          </tr>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
+            <td class="what" title="verg_overshoot">Convergence overshoot fraction (peak − SS)/(SS − start)</td>
+            <td class="num">0.03398</td>
+            <td class="num">[−∞, 0.5] <span class="crefs">[<a class="cref" href="#ref-20" title="Hung GK, Semmlow JL, Ciuffreda KJ (1986). A dual-mode dynamic model of the vergence eye movement system. IEEE Transactions on Biomedical Engineering 33:1021–1028.">20</a>]</span></td>
+            <td class="num">0.32</td>
+            <td class="num">-89.4%</td>
+          </tr></tbody></table>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Symmetric convergence (3→0.3 m) and divergence (0.3→3 m) steps, NOISELESS. Left: vergence reaching geometric target. Right: version (conjugacy check). Vergence reaches geometric target; version stays ≈0; rise TC ~0.2–1 s; small overshoot.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>, <a class="cref" href="#ref-19" title="Mays LE (1984). Neural control of vergence eye movements: convergence and divergence neurons in midbrain. Journal of Neurophysiology 51:1091–1108.">19</a>]</span></p></div>
+      </div>
+    </div>
+
+    <div class="fig-card">
+      <div class="fig-main">
+        <h3>Accommodation step (isolated, noiseless)</h3>
+        
+        <a href="figures/accommodation_step.png" target="_blank"><img src="figures/accommodation_step.png" alt="Accommodation step (isolated, noiseless)"></a>
+      </div>
+      <div class="fig-metrics">
+        <table>
+      <thead><tr><th></th><th>measure</th><th>value</th><th>band</th>
+        <th>golden</th><th>drift</th></tr></thead>
+      <tbody>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td class="what" title="acc_step_latency_ms">Accommodation step latency (demand step → 10% of response)</td>
+            <td class="num">247 ms</td>
+            <td class="num">[150, 500] <span class="crefs">[<a class="cref" href="#ref-21" title="Del Águila-Carrasco AJ, Marín-Franch I, Bernal-Molina P, Esteve-Taboada JJ, Kruger PB, Montés-Micó R, López-Gil N (2017). Accommodation responds to optical vergence and not defocus blur alone. Investigative Ophthalmology & Visual Science 58:1758–1763.">21</a>, <a class="cref" href="#ref-22" title="Read SA, Buehren T, Collins MJ (2022). Predictive accommodation responses. Journal of Vision (verify title/volume).">22</a>]</span></td>
+            <td class="num">232</td>
+            <td class="num">+6.5%</td>
+          </tr>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
+            <td class="what" title="acc_step_tc_s">Accommodation rise time constant (exp fit)</td>
+            <td class="num">0.59 s</td>
+            <td class="num">[0.1, 1.2] <span class="crefs">[<a class="cref" href="#ref-22" title="Read SA, Buehren T, Collins MJ (2022). Predictive accommodation responses. Journal of Vision (verify title/volume).">22</a>]</span></td>
+            <td class="num">0.4145</td>
+            <td class="num">+42.3%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
-            <td class="what" title="verg_overshoot">Convergence overshoot fraction (peak − SS)/(SS − start)</td>
-            <td class="num">0.32</td>
-            <td class="num"><span class="band-src" title="source: Hung et al. (1986)">[−∞, 0.5]</span></td>
-            <td class="num">0.32</td>
-            <td class="num">+0.0%</td>
+            <td class="what" title="acc_step_gain">Accommodation SS gain (response ÷ demand)</td>
+            <td class="num">0.973</td>
+            <td class="num">[0.75, 1.05] <span class="crefs">[<a class="cref" href="#ref-21" title="Del Águila-Carrasco AJ, Marín-Franch I, Bernal-Molina P, Esteve-Taboada JJ, Kruger PB, Montés-Micó R, López-Gil N (2017). Accommodation responds to optical vergence and not defocus blur alone. Investigative Ophthalmology & Visual Science 58:1758–1763.">21</a>]</span></td>
+            <td class="num">0.9555</td>
+            <td class="num">+1.8%</td>
+          </tr>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td class="what" title="acc_step_peak_vel">Peak accommodation velocity (far→near step)</td>
+            <td class="num">2.861 D/s</td>
+            <td class="num">[1, +∞] <span class="crefs">[<a class="cref" href="#ref-21" title="Del Águila-Carrasco AJ, Marín-Franch I, Bernal-Molina P, Esteve-Taboada JJ, Kruger PB, Montés-Micó R, López-Gil N (2017). Accommodation responds to optical vergence and not defocus blur alone. Investigative Ophthalmology & Visual Science 58:1758–1763.">21</a>]</span></td>
+            <td class="num">3.805</td>
+            <td class="num">-24.8%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Symmetric convergence (3→0.3 m) and divergence (0.3→3 m) steps, NOISELESS. Left: vergence reaching geometric target. Right: version (conjugacy check). Vergence reaches geometric target; version stays ≈0; rise TC ~0.2–1 s; small overshoot.</p><p class="citation">&#128214; Mays (1984) J Neurophysiol; Rashbass & Westheimer (1961) J Physiol</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Far→near→far defocus step (0.17↔2.5 D), cross-links off. Latency, time constant, SS gain (lag), peak velocity. Latency ~0.3 s; rise TC ~0.2–0.5 s; SS gain ~0.85–0.95 (lag); exponential.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-21" title="Del Águila-Carrasco AJ, Marín-Franch I, Bernal-Molina P, Esteve-Taboada JJ, Kruger PB, Montés-Micó R, López-Gil N (2017). Accommodation responds to optical vergence and not defocus blur alone. Investigative Ophthalmology & Visual Science 58:1758–1763.">21</a>, <a class="cref" href="#ref-22" title="Read SA, Buehren T, Collins MJ (2022). Predictive accommodation responses. Journal of Vision (verify title/volume).">22</a>]</span></p></div>
       </div>
     </div>
 
@@ -845,22 +890,22 @@ h1   { font-size: 22px; margin-bottom: 4px; }
         <th>golden</th><th>drift</th></tr></thead>
       <tbody>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="verg_conv_div_ratio">Symmetric peak-velocity ratio convergence ÷ divergence (>1 expected)</td>
+            <td class="num">0.9992</td>
+            <td class="num">[1, +∞] <span class="crefs">[<a class="cref" href="#ref-23" title="Zee DS, FitzGibbon EJ, Optican LM (1992). Saccade-vergence interactions in humans. Journal of Neurophysiology 68:1624–1641.">23</a>, <a class="cref" href="#ref-24" title="Collewijn H, Erkelens CJ, Steinman RM (1988). Binocular co-ordination of human horizontal saccadic eye movements. Journal of Physiology 404:157–182.">24</a>]</span></td>
             <td class="num">1.006</td>
-            <td class="num"><span class="band-src" title="source: Zee et al. (1992); Collewijn et al. (1988)">[1, +∞]</span></td>
-            <td class="num">1.006</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.7%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="verg_asym_facilitation">Zee SVBN facilitation: asymmetric ÷ symmetric peak vergence velocity</td>
+            <td class="num">1.232</td>
+            <td class="num">[1, +∞] <span class="crefs">[<a class="cref" href="#ref-23" title="Zee DS, FitzGibbon EJ, Optican LM (1992). Saccade-vergence interactions in humans. Journal of Neurophysiology 68:1624–1641.">23</a>]</span></td>
             <td class="num">1.579</td>
-            <td class="num"><span class="band-src" title="source: Zee et al. (1992)">[1, +∞]</span></td>
-            <td class="num">1.579</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-21.9%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Peak vergence velocity for amplitudes 2–16°, both directions, with and without a concurrent version saccade. Left: symmetric (slow vergence only). Right: asymmetric (Zee SVBN burst active). Symmetric: peak velocity grows roughly linearly with amplitude. Asymmetric: peak velocity 2–3× higher than symmetric (Zee facilitation). Convergence > divergence at every amplitude (asymmetric saturating gain).</p><p class="citation">&#128214; Zee et al. (1992) J Neurophysiol; Rashbass & Westheimer (1961) J Physiol; Collewijn et al. (1988) J Physiol</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Peak vergence velocity for amplitudes 2–16°, both directions, with and without a concurrent version saccade. Left: symmetric (slow vergence only). Right: asymmetric (Zee SVBN burst active). Symmetric: peak velocity grows roughly linearly with amplitude. Asymmetric: peak velocity 2–3× higher than symmetric (Zee facilitation). Convergence > divergence at every amplitude (asymmetric saturating gain).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>, <a class="cref" href="#ref-23" title="Zee DS, FitzGibbon EJ, Optican LM (1992). Saccade-vergence interactions in humans. Journal of Neurophysiology 68:1624–1641.">23</a>, <a class="cref" href="#ref-24" title="Collewijn H, Erkelens CJ, Steinman RM (1988). Binocular co-ordination of human horizontal saccadic eye movements. Journal of Physiology 404:157–182.">24</a>]</span></p></div>
       </div>
     </div>
 
@@ -878,20 +923,67 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="aca_vergence_delta">Extra convergence from AC/A (lens-driven vergence, on − off)</td>
-            <td class="num">1.059 deg</td>
-            <td class="num"><span class="band-src" title="source: Schor (1979); Morgan (1944)">[0, +∞]</span></td>
+            <td class="num">0.9216 deg</td>
+            <td class="num">[0, +∞] <span class="crefs">[<a class="cref" href="#ref-25" title="Schor CM (1979). The relationship between fusional vergence eye movements and fixation disparity. Vision Research 19:1359–1367.">25</a>, <a class="cref" href="#ref-26" title="Morgan MW (1944). The clinical aspects of accommodation and convergence. American Journal of Optometry & Archives of the American Academy of Optometry 21:301–313.">26</a>]</span></td>
             <td class="num">1.059</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-12.9%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="aca_ratio_pd_per_d">Behavioural AC/A ratio (Δvergence pd ÷ Δaccommodation D)</td>
-            <td class="num">0.9883 pd/D</td>
-            <td class="num"><span class="band-src" title="source: Schor (1979)">[0, +∞]</span></td>
+            <td class="num">0.8668 pd/D</td>
+            <td class="num">[0, +∞] <span class="crefs">[<a class="cref" href="#ref-25" title="Schor CM (1979). The relationship between fusional vergence eye movements and fixation disparity. Vision Research 19:1359–1367.">25</a>]</span></td>
             <td class="num">0.9883</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-12.3%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">+2 D binocular lens at 2 m, NOISELESS. With AC/A the extra accommodation drives convergence; with AC_A=0 vergence stays at geometric. Accommodation rises ≥1 D; AC/A adds convergence above geometric; AC_A=0 control flat.</p><p class="citation">&#128214; Schor CM (1979) Vision Res; Morgan (1944)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">+2 D binocular lens at 2 m, NOISELESS. With AC/A the extra accommodation drives convergence; with AC_A=0 vergence stays at geometric. Accommodation rises ≥1 D; AC/A adds convergence above geometric; AC_A=0 control flat.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-25" title="Schor CM (1979). The relationship between fusional vergence eye movements and fixation disparity. Vision Research 19:1359–1367.">25</a>, <a class="cref" href="#ref-26" title="Morgan MW (1944). The clinical aspects of accommodation and convergence. American Journal of Optometry & Archives of the American Academy of Optometry 21:301–313.">26</a>]</span></p></div>
+      </div>
+    </div>
+
+    <div class="fig-card">
+      <div class="fig-main">
+        <h3>Near-response short-term adaptation</h3>
+        
+        <a href="figures/near_adaptation.png" target="_blank"><img src="figures/near_adaptation.png" alt="Near-response short-term adaptation"></a>
+      </div>
+      <div class="fig-metrics">
+        <table>
+      <thead><tr><th></th><th>measure</th><th>value</th><th>band</th>
+        <th>golden</th><th>drift</th></tr></thead>
+      <tbody>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
+            <td class="what" title="verg_phoria_adapt">Tonic-vergence (phoria) adaptation after 32 s near (open-loop residual, near-conditioned − far control). Physiological retained phoria ≈ a few Δ (~0.3–3°); current model over-retains (cross-coupled AC/A holds convergence).</td>
+            <td class="num">8.313 deg</td>
+            <td class="num">[0.3, 3] <span class="crefs">[<a class="cref" href="#ref-27" title="Hung GK (1992). Adaptation model of accommodation and vergence. Ophthalmic & Physiological Optics 12:319–326.">27</a>, <a class="cref" href="#ref-28" title="Schor CM (1988). Imbalanced adaptation of accommodation and vergence produces opposite extremes of the AC/A and CA/C ratios. American Journal of Optometry & Physiological Optics 65:341–348.">28</a>]</span></td>
+            <td class="num">8.385</td>
+            <td class="num">-0.9%</td>
+          </tr>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
+            <td class="what" title="verg_phoria_tc_s">Dark-hold persistence TC of the adapted phoria (Hung target ~15–20 s). A railed value (≥~150 s) means vergence does NOT relax in the dark — AC/A keeps converting the still-wound accommodation tonic into convergence.</td>
+            <td class="num">200 s</td>
+            <td class="num">[5, 40] <span class="crefs">[<a class="cref" href="#ref-27" title="Hung GK (1992). Adaptation model of accommodation and vergence. Ophthalmic & Physiological Optics 12:319–326.">27</a>]</span></td>
+            <td class="num">200</td>
+            <td class="num">-0.0%</td>
+          </tr>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
+            <td class="what" title="acc_darkfocus_adapt">Tonic-accommodation (dark focus) adaptation after 32 s near (open-loop residual, near-conditioned − far control). Physiological near-induced dark-focus shift ≈ 0.1–0.6 D.</td>
+            <td class="num">1.987 D</td>
+            <td class="num">[0.05, 0.8] <span class="crefs">[<a class="cref" href="#ref-27" title="Hung GK (1992). Adaptation model of accommodation and vergence. Ophthalmic & Physiological Optics 12:319–326.">27</a>, <a class="cref" href="#ref-28" title="Schor CM (1988). Imbalanced adaptation of accommodation and vergence produces opposite extremes of the AC/A and CA/C ratios. American Journal of Optometry & Physiological Optics 65:341–348.">28</a>]</span></td>
+            <td class="num">1.953</td>
+            <td class="num">+1.8%</td>
+          </tr>
+          <tr>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td class="what" title="acc_darkfocus_tc_s">Dark-hold persistence TC of the adapted dark focus (Hung target ~15–20 s).</td>
+            <td class="num">27.86 s</td>
+            <td class="num">[5, 40] <span class="crefs">[<a class="cref" href="#ref-27" title="Hung GK (1992). Adaptation model of accommodation and vergence. Ophthalmic & Physiological Optics 12:319–326.">27</a>]</span></td>
+            <td class="num">27.4</td>
+            <td class="num">+1.7%</td>
+          </tr></tbody></table>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">32 s sustained near fixation (0.4 m) then open-loop (dark), control-subtracted against a far-throughout run with the identical dark transition. The gap between the two traces is the tonic adaptation induced by the near interval; it holds and decays slowly. Adapted phoria + dark-focus shift toward the near demand (cond − control > 0); open-loop decay TC ~15–20 s (Hung 1992). The control subtraction removes the known dark over-convergence baseline.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-27" title="Hung GK (1992). Adaptation model of accommodation and vergence. Ophthalmic & Physiological Optics 12:319–326.">27</a>, <a class="cref" href="#ref-28" title="Schor CM (1988). Imbalanced adaptation of accommodation and vergence produces opposite extremes of the AC/A and CA/C ratios. American Journal of Optometry & Physiological Optics 65:341–348.">28</a>]</span></p></div>
       </div>
     </div>
 
@@ -909,28 +1001,28 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="verg_bode_gain_low">Vergence low-frequency gain</td>
+            <td class="num">0.9852</td>
+            <td class="num">[0.5, 1.1] <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></td>
             <td class="num">1.009</td>
-            <td class="num"><span class="band-src" title="source: Rashbass & Westheimer (1961)">[0.5, 1.1]</span></td>
-            <td class="num">1.009</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-2.4%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="verg_bode_bw_hz">Vergence −3 dB bandwidth</td>
-            <td class="num">0.9466 Hz</td>
-            <td class="num"><span class="band-src" title="source: Rashbass & Westheimer (1961)">[0.3, +∞]</span></td>
+            <td class="num">0.8774 Hz</td>
+            <td class="num">[0.3, +∞] <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></td>
             <td class="num">0.9466</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-7.3%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="verg_bode_phase_0p5hz">Vergence phase at 0.5 Hz (− = lag)</td>
-            <td class="num">-59.35 deg</td>
-            <td class="num"><span class="band-src" title="source: Rashbass & Westheimer (1961)">[-120, 10]</span></td>
+            <td class="num">-49.08 deg</td>
+            <td class="num">[-120, 10] <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></td>
             <td class="num">-59.35</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+17.3%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal depth/disparity demand (0.1–2 Hz, ±2° about 4°), NOISELESS. Gain = vergence ÷ demand; low-pass, BW ~1–2 Hz. Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.</p><p class="citation">&#128214; Rashbass & Westheimer (1961) J Physiol</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal depth/disparity demand (0.1–2 Hz, ±2° about 4°), NOISELESS. Gain = vergence ÷ demand; low-pass, BW ~1–2 Hz. Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-16" title="Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.">16</a>]</span></p></div>
       </div>
     </div>
 
@@ -948,20 +1040,20 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="acc_bode_gain_low">Accommodation low-frequency gain</td>
+            <td class="num">0.9683</td>
+            <td class="num">[0.5, 1.05] <span class="crefs">[<a class="cref" href="#ref-29" title="Stark L, Takahashi Y, Zames G (1965). Nonlinear servoanalysis of human lens accommodation. IEEE Transactions on Systems Science and Cybernetics SSC-1:75–83.">29</a>]</span></td>
             <td class="num">0.98</td>
-            <td class="num"><span class="band-src" title="source: Stark et al. (1965)">[0.5, 1.05]</span></td>
-            <td class="num">0.98</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-1.2%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="acc_bode_bw_hz">Accommodation −3 dB bandwidth (~2 Hz)</td>
-            <td class="num">0.8323 Hz</td>
-            <td class="num"><span class="band-src" title="source: Stark et al. (1965)">[0.5, +∞]</span></td>
+            <td class="num">0.5468 Hz</td>
+            <td class="num">[0.5, +∞] <span class="crefs">[<a class="cref" href="#ref-29" title="Stark L, Takahashi Y, Zames G (1965). Nonlinear servoanalysis of human lens accommodation. IEEE Transactions on Systems Science and Cybernetics SSC-1:75–83.">29</a>]</span></td>
             <td class="num">0.8323</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-34.3%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal accommodative demand (0.1–4 Hz, ±1 D about 2 D), NOISELESS. Gain = accommodation ÷ demand; low-pass, BW ~2 Hz. Gain ≈ 1 at low f, −3 dB near ~2 Hz.</p><p class="citation">&#128214; Stark, Takahashi & Zames (1965); Read & Schor (2022)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal accommodative demand (0.1–4 Hz, ±1 D about 2 D), NOISELESS. Gain = accommodation ÷ demand; low-pass, BW ~2 Hz. Gain ≈ 1 at low f, −3 dB near ~2 Hz.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-22" title="Read SA, Buehren T, Collins MJ (2022). Predictive accommodation responses. Journal of Vision (verify title/volume).">22</a>, <a class="cref" href="#ref-29" title="Stark L, Takahashi Y, Zames G (1965). Nonlinear servoanalysis of human lens accommodation. IEEE Transactions on Systems Science and Cybernetics SSC-1:75–83.">29</a>]</span></p></div>
       </div>
     </div>
 
@@ -973,14 +1065,14 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">8 rows × 4 cols. Cols: sym conv (3→0.3 m), sym div (0.3→3 m), asym R+conv (2→0.5 m, +10°), asym L+div (0.5→2 m, −10°). Rows: eye position, vergence, version, vergence velocity, OPN gate, integrators (x_verg + x_verg_tonic [H]), x_verg_copy, Zee SVBN burst. Symmetric cols: version stays near 0; asymmetric: version follows target. Vergence settles at geometric target. SVBN fires only during saccades.</p><p class="citation">&#128214; Zee et al. (1992) J Neurophysiol; Collewijn et al. (1988) J Physiol; Schor (1979) Vision Res</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">8 rows × 4 cols. Cols: sym conv (3→0.3 m), sym div (0.3→3 m), asym R+conv (2→0.5 m, +10°), asym L+div (0.5→2 m, −10°). Rows: eye position, vergence, version, vergence velocity, OPN gate, integrators (x_verg + x_verg_tonic [H]), x_verg_copy, Zee SVBN burst. Symmetric cols: version stays near 0; asymmetric: version follows target. Vergence settles at geometric target. SVBN fires only during saccades.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-23" title="Zee DS, FitzGibbon EJ, Optican LM (1992). Saccade-vergence interactions in humans. Journal of Neurophysiology 68:1624–1641.">23</a>, <a class="cref" href="#ref-24" title="Collewijn H, Erkelens CJ, Steinman RM (1988). Binocular co-ordination of human horizontal saccadic eye movements. Journal of Physiology 404:157–182.">24</a>, <a class="cref" href="#ref-25" title="Schor CM (1979). The relationship between fusional vergence eye movements and fixation disparity. Vision Research 19:1359–1367.">25</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="tvor">
-    <h2>8. Translational VOR (T-VOR) <span class="rt">· 244.1s · 82deecd-dirty.406d9dd · 2026-06-17 20:20</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>8. Translational VOR (T-VOR) <span class="rt">· 246.1s · ca9ae0f-dirty.95f9254 · 2026-06-19 14:37</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Vest + visual fusion of head translation, scaled by vergence-derived distance to give compensatory eye velocity. Trapezoid pulses along sway / heave / surge in lit (scene only) and dark conditions.</p>
     <div class="fig-grid">
       
@@ -992,7 +1084,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Trapezoid head velocity (peak 20 cm/s, 200 ms ramps, 1.6 s plateau) along x (sway), y (heave), z (surge); target at 40 cm. Rows: stimulus, g_est, v_lin, eye position, eye SPV. Sway → eye yaw counter-rotates (cross product); Heave → eye pitch counter-rotates; Surge → vergence rate (dot product · IPD/D²) drives vergence change. g_est should remain ≈ [0, 9.81, 0]. SPV in DARK measures pure vestibular T-VOR; LIT scene-only adds OKR / visual heading contribution.</p><p class="citation">&#128214; Paige & Tomko (1991); Angelaki & Hess (2001)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Trapezoid head velocity (peak 20 cm/s, 200 ms ramps, 1.6 s plateau) along x (sway), y (heave), z (surge); target at 40 cm. Rows: stimulus, g_est, v_lin, eye position, eye SPV. Sway → eye yaw counter-rotates (cross product); Heave → eye pitch counter-rotates; Surge → vergence rate (dot product · IPD/D²) drives vergence change. g_est should remain ≈ [0, 9.81, 0]. SPV in DARK measures pure vestibular T-VOR; LIT scene-only adds OKR / visual heading contribution.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-30" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">30</a>, <a class="cref" href="#ref-31" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">31</a>]</span></p></div>
       </div>
     </div>
 
@@ -1010,10 +1102,10 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="tvor_bode_gain_high_dark">tVOR high-frequency gain vs geometric ideal (4 Hz) — dark</td>
+            <td class="num">0.0296</td>
+            <td class="num">[0.2, 1.4] <span class="crefs">[<a class="cref" href="#ref-30" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">30</a>, <a class="cref" href="#ref-31" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">31</a>]</span></td>
             <td class="num">0.05516</td>
-            <td class="num"><span class="band-src" title="source: Paige & Tomko (1991); Angelaki & Hess (2001)">[0.2, 1.4]</span></td>
-            <td class="num">0.05516</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-46.3%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
@@ -1021,48 +1113,48 @@ h1   { font-size: 22px; margin-bottom: 4px; }
             <td class="num">0.01066 deg</td>
             <td class="num">—</td>
             <td class="num">0.01066</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="tvor_bode_gain_high_scene">tVOR high-frequency gain vs geometric ideal (4 Hz) — scene</td>
+            <td class="num">0.01415</td>
+            <td class="num">[0.2, 1.4] <span class="crefs">[<a class="cref" href="#ref-30" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">30</a>, <a class="cref" href="#ref-31" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">31</a>]</span></td>
             <td class="num">0.02626</td>
-            <td class="num"><span class="band-src" title="source: Paige & Tomko (1991); Angelaki & Hess (2001)">[0.2, 1.4]</span></td>
-            <td class="num">0.02626</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-46.1%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="tvor_torsion_cross_scene">Cross-axis torsion amplitude at 1 Hz during lateral translation — scene</td>
-            <td class="num">0.1687 deg</td>
+            <td class="num">0.2259 deg</td>
             <td class="num">—</td>
             <td class="num">0.1687</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+33.9%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="tvor_bode_gain_high_scene_target">tVOR high-frequency gain vs geometric ideal (4 Hz) — scene+target</td>
+            <td class="num">0.01415</td>
+            <td class="num">[0.2, 1.4] <span class="crefs">[<a class="cref" href="#ref-30" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">30</a>, <a class="cref" href="#ref-31" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">31</a>]</span></td>
             <td class="num">0.01345</td>
-            <td class="num"><span class="band-src" title="source: Paige & Tomko (1991); Angelaki & Hess (2001)">[0.2, 1.4]</span></td>
-            <td class="num">0.01345</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+5.2%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="tvor_torsion_cross_scene_target">Cross-axis torsion amplitude at 1 Hz during lateral translation — scene+target</td>
-            <td class="num">0.1052 deg</td>
+            <td class="num">0.1066 deg</td>
             <td class="num">—</td>
             <td class="num">0.1052</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+1.4%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal interaural translation (20 cm/s, 0.1–4 Hz), NOISELESS, target at 40 cm. Top: horizontal eye-velocity gain vs the geometric ideal (V/d); middle: phase; bottom: cross-axis torsion (somatogravic / OCR coupling). tVOR is high-pass — gain rises toward 1 at high frequency (otolith tilt/translation disambiguation). Cross torsion rolls off with frequency (somatogravic low-pass).</p><p class="citation">&#128214; Paige & Tomko (1991); Angelaki & Hess (2001); Laurens & Angelaki (2011)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal interaural translation (20 cm/s, 0.1–4 Hz), NOISELESS, target at 40 cm. Top: horizontal eye-velocity gain vs the geometric ideal (V/d); middle: phase; bottom: cross-axis torsion (somatogravic / OCR coupling). tVOR is high-pass — gain rises toward 1 at high frequency (otolith tilt/translation disambiguation). Cross torsion rolls off with frequency (somatogravic low-pass).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">10</a>, <a class="cref" href="#ref-30" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">30</a>, <a class="cref" href="#ref-31" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">31</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 71.5s · 82deecd-dirty.406d9dd · 2026-06-17 20:21</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>6. Fixation <span class="rt">· 71.2s · ca9ae0f-dirty.95f9254 · 2026-06-19 14:38</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1080,35 +1172,35 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="fix_noiseless_drift_std">Eye-position std with all noise off (should be ≈0 — stability sanity)</td>
-            <td class="num">0.005952 deg</td>
-            <td class="num"><span class="band-src" title="source: numerical sanity (noise-off stability; no physiological band)">[−∞, 0.05]</span></td>
+            <td class="num">0.007328 deg</td>
+            <td class="num">[−∞, 0.05]</td>
             <td class="num">0.005952</td>
-            <td class="num">+0.0%</td>
+            <td class="num">+23.1%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="fix_drift_rms">Fixational drift (eye-position std) with all noise sources on</td>
-            <td class="num">0.2028 deg</td>
-            <td class="num"><span class="band-src" title="source: Rolfs (2009)">[0.02, 0.6]</span></td>
+            <td class="num">0.08869 deg</td>
+            <td class="num">[0.02, 0.6] <span class="crefs">[<a class="cref" href="#ref-32" title="Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.">32</a>]</span></td>
             <td class="num">0.2028</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-56.3%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">WARN</span></td>
             <td class="what" title="fix_microsaccade_rate">Microsaccade rate (burst events/s) in the all-noise condition</td>
-            <td class="num">0.3333 Hz</td>
-            <td class="num"><span class="band-src" title="source: Rolfs (2009)">[0, 4]</span></td>
+            <td class="num">0 Hz</td>
+            <td class="num">[0, 4] <span class="crefs">[<a class="cref" href="#ref-32" title="Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.">32</a>]</span></td>
             <td class="num">0.3333</td>
-            <td class="num">+0.0%</td>
+            <td class="num">-100.0%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">5-column comparison: noiseless, canal noise only, retinal position OU drift, retinal velocity noise, and all three combined. Rows: eye position, velocity, saccade burst, noise signal. Noiseless: eye stays at 0°. Canal noise: slow drift + rare microsaccades. Pos noise: OU drift → corrective microsaccades when error exceeds threshold. Vel noise: smooth pursuit-like drift.</p><p class="citation">&#128214; Rolfs (2009) Neurosci Biobehav Rev 33:1597–1627</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">5-column comparison: noiseless, canal noise only, retinal position OU drift, retinal velocity noise, and all three combined. Rows: eye position, velocity, saccade burst, noise signal. Noiseless: eye stays at 0°. Canal noise: slow drift + rare microsaccades. Pos noise: OU drift → corrective microsaccades when error exceeds threshold. Vel noise: smooth pursuit-like drift.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-32" title="Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.">32</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 97.8s · 82deecd-dirty.406d9dd · 2026-06-17 20:22</span> <span class="stale">&#9888; out of date — code now 82deecd-dirty.25eebb3</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 105.0s · ca9ae0f-dirty.95f9254 · 2026-06-19 14:40</span> <span class="stale">&#9888; out of date — code now ca9ae0f-dirty.38fa89b</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
@@ -1120,7 +1212,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Saccades to a (H, V) grid; torsion measured at steady state. g_ocr=0 so OCR=0 and T_required = −H·V·π/360. Scatter points lie on identity line; cross-sections linear with slope −V·π/360.</p><p class="citation">&#128214; Tweed, Haslwanter & Fetter (1998) IOVS; van Rijn & van den Berg (1993) EBR</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Saccades to a (H, V) grid; torsion measured at steady state. g_ocr=0 so OCR=0 and T_required = −H·V·π/360. Scatter points lie on identity line; cross-sections linear with slope −V·π/360.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-33" title="Tweed D, Haslwanter T, Fetter M (1998). Optimizing gaze control in three dimensions. Science 281:1363–1366.">33</a>, <a class="cref" href="#ref-34" title="Van Rijn LJ, Van den Berg AV (1993). Binocular eye orientation during fixations: Listing's law extended to include eye vergence. Vision Research 33:691–708.">34</a>]</span></p></div>
       </div>
     </div>
 
@@ -1132,7 +1224,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Head tilt 30°; g_ocr=1.02. Torsional listing error drives a corrective saccade. With saccades: torsion jumps to ≈-5.0° after accumulator delay (~80 ms × n_sacs). Without saccades: slow exponential rise with τ≈τ_i=25 s.</p><p class="citation">&#128214; Listing (1854); Tweed et al. (1998)</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Head tilt 30°; g_ocr=1.02. Torsional listing error drives a corrective saccade. With saccades: torsion jumps to ≈-5.0° after accumulator delay (~80 ms × n_sacs). Without saccades: slow exponential rise with τ≈τ_i=25 s.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-33" title="Tweed D, Haslwanter T, Fetter M (1998). Optimizing gaze control in three dimensions. Science 281:1363–1366.">33</a>, <a class="cref" href="#ref-35" title="Listing JB (1854). Listing's law of ocular torsion (as reported by Ruete; later formalized by Helmholtz, Handbuch der physiologischen Optik, 1867).">35</a>]</span></p></div>
       </div>
     </div>
 
@@ -1144,9 +1236,52 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal H pursuit (15° at 0.5 Hz) at V=20°. vel_torsion demand added to NI keeps torsion on Listing's plane continuously. Eye torsion tracks T_required = −H·20·π/360 in real time; Listing error RMS < 0.5°.</p><p class="citation">&#128214; Tweed, Haslwanter & Fetter (1998) IOVS; van Rijn & van den Berg (1993) EBR</p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal H pursuit (15° at 0.5 Hz) at V=20°. vel_torsion demand added to NI keeps torsion on Listing's plane continuously. Eye torsion tracks T_required = −H·20·π/360 in real time; Listing error RMS < 0.5°.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-33" title="Tweed D, Haslwanter T, Fetter M (1998). Optimizing gaze control in three dimensions. Science 281:1363–1366.">33</a>, <a class="cref" href="#ref-34" title="Van Rijn LJ, Van den Berg AV (1993). Binocular eye orientation during fixations: Listing's law extended to include eye vergence. Vision Research 33:691–708.">34</a>]</span></p></div>
       </div>
     </div>
+    </div>
+  </section>
+
+  <section class="section" id="bibliography">
+    <h2>References</h2>
+    <p>Every acceptance band and figure is anchored to the literature below;
+       in-text numbers link here (full citation on hover).</p>
+    <div class="biblio">
+      <div class="ref" id="ref-1"><span class="ref-n">1.</span><span class="ref-t">Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.</span></div>
+      <div class="ref" id="ref-2"><span class="ref-n">2.</span><span class="ref-t">Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.</span></div>
+      <div class="ref" id="ref-3"><span class="ref-n">3.</span><span class="ref-t">Smit AC, Van Opstal AJ, Van Gisbergen JAM (1990). Component stretching in fast and slow oblique saccades in the human. Experimental Brain Research 81:325–343.</span></div>
+      <div class="ref" id="ref-4"><span class="ref-n">4.</span><span class="ref-t">Van Gisbergen JAM, Van Opstal AJ, Schoenmakers JJM (1985). Experimental test of two models for the generation of oblique saccades. Experimental Brain Research 57:321–336.</span></div>
+      <div class="ref" id="ref-5"><span class="ref-n">5.</span><span class="ref-t">Becker W, Jürgens R (1979). An analysis of the saccadic system by means of double step stimuli. Vision Research 19:967–983.</span></div>
+      <div class="ref" id="ref-6"><span class="ref-n">6.</span><span class="ref-t">Kapoula Z, Robinson DA, Hain TC (1986). Motion of the eye immediately after a saccade. Experimental Brain Research 61:386–394.</span></div>
+      <div class="ref" id="ref-7"><span class="ref-n">7.</span><span class="ref-t">Scudder CA, Kaneko CRS, Fuchs AF (2002). The brainstem burst generator for saccadic eye movements: a modern synthesis. Experimental Brain Research 142:439–462.</span></div>
+      <div class="ref" id="ref-8"><span class="ref-n">8.</span><span class="ref-t">Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.</span></div>
+      <div class="ref" id="ref-9"><span class="ref-n">9.</span><span class="ref-t">Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.</span></div>
+      <div class="ref" id="ref-10"><span class="ref-n">10.</span><span class="ref-t">Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.</span></div>
+      <div class="ref" id="ref-11"><span class="ref-n">11.</span><span class="ref-t">Boff KR, Kaufman L, Thomas JP (eds) (1986). Handbook of Perception and Human Performance. Wiley, New York.</span></div>
+      <div class="ref" id="ref-12"><span class="ref-n">12.</span><span class="ref-t">Denise P, Darlot C, Droulez J, Cohen B, Berthoz A (1988). Motion perceptions induced by off-vertical axis rotation (OVAR) at small angles of tilt. Experimental Brain Research 67:604–611.</span></div>
+      <div class="ref" id="ref-13"><span class="ref-n">13.</span><span class="ref-t">Wood SJ (2002). Human otolith–ocular reflexes during off-vertical axis rotation: effect of frequency on tilt–translation ambiguity and motion sickness. Neuroscience Letters 323:41–44.</span></div>
+      <div class="ref" id="ref-14"><span class="ref-n">14.</span><span class="ref-t">Mayne R (1974). A systems concept of the vestibular organs. In: Kornhuber HH (ed), Handbook of Sensory Physiology, Vol. VI/2: Vestibular System. Springer, pp. 493–580.</span></div>
+      <div class="ref" id="ref-15"><span class="ref-n">15.</span><span class="ref-t">Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.</span></div>
+      <div class="ref" id="ref-16"><span class="ref-n">16.</span><span class="ref-t">Rashbass C, Westheimer G (1961). Disjunctive eye movements. Journal of Physiology 159:339–360.</span></div>
+      <div class="ref" id="ref-17"><span class="ref-n">17.</span><span class="ref-t">Carl JR, Gellman RS (1987). Human smooth pursuit: stimulus-dependent responses. Journal of Neurophysiology 57:1446–1463.</span></div>
+      <div class="ref" id="ref-18"><span class="ref-n">18.</span><span class="ref-t">Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.</span></div>
+      <div class="ref" id="ref-19"><span class="ref-n">19.</span><span class="ref-t">Mays LE (1984). Neural control of vergence eye movements: convergence and divergence neurons in midbrain. Journal of Neurophysiology 51:1091–1108.</span></div>
+      <div class="ref" id="ref-20"><span class="ref-n">20.</span><span class="ref-t">Hung GK, Semmlow JL, Ciuffreda KJ (1986). A dual-mode dynamic model of the vergence eye movement system. IEEE Transactions on Biomedical Engineering 33:1021–1028.</span></div>
+      <div class="ref" id="ref-21"><span class="ref-n">21.</span><span class="ref-t">Del Águila-Carrasco AJ, Marín-Franch I, Bernal-Molina P, Esteve-Taboada JJ, Kruger PB, Montés-Micó R, López-Gil N (2017). Accommodation responds to optical vergence and not defocus blur alone. Investigative Ophthalmology & Visual Science 58:1758–1763.</span></div>
+      <div class="ref" id="ref-22"><span class="ref-n">22.</span><span class="ref-t">Read SA, Buehren T, Collins MJ (2022). Predictive accommodation responses. Journal of Vision (verify title/volume).</span></div>
+      <div class="ref" id="ref-23"><span class="ref-n">23.</span><span class="ref-t">Zee DS, FitzGibbon EJ, Optican LM (1992). Saccade-vergence interactions in humans. Journal of Neurophysiology 68:1624–1641.</span></div>
+      <div class="ref" id="ref-24"><span class="ref-n">24.</span><span class="ref-t">Collewijn H, Erkelens CJ, Steinman RM (1988). Binocular co-ordination of human horizontal saccadic eye movements. Journal of Physiology 404:157–182.</span></div>
+      <div class="ref" id="ref-25"><span class="ref-n">25.</span><span class="ref-t">Schor CM (1979). The relationship between fusional vergence eye movements and fixation disparity. Vision Research 19:1359–1367.</span></div>
+      <div class="ref" id="ref-26"><span class="ref-n">26.</span><span class="ref-t">Morgan MW (1944). The clinical aspects of accommodation and convergence. American Journal of Optometry & Archives of the American Academy of Optometry 21:301–313.</span></div>
+      <div class="ref" id="ref-27"><span class="ref-n">27.</span><span class="ref-t">Hung GK (1992). Adaptation model of accommodation and vergence. Ophthalmic & Physiological Optics 12:319–326.</span></div>
+      <div class="ref" id="ref-28"><span class="ref-n">28.</span><span class="ref-t">Schor CM (1988). Imbalanced adaptation of accommodation and vergence produces opposite extremes of the AC/A and CA/C ratios. American Journal of Optometry & Physiological Optics 65:341–348.</span></div>
+      <div class="ref" id="ref-29"><span class="ref-n">29.</span><span class="ref-t">Stark L, Takahashi Y, Zames G (1965). Nonlinear servoanalysis of human lens accommodation. IEEE Transactions on Systems Science and Cybernetics SSC-1:75–83.</span></div>
+      <div class="ref" id="ref-30"><span class="ref-n">30.</span><span class="ref-t">Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.</span></div>
+      <div class="ref" id="ref-31"><span class="ref-n">31.</span><span class="ref-t">Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.</span></div>
+      <div class="ref" id="ref-32"><span class="ref-n">32.</span><span class="ref-t">Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.</span></div>
+      <div class="ref" id="ref-33"><span class="ref-n">33.</span><span class="ref-t">Tweed D, Haslwanter T, Fetter M (1998). Optimizing gaze control in three dimensions. Science 281:1363–1366.</span></div>
+      <div class="ref" id="ref-34"><span class="ref-n">34.</span><span class="ref-t">Van Rijn LJ, Van den Berg AV (1993). Binocular eye orientation during fixations: Listing's law extended to include eye vergence. Vision Research 33:691–708.</span></div>
+      <div class="ref" id="ref-35"><span class="ref-n">35.</span><span class="ref-t">Listing JB (1854). Listing's law of ocular torsion (as reported by Ruete; later formalized by Helmholtz, Handbuch der physiologischen Optik, 1867).</span></div>
     </div>
   </section>
   </main>
@@ -1160,7 +1295,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
 (function(){
   var lb=document.getElementById('lb'),
       li=document.getElementById('lb-img');
-  document.querySelectorAll('.fig-card a').forEach(function(a){
+  document.querySelectorAll('.fig-main a').forEach(function(a){
     a.addEventListener('click',function(e){
       e.preventDefault();
       li.src=a.href; lb.style.display='flex';

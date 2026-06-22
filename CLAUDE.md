@@ -188,7 +188,8 @@ BrainState(
     va:   va.State    # 11  vergence (9) + accommodation (2)
     ni:   ni.State    # 12  bilateral NI (x_L + x_R + x_null + u_lp)
     fcp:  fcp.State   # 14  12 MN dynamic states + MLF AIN→CN3_MR
-    cb:   cb.State    # ≈42 EC scene + target delay cascades + sat-flag delays
+    cb:   cb.State    # ≈56 EC scene + target delay cascades + sat-flag delays +
+                      #     near-response accom + verg-H EC cascades (Smith forward models)
 )
 ```
 Subsystems are read directly as `brain_state.<sub>.<field>` — never via index
@@ -327,6 +328,7 @@ Each behavior has a corresponding demo script and output figure.
 
 - **Architecture changes since last status (2026-05-08 → 2026-05-25)**:
   - **Cerebellum module** ([`cerebellum.py`](src/oculomotor/models/brain_models/cerebellum.py)) — replaces the deleted `efference_copy.py`. Anatomical split: flocculus (FL) for NI gaze-holding extension, ventral paraflocculus (VPF) for pursuit forward model. Owns the EC scene + target delay cascades (they ARE the forward-model output). New gains `K_cereb_fl`, `K_cereb_pu`.
+  - **Near-response forward models (2026-06)** — same cerebellar EC pattern extended to the near triad: two new delay-matched EC cascades (`accom` vs cyclopean defocus, `verg` vs disparity) feed Smith-predictor corrections in `va.step` (`acc_drive`/`disparity_for_loop` subtract the in-flight command = current neural state − delayed EC). Gains `K_cereb_acc`, `K_cereb_verg`. Fixes the Hung-1997-Fig-1 vergence/accommodation step overshoot (32%/27% → <1%) by letting a *fast* loop run without ringing; `K_phasic_verg` raised 3→12 to recover Hung peak velocity. EC must be fed the **neural** state (not the full `u_acc`/`u_verg` command) or the in-flight term leaves a steady-state offset → disparity runaway. SVBN saccadic-vergence burst still to be re-tuned to the faster loop.
   - **Motor neurons** ([`final_common_pathway.py`](src/oculomotor/models/brain_models/final_common_pathway.py)) — 14-state FCP: 12 MN dynamic states with `tau_mn ~5 ms`, MLF modelled as AIN MN→CN3_MR MN axon (frequency-selective conduction cap). Separable lesions `g_nucleus`, `g_mlf_L/R`, `g_nerve`. Models INO, ophthalmoplegia, palsies cleanly.
   - **Saccade generator** ([`saccade_generator.py`](src/oculomotor/models/brain_models/saccade_generator.py)) — now 20 states with explicit EBN_L/R, IBN_L/R, OPN, smooth-trigger `z_trig`, and burst-neuron facilitation/depression (`z_fac`, `z_dep`). IBN→OPN direct inhibition (no Schmitt trigger). See `project_saccade_design.md`.
   - **Saccadic suppression** — visual gate threshold/steepness on cerebellar EC during saccade (commit `0d09a28`). Used to tune the post-saccadic settling window.

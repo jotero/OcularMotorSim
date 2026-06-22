@@ -1145,21 +1145,28 @@ def _near_adaptation(show):
                               conditions=f'Lit→dark, NOISELESS — {T_ADAPT:.0f} s sustained near (0.4 m) then open-loop')
     metrics = [
         Metric('verg_phoria_adapt', phoria_shift, tier='monitor',
-               lo=0.0, hi=None, golden_tol=0.25, units='deg',
+               lo=0.3, hi=3.0, golden_tol=0.25, units='deg',
                cite='Hung (1992); Schor (1988)',
-               desc='Tonic-vergence (phoria) adaptation after sustained near '
-                    '(open-loop residual, near-conditioned − far control)'),
+               desc='Tonic-vergence (phoria) adaptation after 32 s near '
+                    '(open-loop residual, near-conditioned − far control). '
+                    'Physiological retained phoria ≈ a few Δ (~0.3–3°); current model '
+                    'over-retains (cross-coupled AC/A holds convergence).'),
         Metric('verg_phoria_tc_s', float(tau_v) if tau_v else float('nan'), tier='monitor',
                lo=5.0, hi=40.0, golden_tol=0.3, units='s',
-               cite='Hung (1992)', desc='Open-loop tonic-vergence decay time constant (~15–20 s)'),
+               cite='Hung (1992)',
+               desc='Dark-hold persistence TC of the adapted phoria (Hung target ~15–20 s). '
+                    'A railed value (≥~150 s) means vergence does NOT relax in the dark — '
+                    'AC/A keeps converting the still-wound accommodation tonic into convergence.'),
         Metric('acc_darkfocus_adapt', darkfocus_shift, tier='monitor',
-               lo=0.0, hi=None, golden_tol=0.3, units='D',
+               lo=0.05, hi=0.8, golden_tol=0.3, units='D',
                cite='Hung (1992); Schor (1988)',
-               desc='Tonic-accommodation (dark focus) adaptation after sustained '
-                    'near (open-loop residual, near-conditioned − far control)'),
+               desc='Tonic-accommodation (dark focus) adaptation after 32 s near '
+                    '(open-loop residual, near-conditioned − far control). '
+                    'Physiological near-induced dark-focus shift ≈ 0.1–0.6 D.'),
         Metric('acc_darkfocus_tc_s', float(tau_a) if tau_a else float('nan'), tier='monitor',
-               lo=5.0, hi=60.0, golden_tol=0.3, units='s',
-               cite='Hung (1992)', desc='Open-loop tonic-accommodation decay time constant'),
+               lo=5.0, hi=40.0, golden_tol=0.3, units='s',
+               cite='Hung (1992)',
+               desc='Dark-hold persistence TC of the adapted dark focus (Hung target ~15–20 s).'),
     ]
     fm = utils.fig_meta(path, rp,
         title='Near-response short-term adaptation',

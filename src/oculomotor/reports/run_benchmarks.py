@@ -22,7 +22,7 @@ import hashlib
 from oculomotor.benchmarks import bench_utils as utils
 from oculomotor.benchmarks.bench_metrics import (
     _metric_table_html, _html_chip, load_golden, evaluate, summarize,
-    load_ranges, apply_ranges,
+    load_ranges, apply_ranges, split_cites, cite_key, cite_links,
 )
 import oculomotor
 
@@ -91,6 +91,7 @@ EXCLUDE_SECTIONS = {'clinical'}
 
 _HTML_CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
        background: #f5f5f5; color: #222; display: flex; }
 nav  { width: 200px; height: 100vh; background: #1a1a2e; color: #eee;
@@ -143,7 +144,18 @@ h1   { font-size: 22px; margin-bottom: 4px; }
                letter-spacing: .05em; color: #94a3b8; margin: 0 0 8px; }
 .narrative .desc { font-size: 12px; color: #444; line-height: 1.55; margin: 0 0 8px; }
 .narrative .citation { font-size: 11px; color: #888; font-style: italic; margin: 0; }
-.fig-metrics .band-src { border-bottom: 1px dotted #999; cursor: help; }
+/* In-text numbered citations [n] → bibliography (full cite on hover). */
+.cref  { color: #2563eb; text-decoration: none; font-weight: 600; }
+.cref:hover { text-decoration: underline; }
+.crefs { white-space: nowrap; }
+.fig-metrics .crefs { font-size: 11px; margin-left: 2px; }
+.biblio { margin-top: 4px; }
+.biblio .ref   { display: flex; gap: 8px; font-size: 12px; color: #333;
+                 padding: 5px 2px; border-top: 1px solid #f0f0f0; line-height: 1.5;
+                 scroll-margin-top: 16px; }
+.biblio .ref-n { color: #888; min-width: 24px; text-align: right;
+                 font-variant-numeric: tabular-nums; }
+.biblio .ref:target { background: #fffbea; }
 .fig-pair       { display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
                   align-items: start; }
 .fig-pair .lbl  { font-size: 10px; color: #888; text-transform: uppercase;
@@ -166,7 +178,7 @@ _HTML_LIGHTBOX = """
 (function(){
   var lb=document.getElementById('lb'),
       li=document.getElementById('lb-img');
-  document.querySelectorAll('.fig-card a').forEach(function(a){
+  document.querySelectorAll('.fig-main a').forEach(function(a){
     a.addEventListener('click',function(e){
       e.preventDefault();
       li.src=a.href; lb.style.display='flex';
@@ -193,7 +205,7 @@ def _diff_badge_html(fig):
     return ''  # 'no-ref' / 'unavailable' — no badge
 
 
-def _figure_card(fig, golden):
+def _figure_card(fig, golden, cite_map=None):
     rel    = fig.get('rel', '')
     title  = fig.get('title', '')
     desc   = fig.get('description', '')
@@ -218,16 +230,17 @@ def _figure_card(fig, golden):
     else:
         img_html = f'<a href="{rel}" target="_blank"><img src="{rel}" alt="{title}"></a>'
 
-    metrics_html = _metric_table_html(fig.get('metrics', []), golden)
+    metrics_html = _metric_table_html(fig.get('metrics', []), golden, cite_map)
 
     # Titled narrative note (figure description + what the panels should show)
-    # plus the citation, sitting in the right column BELOW the metrics table.
+    # plus the citation rendered as numbered links into the bibliography.
     narr_text = ' '.join(t for t in (desc, exp) if t)
     narr_html = f'<p class="desc">{narr_text}</p>' if narr_text else ''
-    cit_html  = f'<p class="citation">&#128214; {cit}</p>' if cit else ''
+    cit_refs  = cite_links(cit, cite_map)
+    cit_html  = f'<p class="citation">&#128214; {cit_refs}</p>' if cit_refs else ''
     narrative = (f'<div class="narrative">'
                  f'<h4 class="narr-title">What this shows</h4>{narr_html}{cit_html}'
-                 f'</div>' if (narr_text or cit) else '')
+                 f'</div>' if (narr_text or cit_refs) else '')
 
     return f"""
     <div class="fig-card">
@@ -243,7 +256,7 @@ def _figure_card(fig, golden):
     </div>"""
 
 
-def _section_html(section_meta, figs, golden):
+def _section_html(section_meta, figs, golden, cite_map=None):
     sid   = section_meta.get('id', '')
     title = section_meta.get('title', '')
     desc  = section_meta.get('description', '')
@@ -260,13 +273,68 @@ def _section_html(section_meta, figs, golden):
     meta_html  = f' <span class="rt">· {" · ".join(bits)}</span>' if bits else ''
     stale_html = (f' <span class="stale">&#9888; out of date — code now {cur}</span>'
                   if stale else '')
-    cards = '\n'.join(_figure_card(f, golden) for f in figs)
+    cards = '\n'.join(_figure_card(f, golden, cite_map) for f in figs)
     return f"""
   <section class="section" id="{sid}">
     <h2>{title}{meta_html}{stale_html}</h2>
     <p>{desc}</p>
     <div class="fig-grid">
       {cards}
+    </div>
+  </section>"""
+
+
+def _build_bibliography(sections_data):
+    """Number every distinct paper cited across the page (figure citations +
+    metric band sources) in first-appearance reading order.
+
+    Returns (cite_map, biblio): cite_map maps a reference key → (number, full
+    text); biblio is the ordered [(number, full text), …] list. The richest
+    string seen for a paper (the one carrying journal/volume) becomes its
+    canonical bibliography entry — unless a full titled reference is supplied in
+    references.json (keyed by the same cite_key), which then wins."""
+    from oculomotor.benchmarks.bench_metrics import load_references
+    refs_db = load_references()
+    order, best = [], {}
+
+    def consider(cstr):
+        for part in split_cites(cstr):
+            k = cite_key(part)
+            if not k:
+                continue                      # not a paper (no year) → never numbered
+            if k not in best:
+                order.append(k); best[k] = part
+            elif len(part) > len(best[k]):
+                best[k] = part                # prefer the fuller citation string
+
+    for _, figs in sections_data:
+        for f in figs:
+            for m in f.get('metrics', []):    # table (band sources) read first…
+                consider(getattr(m, 'cite', '') or '')
+            consider(f.get('citation', ''))   # …then the narrative citation
+    # Full titled reference from references.json wins; else the richest cite string.
+    disp = lambda k: refs_db.get(k) or best[k]
+    cite_map = {k: (i + 1, disp(k)) for i, k in enumerate(order)}
+    biblio   = [(i + 1, disp(k)) for i, k in enumerate(order)]
+    return cite_map, biblio
+
+
+def _bibliography_html(biblio):
+    """Paper-style numbered reference list; each entry's id is the anchor the
+    in-text [n] links jump to (and highlight via :target)."""
+    if not biblio:
+        return ''
+    items = '\n'.join(
+        f'      <div class="ref" id="ref-{n}"><span class="ref-n">{n}.</span>'
+        f'<span class="ref-t">{full}</span></div>'
+        for n, full in biblio)
+    return f"""
+  <section class="section" id="bibliography">
+    <h2>References</h2>
+    <p>Every acceptance band and figure is anchored to the literature below;
+       in-text numbers link here (full citation on hover).</p>
+    <div class="biblio">
+{items}
     </div>
   </section>"""
 
@@ -290,6 +358,9 @@ def generate_html(sections_data):
                 f['metrics'] = apply_ranges(f['metrics'], ranges)
     all_metrics = [m for _, figs in sections_data for f in figs
                    for m in f.get('metrics', [])]
+    # Bibliography numbering must follow the applied ranges (metric .cite lives in
+    # ranges), so build it here after the apply loop above.
+    cite_map, biblio = _build_bibliography(sections_data)
     tally = summarize(evaluate(all_metrics, golden))
     tally_html = (' &nbsp; '.join(f'{_html_chip(s)} {n}' for s, n in sorted(tally.items()))
                   or 'no metrics yet')
@@ -312,7 +383,9 @@ def generate_html(sections_data):
     else:
         warn_html = ''
 
-    sections_html = '\n'.join(_section_html(s, f, golden) for s, f in sections_data)
+    sections_html = '\n'.join(_section_html(s, f, golden, cite_map)
+                              for s, f in sections_data)
+    biblio_html = _bibliography_html(biblio)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -332,6 +405,7 @@ def generate_html(sections_data):
     <div style="border-top:1px solid #2a2a4e;margin:10px 0 8px;"></div>
     <h2>Sections</h2>
 {nav_links}
+    <a href="#bibliography">References</a>
   </nav>
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
@@ -343,6 +417,7 @@ def generate_html(sections_data):
     <p class="meta">Metric gate: {tally_html}</p>
     {warn_html}
 {sections_html}
+{biblio_html}
   </main>
   {_HTML_LIGHTBOX}
 </body>

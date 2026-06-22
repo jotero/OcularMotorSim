@@ -500,11 +500,15 @@ class BrainParams(NamedTuple):
     #     pure pass-through form: direct contribution = τ_p · rate_drive).
     #   Kf (phasic) = 2.5, Ks (tonic) = 1.5  (Schor 1999 Table 1)
     #   Tf (phasic) = 5 s, Ts (tonic) = 20 s
-    K_phasic_verg:         float        = 3.0             # Kb (direct path). Multiplies the disparity-velocity command
+    K_phasic_verg:         float        = 12.0            # Kb (direct path). Multiplies the disparity-velocity command
                                                             # through tau_p so plant velocity at onset ≈ K_phasic_verg·disparity.
-                                                            # 3 lands symmetric main-sequence ~2× baseline without divergence
-                                                            # overshoot; structural ceiling from disparity LP + plant LP
-                                                            # cascades prevents reaching Zee 41–58 °/s peak from this knob alone.
+                                                            # Cranked from 3 → 12 once the cerebellar disparity forward model
+                                                            # (K_cereb_verg) was added: the Smith correction compensates the
+                                                            # loop delay, so a fast loop no longer rings. Recovers Hung 1997
+                                                            # Fig 1 convergence peak velocity (~29 °/s) with <1% overshoot.
+                                                            # NOTE: the SVBN burst is routed at UNITY gain (not through
+                                                            # K_phasic_verg) in va.step, so raising this does NOT amplify the
+                                                            # saccadic-vergence burst (which it otherwise would — 4x → 280°/s).
     K_verg:                float        = 2.5             # vergence integrator gain (Schor 1999 Kf). Combined with tau_verg=3 s
                                                             # gives well-damped closed-loop without ringing; was 1.25 with tau_verg=5
                                                             # (over-damped, too slow).
@@ -747,6 +751,23 @@ class BrainParams(NamedTuple):
                                                   # PAN (periodic alternating nystagmus)
                                                   # + prolonged tau_vs + loss of tilt
                                                   # suppression of post-rotatory nystagmus.
+    K_cereb_acc:          float        = 0.8   # cerebellar accommodation forward-model gain
+                                                  # (ventral paraflocculus near-response).
+                                                  # va.step corrects defocus by
+                                                  # K_cereb_acc·(ec_accom − current_accom):
+                                                  # the eye's in-flight accommodation, so the
+                                                  # accommodation loop stops driving on stale
+                                                  # defocus (Read 2022 predictive accommodation).
+                                                  # 1 → full Smith correction (no overshoot);
+                                                  # 0 → lesion: raw delayed-defocus feedback →
+                                                  # accommodation rings, and AC/A relays the
+                                                  # ring into vergence (Hung-1997 overshoot).
+    K_cereb_verg:         float        = 1.5   # cerebellar vergence forward-model gain — mirror of
+                                                  # K_cereb_acc for the disparity loop. va.step
+                                                  # corrects disparity-H by K_cereb_verg·(current_
+                                                  # vergence − ec_verg) so the vergence loop sees its
+                                                  # own in-flight convergence and AC/A can't drive it
+                                                  # past target. 0 → raw delayed-disparity feedback.
 
 
 # ── Initialization ─────────────────────────────────────────────────────────────
@@ -1036,6 +1057,8 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         target_disparity = cyc.target_disparity,
         verg_rate_tvor   = verg_rate_tvor,
         z_act            = z_act_verg,
+        ec_accom         = acts.cb.ec_accom,   # cerebellar delayed accommodation EC
+        ec_verg          = acts.cb.ec_verg,    # cerebellar delayed vergence-H EC
         brain_params     = brain_params,
     )
 
@@ -1075,6 +1098,13 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         target_visible = cyc.target_visible,
         scene_visible  = cyc.scene_visible,
         brain_params   = brain_params,
+        # EC sources must be the SAME neural quantities va.step uses as its
+        # "current estimate", so the Smith in-flight term (current − delayed EC)
+        # cancels to 0 at steady state. Feeding the full command (u_acc / u_verg,
+        # which include the cross-link + direct path) would leave a persistent
+        # offset → disparity runaway.
+        accom_cmd      = acts.va.acc_fast + acts.va.acc_slow,
+        verg_cmd       = acts.va.verg_fast[0] + acts.va.verg_tonic[0],
     )
 
     # ── Pack state derivative ─────────────────────────────────────────────────
