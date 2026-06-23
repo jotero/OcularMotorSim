@@ -177,23 +177,60 @@ class Params(NamedTuple):
     brain:   BrainParams   = BrainParams()
 
 
-def _tonic_verg_from_ipd(ipd: float, dist_m: float = 1.0) -> float:
-    """Tonic vergence angle for a given IPD and dark-vergence resting distance."""
+# ── Dark resting state (no visual cue) ───────────────────────────────────────
+# In darkness the eyes drift to an intermediate tonic resting state (~1 m;
+# Owens & Leibowitz). But AC/A and CA/C form a positive-feedback loop in the
+# dark (no visual signal to clamp it), so the OBSERVED dark vergence/focus are
+# NOT the raw tonic setpoints — left uncorrected the loop pumps resting vergence
+# to ~17° (0.3 m) and dark focus to ~3.8 D. So the tonic SETPOINTS fed to the
+# integrators are BACK-SOLVED from the intended dark state and the cross-link
+# gains, using the dark fixed point
+#     V = tonic_verg + g_av·A ,   A = tonic_acc + g_ca·V
+#   → tonic_verg = V* − g_av·A* ,  tonic_acc = A* − g_ca·V*
+# with V* = geometric dark vergence (from IPD at _DARK_DIST_M), A* = dark focus,
+# and g_av, g_ca the effective dark cross-link gains (∝ AC_A, CA_C; calibrated
+# so the observed dark state lands on (V*, A*)).
+_DARK_DIST_M  = 1.0     # dark-vergence / dark-focus resting distance (m)
+_DARK_FOCUS_D = 1.0     # intended dark focus (D) ≈ 1 / _DARK_DIST_M
+_G_AV_PER_ACA = 0.70    # effective dark AC/A gain (deg vergence / D) per unit AC_A
+_G_CA_PER_CAC = 2.06    # effective dark CA/C gain (D / deg vergence) per unit CA_C
+
+
+def _tonic_verg_from_ipd(ipd: float, dist_m: float = _DARK_DIST_M) -> float:
+    """Geometric vergence angle (deg) for an IPD at a resting distance — the
+    INTENDED dark vergence (before the cross-link back-solve)."""
     import math
     return 2.0 * math.degrees(math.atan(ipd / 2.0 / dist_m))
+
+
+def _dark_tonic_setpoints(ipd: float, aca: float, cac: float) -> tuple:
+    """Back-solve (tonic_verg, tonic_acc) SETPOINTS so the OBSERVED dark resting
+    state — after the AC/A↔CA/C cross-link loop — equals the intended ~1 m
+    vergence / focus. Depends on the cross-link gains (AC_A, CA_C)."""
+    v_star = _tonic_verg_from_ipd(ipd)        # intended dark vergence (deg)
+    a_star = _DARK_FOCUS_D                     # intended dark focus (D)
+    g_av   = _G_AV_PER_ACA * aca              # effective AC/A gain (deg/D)
+    g_ca   = _G_CA_PER_CAC * cac              # effective CA/C gain (D/deg)
+    tonic_verg = v_star - g_av * a_star
+    tonic_acc  = a_star - g_ca * v_star
+    return tonic_verg, tonic_acc
 
 
 def default_params() -> Params:
     """Healthy primate default parameters.
 
-    tonic_verg is computed from SensoryParams.ipd so it stays consistent
-    when IPD is changed via with_sensory(..., ipd=X) + default_params().
+    tonic_verg / tonic_acc are back-solved from SensoryParams.ipd and the
+    AC/A, CA/C cross-link gains so the dark resting state lands at ~1 m despite
+    the cross-link loop (see _dark_tonic_setpoints).  Stays consistent when IPD
+    is changed via with_sensory(..., ipd=X).
     """
     sp = SensoryParams()
+    bp = BrainParams()
+    tv, ta = _dark_tonic_setpoints(sp.ipd, bp.AC_A, bp.CA_C)
     return Params(
         sensory=sp,
         plant=PlantParams(),
-        brain=BrainParams(tonic_verg=_tonic_verg_from_ipd(sp.ipd)),
+        brain=BrainParams(tonic_verg=tv, tonic_acc=ta),
     )
 
 
@@ -204,9 +241,9 @@ def with_brain(params: Params, **kwargs) -> Params:
 def with_sensory(params: Params, **kwargs) -> Params:
     new = params._replace(sensory=params.sensory._replace(**kwargs))
     if 'ipd' in kwargs:
-        # Keep tonic_verg consistent: rescale assuming same 1m dark-vergence distance.
-        new = new._replace(brain=new.brain._replace(
-            tonic_verg=_tonic_verg_from_ipd(kwargs['ipd'])))
+        # Re-back-solve the dark tonics for the new IPD (both depend on V*).
+        tv, ta = _dark_tonic_setpoints(kwargs['ipd'], new.brain.AC_A, new.brain.CA_C)
+        new = new._replace(brain=new.brain._replace(tonic_verg=tv, tonic_acc=ta))
     return new
 
 

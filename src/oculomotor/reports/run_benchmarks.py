@@ -74,17 +74,16 @@ ONLY = _parse_only(sys.argv)   # partial run: re-run only these sections
 MODULES = [
     'bench_saccades',
     'bench_vor_okr',
-    'bench_gravity',
+    'bench_gravity',     # also renders the T-VOR figures (merged section)
     'bench_pursuit',
     'bench_vergence',
-    'bench_tvor',
     'bench_fixation',
     'bench_listing',
 ]
 
 # Section ids never rendered into the report (data may still exist in
 # benchmarks_data.json from older runs, so filter at render time too).
-EXCLUDE_SECTIONS = {'clinical'}
+EXCLUDE_SECTIONS = {'clinical', 'tvor'}   # 'tvor' merged into 'gravity' (drop orphan)
 
 
 # ── HTML generation ───────────────────────────────────────────────────────────

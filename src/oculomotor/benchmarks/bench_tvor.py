@@ -290,8 +290,19 @@ def _bode(show):
 
     metrics = []
     i1 = int(np.argmin(np.abs(FREQS - 1.0)))
+    i2 = int(np.argmin(np.abs(FREQS - 2.0)))
     for lab, sp, tp, col in CONDS:
         k = lab.replace('+', '_').replace(' ', '')
+        # Primary lateral-tVOR gain (eye yaw SPV ÷ geometric ideal V/d). Should
+        # approach ~1 at high frequency (perfect translation compensation). It is
+        # currently far below that — the known tVOR under-gain (tilt/translation
+        # disambiguation + vergence-distance coupling) — and it dropped further
+        # when the dark vergence was corrected (distance estimate moved to ~1 m
+        # vs the 0.4 m target). Tracked here so a future tVOR fix is measurable.
+        metrics.append(Metric(f'tvor_gain_2hz_{k}', float(res[lab]['g'][i2]), tier='monitor',
+            lo=0.3, hi=1.3, golden_tol=0.2, units='',
+            cite='Paige & Tomko (1991); Angelaki & Hess (2001)',
+            desc=f'tVOR primary gain vs geometric ideal at 2 Hz — {lab}'))
         metrics.append(Metric(f'tvor_bode_gain_high_{k}', float(res[lab]['g'][-1]), tier='monitor',
             lo=0.2, hi=1.4, golden_tol=0.15, units='',
             cite='Paige & Tomko (1991); Angelaki & Hess (2001)',

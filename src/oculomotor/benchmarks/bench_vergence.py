@@ -32,9 +32,6 @@ PARAMS_VERG_CLEAN = with_brain(
                  sigma_pos=0.0, sigma_vel=0.0),
     sigma_acc=0.0)
 
-# Isolated accommodation loop (cross-links off) for the pure accommodation step.
-PARAMS_ACC_CLEAN = with_brain(PARAMS_VERG_CLEAN, AC_A=0.0, CA_C=0.0)
-
 SHOW = '--show' in sys.argv
 DT   = 0.001
 IPD  = 0.064   # m, default inter-pupillary distance
@@ -44,28 +41,22 @@ IPD  = 0.064   # m, default inter-pupillary distance
 # reflect what a realistic near-response looks like end-to-end.
 PARAMS_VERG = PARAMS_DEFAULT
 
-# Debug variant — noiseless + cross-links off + Listing's off, but the SVBN
-# saccadic vergence burst is left ON (g_svbn_conv/div at defaults) so the
-# debug cascades show its contribution. Used by both sym and asym debug panels.
+# Debug cascade variant — noiseless + Listing's off, BOTH cross-links (AC/A + CA/C)
+# left ON (full near-triad coupling, matching every other near-response benchmark),
+# and the SVBN saccadic vergence burst ON, so the debug cascade shows the realistic
+# coupled signals. Only the sensory noise and Listing's torsion are suppressed for a
+# clean cascade view.
 PARAMS_VERG_DEBUG = with_brain(
     with_sensory(PARAMS_DEFAULT,
                  sigma_canal=0.0, sigma_slip=0.0, sigma_pos=0.0, sigma_vel=0.0),
-    AC_A=0.0, CA_C=0.0,
     g_burst_verg=0.0,
     sigma_acc=0.0,
     listing_gain=0.0,
 )
 
-# Asym debug variant — same as PARAMS_VERG_DEBUG but with AC/A active so the
-# accommodation→vergence cross-link is exposed in the asymmetric debug cascade.
-PARAMS_VERG_ASYM_DEBUG = with_brain(
-    with_sensory(PARAMS_DEFAULT,
-                 sigma_canal=0.0, sigma_slip=0.0, sigma_pos=0.0, sigma_vel=0.0),
-    CA_C=0.0,
-    g_burst_verg=0.0,
-    sigma_acc=0.0,
-    listing_gain=0.0,
-)
+# Asym debug variant — alias of PARAMS_VERG_DEBUG (both cross-links on). Kept as a
+# separate name for the asymmetric (with-version-saccade) debug cascade panels.
+PARAMS_VERG_ASYM_DEBUG = PARAMS_VERG_DEBUG
 
 
 SECTION = dict(
@@ -1008,7 +999,12 @@ def _accommodation_bode(show):
 
 
 def _accommodation_step(show):
-    """Isolated accommodation step (AC/A = CA/C = 0), NOISELESS — far→near→far.
+    """Monocular accommodation step (full model, right eye occluded), NOISELESS — far→near→far.
+    Accommodation is isolated the PHYSIOLOGICAL way — by occluding one eye so there
+    is no binocular disparity (hence no fusional vergence to contaminate it) — rather
+    than by artificially zeroing the AC/A and CA/C cross-links. Cross-links stay ON
+    (as in every other near-response benchmark); the viewing eye still converges via
+    AC/A + fixation, and accommodation is driven by the viewing eye's defocus.
     Targets: latency 300–400 ms (Del Águila 2017; Read 2022 latency ~0.3 s),
     SS gain ~0.85–0.95 (accommodative lag), exponential rise.
     """
@@ -1017,8 +1013,11 @@ def _accommodation_step(show):
     D_FAR, D_NEAR = 6.0, 0.4                      # 0.17 D → 2.5 D
     pt = np.tile(np.array([0.0, 0.0, D_FAR]), (T, 1)).astype(np.float32)
     pt[(t >= T1) & (t < T2)] = [0.0, 0.0, D_NEAR]
-    st = simulate(PARAMS_ACC_CLEAN, t, target=km.build_target(t, lin_pos=pt),
-                  scene_present_array=np.ones(T), return_states=True)
+    st = simulate(PARAMS_VERG_CLEAN, t, target=km.build_target(t, lin_pos=pt),
+                  scene_present_array=np.ones(T), target_present_array=np.ones(T),
+                  scene_present_R_array=np.zeros(T),    # occlude right eye → no disparity →
+                  target_present_R_array=np.zeros(T),   # no fusional vergence (monocular isolation)
+                  return_states=True)
     acc    = np.array(st.acc_plant[:, 0])
     demand = 1.0 / np.linalg.norm(pt, axis=1)
     near_d = 1.0 / D_NEAR
@@ -1035,15 +1034,15 @@ def _accommodation_step(show):
     tau, _, _ = fit_tc(t, acc, T1, T2)
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    fig.suptitle('Isolated accommodation step (AC/A = CA/C = 0, noiseless)',
+    fig.suptitle('Monocular accommodation step (full model, R eye occluded, noiseless)',
                  fontsize=12, fontweight='bold')
     ax.plot(t, demand, 'k--', lw=1.0, alpha=0.7, label='demand (1/z)')
     ax.plot(t, acc, color=utils.C['eye'], lw=1.6, label='accommodation (D)')
     ax.axvline(T1, color='gray', lw=0.8, ls=':'); ax.axvline(T2, color='gray', lw=0.8, ls=':')
     ax_fmt(ax, ylabel='Diopters (D)', xlabel='Time (s)'); ax.legend(fontsize=9)
     fig.tight_layout()
-    path, rp = utils.save_fig(fig, 'accommodation_step', show=show, params=PARAMS_ACC_CLEAN,
-                              conditions='Lit, NOISELESS — defocus step 0.17→2.5 D (AC/A=CA/C=0)')
+    path, rp = utils.save_fig(fig, 'accommodation_step', show=show, params=PARAMS_VERG_CLEAN,
+                              conditions='Lit, NOISELESS — defocus step 0.17→2.5 D, MONOCULAR (R eye occluded), cross-links ON')
     metrics = [
         Metric('acc_step_latency_ms', latency_ms, tier='monitor',
                lo=150.0, hi=500.0, golden_tol=0.2, units='ms',
@@ -1060,8 +1059,10 @@ def _accommodation_step(show):
                cite='Del Águila-Carrasco (2017)', desc='Peak accommodation velocity (far→near step)'),
     ]
     fm = utils.fig_meta(path, rp,
-        title='Accommodation step (isolated, noiseless)',
-        description='Far→near→far defocus step (0.17↔2.5 D), cross-links off. '
+        title='Accommodation step (monocular, noiseless)',
+        description='Far→near→far defocus step (0.17↔2.5 D), MONOCULAR (right eye occluded) '
+                    'so there is no disparity-driven vergence — accommodation isolated '
+                    'physiologically with the AC/A and CA/C cross-links left ON. '
                     'Latency, time constant, SS gain (lag), peak velocity.',
         expected='Latency ~0.3 s; rise TC ~0.2–0.5 s; SS gain ~0.85–0.95 (lag); exponential.',
         citation='Del Águila-Carrasco et al. (2017) BioMed Res Int; Read et al. (2022) J Vision',
@@ -1188,7 +1189,7 @@ def run(show=False):
     figs = []
     print('  1/8  basic midline vergence step …')
     figs.append(_midline_vergence(show))
-    print('  2/8  isolated accommodation step …')
+    print('  2/8  monocular accommodation step …')
     figs.append(_accommodation_step(show))
     print('  3/8  vergence–saccade main sequence …')
     figs.append(_main_sequence(show))

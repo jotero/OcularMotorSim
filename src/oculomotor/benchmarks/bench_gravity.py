@@ -53,9 +53,12 @@ G_OCR_LIT    = 10.0 / 9.81  # deg/(m/s²) — Diamond, Markham et al. (1979): ~1
 
 
 SECTION = dict(
-    id='gravity', title='3. Gravity Estimator',
+    id='gravity', title='3. Gravity Estimator + T-VOR',
     description='Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, '
-                'OCR vs tilt angle, somatogravic OCR frequency dependence. '
+                'OCR vs tilt angle, somatogravic OCR frequency dependence, and '
+                'translational VOR. These share a path — gravity/tilt and lateral '
+                'translation both produce linear-acceleration components whose '
+                'ocular effect is vergence/distance-dependent, so T-VOR lives here. '
                 f'Parameters: tau_grav={TAU_GRAV}, K_gd={K_GD}, g_ocr={G_OCR} (Laurens & Angelaki 2011).',
 )
 
@@ -983,11 +986,17 @@ _BENCH_MAP = {
 
 def run(show=False, only=None):
     names = list(_BENCH_MAP.keys()) if only is None else [only]
-    print(f'\n=== Gravity Estimator ({", ".join(names)}) ===')
+    print(f'\n=== Gravity Estimator + T-VOR ({", ".join(names)}) ===')
     figs = []
     for i, name in enumerate(names, 1):
         print(f'  {i}/{len(names)}  {name} …')
         figs.append(_BENCH_MAP[name](show))
+    # T-VOR figures live in this section (gravity/tilt and lateral translation
+    # share the linear-acceleration → vergence-distance path). Reuse bench_tvor.
+    if only is None:
+        from oculomotor.benchmarks import bench_tvor
+        print('  +  tvor cascade …');       figs.append(bench_tvor._cascade(show))
+        print('  +  tvor lateral Bode …');  figs.append(bench_tvor._bode(show))
     return figs
 
 

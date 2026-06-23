@@ -98,6 +98,9 @@ acc_x   : jnp.ndarray              # (1,) lens accommodation (D)
 Build the initial states with the provided factories:
 
 ```python
+# make_x0 needs b_vs in (6,) per-population form; default_params() leaves it scalar.
+params  = params._replace(brain=params.brain._replace(
+    b_vs=jnp.broadcast_to(jnp.asarray(params.brain.b_vs, jnp.float32), (6,))))
 brain_x = brain_model.make_x0(params.brain)         # VS at equilibrium, OPN tonic, tonic vergence...
 plant_x = plant_model.rest_state()                  # both eyes at primary position
 acc_x   = jnp.array([params.brain.tonic_acc])       # lens at dark focus
@@ -175,6 +178,11 @@ from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLAN
 params = default_params()
 dt     = 0.001                      # keep <= 0.001 s; the visual cascade is stiff
 
+# ── Normalise b_vs to (6,) — simulate() does this once before solving, and
+#    make_x0 / brain_model.step both require the per-population array form. ──
+params = params._replace(brain=params.brain._replace(
+    b_vs=jnp.broadcast_to(jnp.asarray(params.brain.b_vs, jnp.float32), (6,))))
+
 # ── Initial states ─────────────────────────────────────────────────────────
 brain_x = brain_model.make_x0(params.brain)
 plant_x = plant_model.rest_state()
@@ -189,12 +197,18 @@ canal_rest, otolith_rest = _base.canal, _base.otolith
 
 # ── Your retinal front-end ─────────────────────────────────────────────────
 # Replace this with whatever produces delayed, gated, eye-frame signals.
-# Example: a foveal target 10 deg to the right, fully visible, no scene, in focus.
-def my_retina(t):
+#
+# IMPORTANT: target_pos / target_vel / scene_angular_vel are RETINAL signals —
+# error/slip *relative to the current eye*, not world coordinates. A faithful
+# front-end recomputes them each step from the current eye position/velocity
+# (q_eye, w_eye from the previous plant step), which makes the loop intrinsically
+# closed. Feeding a CONSTANT value (below) is open-loop testing only: the eye will
+# not converge the way it would when the error shrinks as the eye moves.
+def my_retina(t):                                   # constant 10 deg error = open-loop demo
     return RetinaOut(
         scene_angular_vel = jnp.zeros(3),
         scene_linear_vel  = jnp.zeros(3),
-        target_pos        = jnp.array([10.0, 0.0, 0.0]),   # [yaw, pitch, 0] deg
+        target_pos        = jnp.array([10.0, 0.0, 0.0]),   # retinal error [yaw, pitch, 0] deg
         target_vel        = jnp.zeros(3),
         scene_visible     = jnp.float32(0.0),
         target_visible    = jnp.float32(1.0),
@@ -305,6 +319,12 @@ These all live in `CLAUDE.md`; the ones that matter most at the integration boun
   rather than guessing the axis.
 - **`nerves` order is `[L6 | R6]`;** decode with `M_PLANT_EYE_L` / `M_PLANT_EYE_R`.
 - **`make_x0` / `rest_state` for every state** — never start from zeros.
+- **Normalise `b_vs` to `(6,)` before `make_x0` / `brain_model.step`.** `default_params()`
+  leaves it a scalar; `simulate()` broadcasts it once up front and so must you, or
+  `make_x0` raises `'float' object is not subscriptable`.
+- **Retinal signals are errors/slip relative to the eye, not world coordinates.**
+  A constant `target_pos` is an open-loop stimulus; a realistic front-end recomputes
+  it from the current `q_eye` / `w_eye` each step (closing the loop).
 - **Keep all pathways live** unless a test specifically isolates one (e.g. don't
   zero `scene_visible` for a saccade unless you mean "in the dark").
 - **`step()` functions are pure** — they return derivatives, they don't mutate. You
