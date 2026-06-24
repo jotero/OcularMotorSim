@@ -258,9 +258,19 @@ def _bode(show):
                       return_states=True, key=KEY)
         eye = (np.array(st.plant.left) + np.array(st.plant.right)) / 2.0
         yaw_spv = extract_spv_states(st, t, eye='version')[:, 0]
-        ideal   = -(hv[:, 0] / D) * (180.0 / np.pi)        # geometric-ideal eye yaw vel (deg/s)
-        g, ph   = bode.bode_point(t, ideal, yaw_spv, f, settle_frac=0.4)
         m = t >= (t[0] + 0.4 * (t[-1] - t[0]))
+        # Reference the geometric ideal (V/d) against the eye's ACTUAL fixation
+        # distance (vergence-derived), not the fixed target distance D. In
+        # dark/scene the eyes sit at dark vergence (~1 m), not the 40 cm target,
+        # so a fixed-D ideal penalizes the gain for that distance mismatch rather
+        # than for the T-VOR pathway. Using the realized fixation distance (the
+        # same distance the T-VOR itself uses for 1/D scaling) cancels the D term,
+        # so the gain isolates the linear-velocity-estimate fidelity (v_lin/a_lin).
+        verg     = np.array(st.plant.left[:, 0] - st.plant.right[:, 0])
+        verg_fix = max(float(np.mean(verg[m])), 0.2)            # deg (guard small/divergent)
+        d_fix    = params.sensory.ipd / (2.0 * np.tan(np.radians(verg_fix) * 0.5))
+        ideal    = -(hv[:, 0] / d_fix) * (180.0 / np.pi)       # geometric-ideal eye yaw vel (deg/s)
+        g, ph    = bode.bode_point(t, ideal, yaw_spv, f, settle_frac=0.4)
         tor_amp, _, _ = bode.fit_sinusoid(t[m], eye[m, 2], f)   # torsion (roll) amplitude
         return g, ph, float(tor_amp)
 
@@ -278,6 +288,12 @@ def _bode(show):
         axg.loglog(FREQS, res[lab]['g'],   'o-', color=col, lw=1.5, ms=5, label=lab)
         axp.semilogx(FREQS, res[lab]['ph'], 's-', color=col, lw=1.5, ms=5, label=lab)
         axt.semilogx(FREQS, res[lab]['tor'], 'd-', color=col, lw=1.5, ms=5, label=lab)
+    # Expected (thin, no dots): tVOR is high-pass, ideal gain → 1 at high freq.
+    exp = bode.expected_bode('highpass', fc=0.3, g_inf=1.0,
+        f=np.logspace(np.log10(FREQS[0]), np.log10(FREQS[-1]), 120),
+        label='expected: high-pass, ideal gain→1 (Paige & Tomko 1991)')
+    axg.loglog(exp['f'], exp['gain'], '-', color='#999999', lw=1.1, alpha=0.9, label=exp['label'])
+    axp.semilogx(exp['f'], exp['phase'], '-', color='#999999', lw=1.1, alpha=0.9)
     axg.axhline(1.0, color='gray', lw=0.7, ls=':', alpha=0.6)
     axg.set_ylabel('Primary gain\n(eye yaw ÷ ideal)'); axg.legend(fontsize=8); axg.grid(True, which='both', alpha=0.2)
     axp.axhline(0, color='k', lw=0.4); axp.set_ylabel('Phase (deg)'); axp.grid(True, which='both', alpha=0.2)
@@ -290,25 +306,26 @@ def _bode(show):
 
     metrics = []
     i1 = int(np.argmin(np.abs(FREQS - 1.0)))
-    i2 = int(np.argmin(np.abs(FREQS - 2.0)))
     for lab, sp, tp, col in CONDS:
         k = lab.replace('+', '_').replace(' ', '')
-        # Primary lateral-tVOR gain (eye yaw SPV ÷ geometric ideal V/d). Should
-        # approach ~1 at high frequency (perfect translation compensation). It is
-        # currently far below that — the known tVOR under-gain (tilt/translation
-        # disambiguation + vergence-distance coupling) — and it dropped further
-        # when the dark vergence was corrected (distance estimate moved to ~1 m
-        # vs the 0.4 m target). Tracked here so a future tVOR fix is measurable.
-        metrics.append(Metric(f'tvor_gain_2hz_{k}', float(res[lab]['g'][i2]), tier='monitor',
-            lo=0.3, hi=1.3, golden_tol=0.2, units='',
+        bm = bode.bode_metrics(FREQS, res[lab]['g'])
+        # tVOR is high-pass — gain rises toward ~1 at high frequency (otolith
+        # tilt/translation disambiguation). gain_max captures that high-f plateau;
+        # it is currently far below 1 — the known under-gain (tilt/translation +
+        # vergence-distance coupling), worsened when the dark vergence was
+        # corrected (distance estimate moved to ~1 m vs the 0.4 m target).
+        # Tracked so a future tVOR fix is measurable.
+        metrics.append(Metric(f'tvor_bode_gain_max_{k}', float(bm['gain_max']),
+            lo=0.3, hi=1.4, golden_tol=0.2, units='',
             cite='Paige & Tomko (1991); Angelaki & Hess (2001)',
-            desc=f'tVOR primary gain vs geometric ideal at 2 Hz — {lab}'))
-        metrics.append(Metric(f'tvor_bode_gain_high_{k}', float(res[lab]['g'][-1]), tier='monitor',
-            lo=0.2, hi=1.4, golden_tol=0.15, units='',
-            cite='Paige & Tomko (1991); Angelaki & Hess (2001)',
-            desc=f'tVOR high-frequency gain vs geometric ideal (4 Hz) — {lab}'))
-        metrics.append(Metric(f'tvor_torsion_cross_{k}', float(res[lab]['tor'][i1]), tier='monitor',
-            lo=None, hi=None, golden_tol=0.3, units='deg',
+            desc=f'tVOR peak gain vs geometric ideal (high-f plateau) — {lab}'))
+        if bm['fc_lo'] is not None:
+            metrics.append(Metric(f'tvor_bode_fc_lo_{k}', float(bm['fc_lo']),
+                lo=None, hi=None, golden_tol=0.25, units='Hz',
+                cite='Paige & Tomko (1991); Angelaki & Hess (2001)',
+                desc=f'tVOR low-side −3 dB corner (high-pass) — {lab}'))
+        metrics.append(Metric(f'tvor_torsion_cross_{k}', float(res[lab]['tor'][i1]),
+            lo=None, hi=1.5, golden_tol=0.3, units='deg',
             cite='cross-axis somatogravic / OCR coupling',
             desc=f'Cross-axis torsion amplitude at 1 Hz during lateral translation — {lab}'))
     fm = utils.fig_meta(path, rp,

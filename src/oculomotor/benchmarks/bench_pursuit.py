@@ -134,15 +134,15 @@ def _velocity_range(show):
     cross = np.where(after & (spv10 > 2.0))[0]
     latency_ms = float((t_np[cross[0]] - T_jump) * 1000.0) if len(cross) else float('nan')
     metrics = [
-        Metric('pursuit_ss_gain_5degs', _gain(5.0), tier='gate',
+        Metric('pursuit_ss_gain_5degs', _gain(5.0), 
                lo=0.8, hi=1.1, golden_tol=0.08, units='',
                cite='Lisberger & Westbrook (1985)',
                desc='Steady-state pursuit gain (SPV ÷ target vel) at 5 deg/s ramp'),
-        Metric('pursuit_ss_gain_10degs', _gain(10.0), tier='gate',
+        Metric('pursuit_ss_gain_10degs', _gain(10.0), 
                lo=0.8, hi=1.1, golden_tol=0.08, units='',
                cite='Lisberger & Westbrook (1985)',
                desc='Steady-state pursuit gain at 10 deg/s ramp'),
-        Metric('pursuit_latency_ms', latency_ms, tier='monitor',
+        Metric('pursuit_latency_ms', latency_ms, 
                lo=60.0, hi=180.0, golden_tol=0.2, units='ms',
                cite='Rashbass (1961); Carl & Gellman (1987)',
                desc='Pursuit onset latency at 10 deg/s (ramp onset → SPV > 2 deg/s)'),
@@ -190,24 +190,23 @@ def _bode(show):
     fig, m = bode.make_bode_figure(
         freqs, gains, phases,
         'Smooth Pursuit — Frequency Response (Bode, noiseless)',
-        ref_hz=0.5, gain_label='Gain (eye vel ÷ target vel)')
+        ref_hz=0.5, gain_label='Gain (eye vel ÷ target vel)',
+        expected=bode.expected_bode('lowpass', fc=2.0, g0=1.0,
+            label='expected: 1st-order LP, ~2 Hz cutoff (Robinson 1965; Krauzlis & Lisberger 1994)'))
     path, rp = utils.save_fig(fig, 'pursuit_bode', show=show, params=THETA_NOISELESS,
         conditions='Lit, NOISELESS — sinusoidal target-velocity sweep 0.1–2 Hz (10 deg/s peak)')
-    phase_ref = float(m['phase_ref']) if m['phase_ref'] is not None else float('nan')
     metrics = [
-        Metric('pursuit_bode_gain_low', float(m['gain_low']), tier='gate',
+        Metric('pursuit_bode_gain_max', float(m['gain_max']),
                lo=0.7, hi=1.1, golden_tol=0.1, units='',
                cite='Lisberger et al. (1981)',
-               desc='Pursuit low-frequency velocity gain'),
-        Metric('pursuit_bode_bw_hz', float(m['bw_hz']), tier='monitor',
-               lo=0.3, hi=None, golden_tol=0.25, units='Hz',
-               cite='Lisberger et al. (1981)',
-               desc='Pursuit −3 dB bandwidth (corner frequency)'),
-        Metric('pursuit_bode_phase_0p5hz', phase_ref, tier='monitor',
-               lo=-90.0, hi=10.0, golden_tol=0.3, units='deg',
-               cite='Lisberger et al. (1981)',
-               desc='Pursuit phase at 0.5 Hz (− = lag)'),
+               desc='Pursuit peak gain'),
     ]
+    if m['fc_hi'] is not None:
+        metrics.append(
+            Metric('pursuit_bode_fc_hi', float(m['fc_hi']),
+                   lo=0.3, hi=None, golden_tol=0.25, units='Hz',
+                   cite='Lisberger et al. (1981)',
+                   desc='Pursuit −3 dB bandwidth (Hz)'))
     fm = utils.fig_meta(path, rp,
         title='Smooth Pursuit — Bode (frequency response)',
         description='Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. '

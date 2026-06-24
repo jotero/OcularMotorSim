@@ -173,11 +173,11 @@ def _ocr(show):
     ocr_gain = float(np.sum(meas * exp) / np.sum(exp ** 2)) if np.sum(exp ** 2) > 0 else float('nan')
     ocr_rmse = float(np.sqrt(np.mean((meas - exp) ** 2)))
     metrics = [
-        Metric('gravity_ocr_gain', ocr_gain, tier='monitor',
+        Metric('gravity_ocr_gain', ocr_gain, 
                lo=0.8, hi=1.2, golden_tol=0.1, units='',
                cite='Laurens & Angelaki (2011)',
                desc='OCR amplitude ratio: measured SS torsion ÷ −G_OCR·G0·sin(θ)'),
-        Metric('gravity_ocr_sin_rmse', ocr_rmse, tier='monitor',
+        Metric('gravity_ocr_sin_rmse', ocr_rmse, 
                lo=None, hi=1.0, golden_tol=0.2, units='deg',
                cite='Laurens & Angelaki (2011)',
                desc='RMS deviation of SS torsion from the expected sine law across tilts'),
@@ -363,11 +363,11 @@ def _ovar(show):
     for tilt_deg in TILTS_DEG:
         amp, _, C = fit_sinusoid(t[win], ovar_spv[tilt_deg][win], f_rot)
         td = int(tilt_deg)
-        metrics.append(Metric(f'gravity_ovar_mod_{td}', float(amp), tier='monitor',
+        metrics.append(Metric(f'gravity_ovar_mod_{td}', float(amp), 
             lo=0.0, hi=None, golden_tol=0.2, units='deg/s',
             cite='Laurens & Angelaki (2011)',
             desc=f'OVAR SPV modulation amplitude at {td}° tilt (∝ sin tilt)'))
-        metrics.append(Metric(f'gravity_ovar_bias_{td}', float(C), tier='monitor',
+        metrics.append(Metric(f'gravity_ovar_bias_{td}', float(C), 
             lo=None, hi=None, golden_tol=0.25, units='deg/s',
             cite='Laurens & Angelaki (2011)',
             desc=f'OVAR steady-state average SPV (screw/translation bias) at {td}° tilt'))
@@ -575,14 +575,14 @@ def _tilt_suppression(show):
     for tilt_deg in TILTS_DEG:
         tau = taus.get(tilt_deg)
         metrics.append(Metric(f'gravity_tilt_tc_{int(tilt_deg)}',
-            float('nan') if tau is None else float(tau), tier='monitor',
+            float('nan') if tau is None else float(tau), 
             lo=None, hi=None, golden_tol=0.2, units='s',
             cite='Laurens & Angelaki (2011)',
             desc=f'Post-rotatory version-SPV decay TC at {int(tilt_deg)}° post-stop tilt'))
     late = (t_rel >= COAST_T - 25.0) & (t_rel <= COAST_T)
     for tilt_deg in (60.0, 90.0):
         rev = float(np.mean(tilt_spv[tilt_deg][late])) if late.any() else float('nan')
-        metrics.append(Metric(f'gravity_tilt_reversal_{int(tilt_deg)}', rev, tier='monitor',
+        metrics.append(Metric(f'gravity_tilt_reversal_{int(tilt_deg)}', rev, 
             lo=None, hi=None, golden_tol=0.3, units='deg/s',
             cite='model limitation (not in literature)',
             desc=f'Sustained late post-rotatory SPV at {int(tilt_deg)}° — reversal / opposite-direction nystagmus'))

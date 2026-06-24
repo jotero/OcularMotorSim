@@ -15,8 +15,8 @@ Two check types, both wanted:
   physiological ground truth.  Refreeze with ``--update`` after an intended
   change.
 
-A metric may carry both.  ``tier='gate'`` metrics fail the run on breach
-(non-zero exit); ``tier='monitor'`` metrics are advisory (reported, never fatal).
+A metric may carry both.  Every metric is equally important: any band or golden
+breach is a hard failure (non-zero exit / red).  There is no gate/monitor split.
 
 Usage::
 
@@ -50,10 +50,12 @@ GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 class Metric:
     """One scalar measured from a simulation, with its acceptance criteria.
 
+    Every metric is equally important: any band or golden breach is a hard
+    failure (red). There is no gate/monitor split.
+
     Args:
         name:        unique key (snake_case, e.g. 'vor_okan_tc').
         value:       the measured scalar (NaN if extraction failed).
-        tier:        'gate' (breach fails the run) or 'monitor' (advisory).
         lo, hi:      inclusive physiological band; either may be None for a
                      one-sided bound. None/None disables the band check.
         golden_tol:  fractional drift tolerance vs the frozen golden snapshot
@@ -64,7 +66,6 @@ class Metric:
     """
     name: str
     value: float
-    tier: str = 'monitor'
     lo: Optional[float] = None
     hi: Optional[float] = None
     golden_tol: Optional[float] = None
@@ -110,11 +111,11 @@ def _isnan(x) -> bool:
 # ── Standalone JSON data layer (server-side render reads these) ───────────────
 # Two hand-inspectable JSONs under web/benchmarks/ are the canonical artifacts;
 # the HTML is just a rendered view of them (no data embedded only in the page):
-#   metrics_ranges.json    editable bands/tiers per metric (you tune this)
+#   metrics_ranges.json    editable bands per metric (you tune this)
 #   benchmarks_data.json   structure + measured values + golden (written by sims)
 # Both the CLI gate and the page render read ranges.json, so they always agree.
 
-_RANGE_FIELDS = ('lo', 'hi', 'tier', 'golden_tol', 'units', 'cite', 'desc')
+_RANGE_FIELDS = ('lo', 'hi', 'golden_tol', 'units', 'cite', 'desc')
 
 
 def _web_dir():
@@ -174,7 +175,7 @@ def seed_ranges(metrics, path=None) -> dict:
 
 
 def apply_ranges(metrics, ranges):
-    """Override each metric's band/tier/etc from ranges.json (which wins over the
+    """Override each metric's band/etc from ranges.json (which wins over the
     inline code defaults). Names absent from ranges keep their code values."""
     out = []
     for m in metrics:
@@ -237,7 +238,6 @@ def metric_from_record(rec: dict, ranges: dict) -> Metric:
     return Metric(
         name=rec['name'],
         value=float('nan') if val is None else float(val),
-        tier=spec.get('tier', 'monitor'),
         lo=spec.get('lo'), hi=spec.get('hi'),
         golden_tol=spec.get('golden_tol'),
         units=spec.get('units', ''), cite=spec.get('cite', ''),
@@ -267,7 +267,7 @@ def evaluate(metrics: list[Metric], golden: dict) -> list[Result]:
 
         breached = (band_ok is False) or (drift_ok is False)
         if breached:
-            status = 'fail' if m.tier == 'gate' else 'warn'
+            status = 'fail'          # every metric is equally important — breach = red
         elif m.golden_tol is not None and g is None:
             status = 'new'           # no snapshot yet — record on next --update
         else:
@@ -292,7 +292,7 @@ def _fmt(x, nan='   --') -> str:
 
 def format_table(results: list[Result]) -> str:
     lines = []
-    h = f'{"":4} {"metric":24} {"value":>9} {"band":>16} {"golden":>9} {"drift":>8}  tier'
+    h = f'{"":4} {"metric":24} {"value":>9} {"band":>16} {"golden":>9} {"drift":>8}'
     lines.append(h)
     lines.append('-' * len(h))
     for r in results:
@@ -306,7 +306,7 @@ def format_table(results: list[Result]) -> str:
         unit = f' {m.units}' if m.units else ''
         lines.append(
             f'{_MARK[r.status]:4} {m.name:24} {_fmt(m.value)}{unit:<0} '
-            f'{band:>16} {_fmt(r.golden)} {drift:>8}  {m.tier}')
+            f'{band:>16} {_fmt(r.golden)} {drift:>8}')
     return '\n'.join(lines)
 
 
@@ -423,8 +423,8 @@ def _metric_table_html(metrics: list, golden: dict, cite_map: dict = None) -> st
             refs = cite_links(m.cite, cite_map)
             band = f'[{lo}, {hi}]' + (f' {refs}' if refs else '')
         drift = '—' if r.drift is None else f'{r.drift * 100:+.1f}%'
-        # Tier (gate/monitor) stays in the data + CLI table; it's dropped from the
-        # rendered page per request (the PASS/WARN chip already conveys severity).
+        # No tiers — every metric is equally important; the PASS/FAIL chip conveys
+        # whether it's in band (any breach is red).
         rows.append(f"""
           <tr>
             <td>{_html_chip(r.status)}</td>
@@ -484,7 +484,7 @@ def main(argv=None) -> int:
     results = evaluate(metrics, golden)
 
     print('\n' + '=' * 78)
-    print('QUANTITATIVE BENCHMARK METRICS  (gate: ' + ', '.join(BENCH_MODULES) + ')')
+    print('QUANTITATIVE BENCHMARK METRICS  (modules: ' + ', '.join(BENCH_MODULES) + ')')
     print('=' * 78)
     print(format_table(results))
     tally = summarize(results)
@@ -496,9 +496,9 @@ def main(argv=None) -> int:
     if n_new:
         print(f'\n{n_new} new metric(s) without a golden value — run --update to freeze.')
     if n_fail:
-        print(f'\nFAILED: {n_fail} gate metric(s) out of band or drifted.')
+        print(f'\nFAILED: {n_fail} metric(s) out of band or drifted.')
         return 1
-    print('\nAll gate metrics within band and tolerance.')
+    print('\nAll metrics within band and tolerance.')
     return 0
 
 

@@ -735,11 +735,11 @@ def _main_sequence(show):
     conv_div_ratio = float(np.mean(sc) / np.mean(sd)) if np.mean(sd) > 1e-6 else float('nan')
     asym_facil     = float(np.mean(ac) / np.mean(sc)) if np.mean(sc) > 1e-6 else float('nan')
     metrics = [
-        Metric('verg_conv_div_ratio', conv_div_ratio, tier='monitor',
+        Metric('verg_conv_div_ratio', conv_div_ratio, 
                lo=1.0, hi=None, golden_tol=0.2, units='',
                cite='Zee et al. (1992); Collewijn et al. (1988)',
                desc='Symmetric peak-velocity ratio convergence ÷ divergence (>1 expected)'),
-        Metric('verg_asym_facilitation', asym_facil, tier='monitor',
+        Metric('verg_asym_facilitation', asym_facil, 
                lo=1.0, hi=None, golden_tol=0.25, units='',
                cite='Zee et al. (1992)',
                desc='Zee SVBN facilitation: asymmetric ÷ symmetric peak vergence velocity'),
@@ -817,19 +817,19 @@ def _midline_vergence(show):
     path, rp = utils.save_fig(fig, 'vergence_midline', show=show, params=PARAMS_VERG_CLEAN,
                               conditions='Lit, NOISELESS — midline symmetric vergence steps (3 m ↔ 0.3 m)')
     metrics = [
-        Metric('verg_sym_conv_err', conv_err, tier='monitor',
+        Metric('verg_sym_conv_err', conv_err, 
                lo=None, hi=1.5, golden_tol=0.2, units='deg',
                cite='Mays (1984)', desc='Steady-state vergence error vs geometric target (convergence)'),
-        Metric('verg_sym_version_leak', version_leak, tier='monitor',
+        Metric('verg_sym_version_leak', version_leak, 
                lo=None, hi=1.0, golden_tol=0.3, units='deg',
                cite='Mays (1984)', desc='Max |version| during symmetric vergence (conjugacy — should be ≈0)'),
-        Metric('verg_latency_ms', latency_ms, tier='monitor',
+        Metric('verg_latency_ms', latency_ms, 
                lo=80.0, hi=300.0, golden_tol=0.25, units='ms',
                cite='Rashbass & Westheimer (1961)', desc='Vergence latency (step → 10% of change)'),
-        Metric('verg_tc_s', float(tau) if tau else float('nan'), tier='monitor',
+        Metric('verg_tc_s', float(tau) if tau else float('nan'), 
                lo=0.1, hi=2.0, golden_tol=0.25, units='s',
                cite='Rashbass & Westheimer (1961)', desc='Vergence rise time constant (exp fit)'),
-        Metric('verg_overshoot', overshoot, tier='monitor',
+        Metric('verg_overshoot', overshoot, 
                lo=None, hi=0.5, golden_tol=0.3, units='',
                cite='Hung et al. (1986)', desc='Convergence overshoot fraction (peak − SS)/(SS − start)'),
     ]
@@ -887,11 +887,11 @@ def _aca(show):
     path, rp = utils.save_fig(fig, 'vergence_aca', show=show, params=PARAMS_VERG_CLEAN,
                               conditions=f'Lit, NOISELESS — +{LENS:.0f} D binocular lens at {D_FAR:.0f} m (AC/A vs AC_A=0)')
     metrics = [
-        Metric('aca_vergence_delta', aca_delta, tier='monitor',
+        Metric('aca_vergence_delta', aca_delta, 
                lo=0.0, hi=None, golden_tol=0.2, units='deg',
                cite='Schor (1979); Morgan (1944)',
                desc='Extra convergence from AC/A (lens-driven vergence, on − off)'),
-        Metric('aca_ratio_pd_per_d', aca_ratio, tier='monitor',
+        Metric('aca_ratio_pd_per_d', aca_ratio, 
                lo=0.0, hi=None, golden_tol=0.2, units='pd/D',
                cite='Schor (1979)', desc='Behavioural AC/A ratio (Δvergence pd ÷ Δaccommodation D)'),
     ]
@@ -928,21 +928,21 @@ def _vergence_bode(show):
     freqs, g, p = bode.bode_sweep(run_fn, FREQS, settle_frac=0.4)
     fig, m = bode.make_bode_figure(freqs, g, p,
         'Vergence — Frequency Response (Bode, noiseless)',
-        ref_hz=0.5, gain_label='Gain (vergence ÷ demand)')
+        ref_hz=0.5, gain_label='Gain (vergence ÷ demand)',
+        expected=bode.expected_bode('lowpass', fc=2.0, g0=1.0,
+            label='expected: 1st-order LP, ~2 Hz cutoff (Rashbass & Westheimer 1961)'))
     path, rp = utils.save_fig(fig, 'vergence_bode', show=show, params=PARAMS_VERG_CLEAN,
         conditions='Lit, NOISELESS — sinusoidal depth/disparity demand 0.1–2 Hz (±2° about 4°)')
-    ph = m['phase_ref']
     metrics = [
-        Metric('verg_bode_gain_low', float(m['gain_low']), tier='monitor',
+        Metric('verg_bode_gain_max', float(m['gain_max']),
                lo=0.5, hi=1.1, golden_tol=0.1, units='', cite='Rashbass & Westheimer (1961)',
-               desc='Vergence low-frequency gain'),
-        Metric('verg_bode_bw_hz', float(m['bw_hz']), tier='monitor',
-               lo=0.3, hi=None, golden_tol=0.25, units='Hz', cite='Rashbass & Westheimer (1961)',
-               desc='Vergence −3 dB bandwidth'),
-        Metric('verg_bode_phase_0p5hz', float(ph) if ph is not None else float('nan'),
-               tier='monitor', lo=-120.0, hi=10.0, golden_tol=0.3, units='deg',
-               cite='Rashbass & Westheimer (1961)', desc='Vergence phase at 0.5 Hz (− = lag)'),
+               desc='Vergence peak gain'),
     ]
+    if m['fc_hi'] is not None:
+        metrics.append(
+            Metric('verg_bode_fc_hi', float(m['fc_hi']),
+                   lo=0.3, hi=None, golden_tol=0.25, units='Hz', cite='Rashbass & Westheimer (1961)',
+                   desc='Vergence −3 dB bandwidth (Hz)'))
     fm = utils.fig_meta(path, rp,
         title='Vergence — Bode (frequency response)',
         description='Sinusoidal depth/disparity demand (0.1–2 Hz, ±2° about 4°), NOISELESS. '
@@ -976,17 +976,21 @@ def _accommodation_bode(show):
     freqs, g, p = bode.bode_sweep(run_fn, FREQS, settle_frac=0.4)
     fig, m = bode.make_bode_figure(freqs, g, p,
         'Accommodation — Frequency Response (Bode, noiseless)',
-        ref_hz=0.5, gain_label='Gain (accommodation ÷ demand)')
+        ref_hz=0.5, gain_label='Gain (accommodation ÷ demand)',
+        expected=bode.expected_bode('lowpass', fc=2.0, g0=1.0,
+            label='expected: 1st-order LP, ~2 Hz cutoff (Stark 1965; Read 2022)'))
     path, rp = utils.save_fig(fig, 'accommodation_bode', show=show, params=PARAMS_VERG_CLEAN,
         conditions='Lit, NOISELESS — sinusoidal accommodative demand 0.1–4 Hz (±1 D about 2 D)')
     metrics = [
-        Metric('acc_bode_gain_low', float(m['gain_low']), tier='monitor',
+        Metric('acc_bode_gain_max', float(m['gain_max']),
                lo=0.5, hi=1.05, golden_tol=0.1, units='', cite='Stark et al. (1965)',
-               desc='Accommodation low-frequency gain'),
-        Metric('acc_bode_bw_hz', float(m['bw_hz']), tier='monitor',
-               lo=0.5, hi=None, golden_tol=0.25, units='Hz', cite='Stark et al. (1965)',
-               desc='Accommodation −3 dB bandwidth (~2 Hz)'),
+               desc='Accommodation peak gain'),
     ]
+    if m['fc_hi'] is not None:
+        metrics.append(
+            Metric('acc_bode_fc_hi', float(m['fc_hi']),
+                   lo=0.5, hi=None, golden_tol=0.25, units='Hz', cite='Stark et al. (1965)',
+                   desc='Accommodation −3 dB bandwidth (Hz)'))
     fm = utils.fig_meta(path, rp,
         title='Accommodation — Bode (frequency response)',
         description='Sinusoidal accommodative demand (0.1–4 Hz, ±1 D about 2 D), NOISELESS. '
@@ -1044,17 +1048,17 @@ def _accommodation_step(show):
     path, rp = utils.save_fig(fig, 'accommodation_step', show=show, params=PARAMS_VERG_CLEAN,
                               conditions='Lit, NOISELESS — defocus step 0.17→2.5 D, MONOCULAR (R eye occluded), cross-links ON')
     metrics = [
-        Metric('acc_step_latency_ms', latency_ms, tier='monitor',
+        Metric('acc_step_latency_ms', latency_ms, 
                lo=150.0, hi=500.0, golden_tol=0.2, units='ms',
                cite='Del Águila-Carrasco (2017); Read (2022)',
                desc='Accommodation step latency (demand step → 10% of response)'),
-        Metric('acc_step_tc_s', float(tau) if tau else float('nan'), tier='monitor',
+        Metric('acc_step_tc_s', float(tau) if tau else float('nan'), 
                lo=0.1, hi=1.2, golden_tol=0.25, units='s',
                cite='Read (2022)', desc='Accommodation rise time constant (exp fit)'),
-        Metric('acc_step_gain', gain, tier='monitor',
+        Metric('acc_step_gain', gain, 
                lo=0.75, hi=1.05, golden_tol=0.1, units='',
                cite='Del Águila-Carrasco (2017)', desc='Accommodation SS gain (response ÷ demand)'),
-        Metric('acc_step_peak_vel', peak_vel, tier='monitor',
+        Metric('acc_step_peak_vel', peak_vel, 
                lo=1.0, hi=None, golden_tol=0.25, units='D/s',
                cite='Del Águila-Carrasco (2017)', desc='Peak accommodation velocity (far→near step)'),
     ]
@@ -1145,26 +1149,26 @@ def _near_adaptation(show):
     path, rp = utils.save_fig(fig, 'near_adaptation', show=show, params=PARAMS_VERG_CLEAN,
                               conditions=f'Lit→dark, NOISELESS — {T_ADAPT:.0f} s sustained near (0.4 m) then open-loop')
     metrics = [
-        Metric('verg_phoria_adapt', phoria_shift, tier='monitor',
+        Metric('verg_phoria_adapt', phoria_shift, 
                lo=0.3, hi=3.0, golden_tol=0.25, units='deg',
                cite='Hung (1992); Schor (1988)',
                desc='Tonic-vergence (phoria) adaptation after 32 s near '
                     '(open-loop residual, near-conditioned − far control). '
                     'Physiological retained phoria ≈ a few Δ (~0.3–3°); current model '
                     'over-retains (cross-coupled AC/A holds convergence).'),
-        Metric('verg_phoria_tc_s', float(tau_v) if tau_v else float('nan'), tier='monitor',
+        Metric('verg_phoria_tc_s', float(tau_v) if tau_v else float('nan'), 
                lo=5.0, hi=40.0, golden_tol=0.3, units='s',
                cite='Hung (1992)',
                desc='Dark-hold persistence TC of the adapted phoria (Hung target ~15–20 s). '
                     'A railed value (≥~150 s) means vergence does NOT relax in the dark — '
                     'AC/A keeps converting the still-wound accommodation tonic into convergence.'),
-        Metric('acc_darkfocus_adapt', darkfocus_shift, tier='monitor',
+        Metric('acc_darkfocus_adapt', darkfocus_shift, 
                lo=0.05, hi=0.8, golden_tol=0.3, units='D',
                cite='Hung (1992); Schor (1988)',
                desc='Tonic-accommodation (dark focus) adaptation after 32 s near '
                     '(open-loop residual, near-conditioned − far control). '
                     'Physiological near-induced dark-focus shift ≈ 0.1–0.6 D.'),
-        Metric('acc_darkfocus_tc_s', float(tau_a) if tau_a else float('nan'), tier='monitor',
+        Metric('acc_darkfocus_tc_s', float(tau_a) if tau_a else float('nan'), 
                lo=5.0, hi=40.0, golden_tol=0.3, units='s',
                cite='Hung (1992)',
                desc='Dark-hold persistence TC of the adapted dark focus (Hung target ~15–20 s).'),

@@ -169,13 +169,13 @@ def _noise_comparison(show):
     n_sac  = int(np.sum(np.diff(is_sac) > 0))
     usacc_rate = float(n_sac / TEND)
     metrics = [
-        Metric('fix_noiseless_drift_std', _pos_std('none'), tier='gate',
+        Metric('fix_noiseless_drift_std', _pos_std('none'), 
                lo=None, hi=0.05, golden_tol=0.3, units='deg',
                cite='—', desc='Eye-position std with all noise off (should be ≈0 — stability sanity)'),
-        Metric('fix_drift_rms', _pos_std('all'), tier='monitor',
+        Metric('fix_drift_rms', _pos_std('all'), 
                lo=0.02, hi=0.6, golden_tol=0.25, units='deg',
                cite='Rolfs (2009)', desc='Fixational drift (eye-position std) with all noise sources on'),
-        Metric('fix_microsaccade_rate', usacc_rate, tier='monitor',
+        Metric('fix_microsaccade_rate', usacc_rate, 
                lo=0.0, hi=4.0, golden_tol=0.4, units='Hz',
                cite='Rolfs (2009)', desc='Microsaccade rate (burst events/s) in the all-noise condition'),
     ]

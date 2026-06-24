@@ -31,6 +31,7 @@ from oculomotor.sim.simulator import (
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import ax_fmt, extract_burst
 from oculomotor.models.brain_models.listing import HALF_ANGLE
+from oculomotor.benchmarks.bench_metrics import Metric
 
 SHOW = '--show' in sys.argv
 DT   = 0.001
@@ -163,15 +164,31 @@ def _listing_plane(show):
     ax2.grid(True, alpha=0.15)
 
     fig.tight_layout()
+
+    # ── Metrics: Listing's-plane thickness + half-angle slope ─────────────────
+    plane_rmse  = float(np.sqrt(np.mean((Tf_arr - Te_arr) ** 2)))
+    halfangle_slope = float(np.polyfit(Te_arr, Tf_arr, 1)[0])  # ideal = 1.0
+
     path, rp = utils.save_fig(fig, 'listing_plane', show=show, params=params,
                               conditions='Lit, foveal targets across H/V grid — Listing\'s plane structure')
-    return utils.fig_meta(path, rp,
+    fig_meta = utils.fig_meta(path, rp,
         title="Listing's Plane",
         description='Saccades to a (H, V) grid; torsion measured at steady state. '
                     'g_ocr=0 so OCR=0 and T_required = −H·V·π/360.',
         expected='Scatter points lie on identity line; cross-sections linear with slope −V·π/360.',
         citation='Tweed, Haslwanter & Fetter (1998) IOVS; van Rijn & van den Berg (1993) EBR',
         fig_type='behavior')
+    fig_meta['metrics'] = [
+        Metric('listing_plane_rmse', plane_rmse,
+               lo=None, hi=1.5, units='deg',
+               cite='Tweed & Vilis (1990); Haslwanter (1995)',
+               desc="Listing's-plane thickness: RMS torsion deviation from the half-angle prediction"),
+        Metric('listing_halfangle_slope', halfangle_slope,
+               lo=0.7, hi=1.3, units='',
+               cite='Tweed & Vilis (1990)',
+               desc="Half-angle rule: measured/predicted torsion slope (1.0 = ideal)"),
+    ]
+    return fig_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -260,9 +277,15 @@ def _listing_ocr(show):
         'saccade corrects rapidly (solid)', fontsize=9)
 
     fig.tight_layout()
+
+    # ── Metric: residual torsion error after the OCR-correction saccade ───────
+    # Post-saccade steady state = mean torsion over the last 0.5 s of the hold.
+    ss_torsion_sac = float(np.mean(eye_roll_sac[-int(0.5 / DT):]))
+    ocr_torsion_err = float(abs(ss_torsion_sac - ocr_expected))
+
     path, rp = utils.save_fig(fig, 'listing_ocr_saccade', show=show, params=params_with_sac,
                               conditions='Lit, head tilted — torsional Listing error drives corrective saccade')
-    return utils.fig_meta(path, rp,
+    fig_meta = utils.fig_meta(path, rp,
         title="OCR Torsional Correction Saccade",
         description=f'Head tilt {TILT_DEG:.0f}°; g_ocr={G_OCR:.2f}. '
                     'Torsional listing error drives a corrective saccade.',
@@ -271,6 +294,13 @@ def _listing_ocr(show):
                  f'Without saccades: slow exponential rise with τ≈τ_i=25 s.',
         citation='Listing (1854); Tweed et al. (1998)',
         fig_type='behavior')
+    fig_meta['metrics'] = [
+        Metric('listing_ocr_torsion_err', ocr_torsion_err,
+               lo=None, hi=1.5, units='deg',
+               cite='OCR + Listing (model)',
+               desc='Residual torsion error after the OCR-correction saccade'),
+    ]
+    return fig_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -350,7 +380,7 @@ def _listing_pursuit(show):
     fig.tight_layout()
     path, rp = utils.save_fig(fig, 'listing_pursuit', show=show, params=params,
                               conditions='Lit, foveal target moving along oblique paths — Listing\'s law during pursuit')
-    return utils.fig_meta(path, rp,
+    fig_meta = utils.fig_meta(path, rp,
         title="Listing's Plane During Smooth Pursuit",
         description=f'Sinusoidal H pursuit ({AMPL_DEG:.0f}° at {FREQ_HZ:.1f} Hz) at V={V_DEG:.0f}°. '
                     'vel_torsion demand added to NI keeps torsion on Listing\'s plane continuously.',
@@ -358,6 +388,13 @@ def _listing_pursuit(show):
                  f'Listing error RMS < 0.5°.',
         citation='Tweed, Haslwanter & Fetter (1998) IOVS; van Rijn & van den Berg (1993) EBR',
         fig_type='behavior')
+    fig_meta['metrics'] = [
+        Metric('listing_pursuit_rmse', rmse,
+               lo=None, hi=1.0, units='deg',
+               cite='Tweed & Vilis (1990)',
+               desc='Listing error RMS during pursuit (torsion vs half-angle demand)'),
+    ]
+    return fig_meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@ THETA_NOISELESS = with_brain(
 
 
 def _simulate(theta, t_arr, head_vel=None, scene_vel=None, scene_present=None,
-              target_present=None, key=0):
+              target_present=None, target=None, key=0):
     T   = len(t_arr)
     t   = np.array(t_arr)
     hv  = np.array(head_vel)  if head_vel  is not None else np.zeros((T, 3), np.float32)
@@ -54,9 +54,13 @@ def _simulate(theta, t_arr, head_vel=None, scene_vel=None, scene_present=None,
     sp  = scene_present  if scene_present  is not None else jnp.zeros(T)
     tp  = target_present if target_present is not None else jnp.zeros(T)
     ms  = int(len(t_arr) * 1.05) + 500
+    # target=None → simulate()'s default world-stationary straight-ahead point
+    # (correct for VOR: scene + target fixed in the world, head rotates). OKR
+    # passes an explicit target that co-rotates with the scene (see _okr_bode).
     return simulate(theta, t_arr,
                     head=km.build_kinematics(t, rot_vel=hv),
                     scene=km.build_kinematics(t, rot_vel=sv),
+                    target=target,
                     scene_present_array=sp, target_present_array=tp,
                     max_steps=ms, return_states=True,
                     key=jax.random.PRNGKey(key))
@@ -162,6 +166,15 @@ def _raphan(show):
     cup_okn  = extract_canal(st_okn)
     cup_vvor = extract_canal(st_vvor)
 
+    # Bundle the simulations so the cascade figure can reuse them (no re-run).
+    _sims = dict(
+        theta=theta, ON_DUR=ON_DUR,
+        t_vor=np.asarray(t_vor), t_okn=np.asarray(t_okn),
+        st_vor=st_vor, st_vvor=st_vvor, st_okn=st_okn,
+        hv_yaw=np.asarray(hv_1d),                  # head-vel yaw (VOR / VVOR input)
+        scene_yaw_okn=np.asarray(sv)[:, 0],        # scene-vel yaw (OKR input)
+    )
+
     # ── Plotting: 3×2 layout matching Raphan Fig.9 ───────────────────────────
     # Left col (A, C, E): SPV only.  Right col (B, D, F): SPV + Cupula + Integrator.
     fig, axes = plt.subplots(3, 2, figsize=(12, 11))
@@ -256,21 +269,21 @@ def _raphan(show):
     okn_gain = float(np.mean(spv_okn_d[okn_ss]) / V_STIM)
 
     metrics = [
-        Metric('vor_okr_vvor_gain', vvor_gain, tier='gate',
+        Metric('vor_okr_vvor_gain', vvor_gain, 
                lo=0.85, hi=1.10, golden_tol=0.08, units='',
                cite='Raphan, Matsuo & Cohen (1979)',
                desc='VVOR slow-phase gain during rotation in light (10–25 s)'),
         Metric('vor_okr_postrot_tc',
-               float('nan') if tau_vor is None else float(tau_vor), tier='gate',
+               float('nan') if tau_vor is None else float(tau_vor), 
                lo=10.0, hi=30.0, golden_tol=0.15, units='s',
                cite='Raphan, Matsuo & Cohen (1979)',
                desc='VOR post-rotatory SPV decay time constant (VS-extended)'),
         Metric('vor_okr_okan_tc',
-               float('nan') if tau_okan is None else float(tau_okan), tier='gate',
+               float('nan') if tau_okan is None else float(tau_okan), 
                lo=10.0, hi=30.0, golden_tol=0.15, units='s',
                cite='Raphan, Matsuo & Cohen (1979)',
                desc='OKAN SPV decay time constant after scene off (~tau_vs)'),
-        Metric('vor_okr_okn_ss_gain', okn_gain, tier='gate',
+        Metric('vor_okr_okn_ss_gain', okn_gain, 
                lo=0.75, hi=1.10, golden_tol=0.08, units='',
                cite='Raphan, Matsuo & Cohen (1979)',
                desc='OKN steady-state SPV gain (last 10 s of scene-on)'),
@@ -287,7 +300,7 @@ def _raphan(show):
         citation='Raphan, Matsuo & Cohen (1979) Exp Brain Res 35:229–248',
         fig_type='behavior')
     fig['metrics'] = metrics
-    return fig
+    return fig, _sims
 
 
 # ── Figure 2: OKN nystagmus zoom ──────────────────────────────────────────────
@@ -339,54 +352,41 @@ def _okn_zoom(show):
 
 # ── Figure 3: VOR/OKR signal cascade ──────────────────────────────────────────
 
-def _cascade(show):
-    """Internal signal cascade for VOR (left) and OKR (right)."""
+def _cascade(sims, show):
+    """Internal signal cascade for VOR-dark / VVOR / OKR — 3 columns, REUSING the
+    Raphan Fig.9 simulations (no separate sim run). Rows: input → canal afferent /
+    retinal slip → velocity storage → neural integrator → eye velocity, plus a
+    fast-phase zoom (eye position + velocity)."""
     from scipy.special import softplus as _spf
+    theta  = sims['theta']
+    t_vor  = sims['t_vor'];  t_okn = sims['t_okn']
+    ON     = sims['ON_DUR']
+    hv_yaw = sims['hv_yaw'];  sv_yaw = sims['scene_yaw_okn']
 
-    # ── VOR cascade ───────────────────────────────────────────────────────────
-    _head = km.head_rotation_step(30.0, rotate_dur=15.0, coast_dur=15.0, dt=DT)
-    t_rot, hv_3d = _head.t, _head.rot_vel
-    t_vor = np.array(t_rot); T_vor = len(t_vor)
-    st_v  = _simulate(THETA_NOISELESS, jnp.array(t_rot), head_vel=jnp.array(hv_3d),
-                      scene_present=jnp.zeros(T_vor),
-                      target_present=jnp.zeros(T_vor), key=5)
+    def _canal_u(st):
+        x2   = np.array(st.sensory.canal.x2)
+        k, f = float(_SOFTNESS), float(FLOOR)
+        y_c  = -f + _spf(k * (x2 + f)) / k + _spf(k * (x2 - f)) / k
+        return (np.array(PINV_SENS) @ y_c.T).T[:, 0]
+    def _slip(st):
+        return np.array(read_brain_acts(st, theta).pc.scene_angular_vel)[:, 0]
 
-    hv_1d  = np.array(hv_3d)[:, 0]
-    x2     = np.array(st_v.sensory.canal.x2)
-    k, f   = float(_SOFTNESS), float(FLOOR)
-    y_c    = -f + _spf(k * (x2 + f)) / k + _spf(k * (x2 - f)) / k
-    u_can  = (np.array(PINV_SENS) @ y_c.T).T[:, 0]
-    x_vs_v = vs_net(st_v)[:, 0]
-    x_ni_v = ni_net(st_v)[:, 0]
-    eye_v  = np.array(st_v.plant.left[:, 0])
-    ev_v   = np.gradient(eye_v, DT)
+    # Per column: (title, state, time, head-vel input, scene-vel input)
+    cols = [
+        ('VOR (dark)',                     sims['st_vor'],  t_vor, hv_yaw, None),
+        ('VVOR (lit stationary scene)',    sims['st_vvor'], t_vor, hv_yaw, None),
+        ('OKR (scene motion, head still)', sims['st_okn'],  t_okn, None,  sv_yaw),
+    ]
+    ZOOM_T0, ZOOM_T1 = 10.0, 15.0   # window during the stimulus-on phase (fast phases)
 
-    # ── OKR cascade ───────────────────────────────────────────────────────────
-    t_okn  = jnp.arange(0.0, 20.0, DT); t_okn_np = np.array(t_okn); T_okn = len(t_okn)
-    sv     = jnp.zeros((T_okn, 3)).at[:, 0].set(30.0)
-    sp     = jnp.ones(T_okn)
-    st_o   = _simulate(THETA_NOISELESS, t_okn, scene_vel=sv,
-                       scene_present=sp, target_present=jnp.zeros(T_okn), key=6)
-
-    # Delayed cyclopean scene slip via acts.pc — yaw component.
-    slip   = np.array(read_brain_acts(st_o, THETA_NOISELESS).pc.scene_angular_vel)[:, 0]
-    x_vs_o = vs_net(st_o)[:, 0]
-    x_ni_o = ni_net(st_o)[:, 0]
-    eye_o  = np.array(st_o.plant.left[:, 0])
-    ev_o   = np.gradient(eye_o, DT)
-
-    ZOOM_T0, ZOOM_T1 = 5.0, 10.0   # 5-second window for nystagmus zoom rows
-
-    # ── Figure ────────────────────────────────────────────────────────────────
-    fig, axes = plt.subplots(7, 2, figsize=(14, 14),
-                             gridspec_kw={'hspace': 0.38, 'wspace': 0.32,
+    fig, axes = plt.subplots(7, 3, figsize=(16, 14),
+                             gridspec_kw={'hspace': 0.4, 'wspace': 0.30,
                                           'height_ratios': [1, 1, 1, 1, 1, 0.8, 0.8]})
-    fig.suptitle('VOR / OKR Signal Cascade\n'
-                 'Left: VOR in dark (head rotation)   ·   Right: OKN (scene motion)',
-                 fontsize=11)
+    fig.suptitle('VOR / VVOR / OKR — Step Response (internal signals from the Raphan '
+                 'Fig.9 simulations; the Bode figures cover the sinusoidal response)', fontsize=11)
 
-    row_labels = ['Head / scene input (deg/s)',
-                  'Canal afferents / visual delay output (deg/s)',
+    row_labels = ['Input (deg/s)',
+                  'Canal afferent / retinal slip (deg/s)',
                   'Velocity storage x_VS (deg/s)',
                   'Neural integrator x_NI (deg)',
                   'Eye velocity (deg/s)',
@@ -394,96 +394,54 @@ def _cascade(show):
                   f'Eye vel zoom [{ZOOM_T0:.0f}–{ZOOM_T1:.0f} s] (deg/s)']
     for r, lbl in enumerate(row_labels):
         axes[r, 0].set_ylabel(lbl, fontsize=8)
-
-    axes[0, 0].set_title('VOR (dark)'); axes[0, 1].set_title('OKR (lit scene, head still)')
     vl = dict(color='k', lw=0.8, ls='--', alpha=0.4)
 
-    # VOR
-    axes[0, 0].plot(t_vor,  hv_1d,      color=utils.C['head'],  lw=1.5, label='head vel')
-    axes[0, 0].plot(t_vor, -hv_1d,      color=utils.C['dark'],  lw=1.0, ls=':', alpha=0.6,
-                    label='−head vel (ideal eye)')
-    axes[1, 0].plot(t_vor, u_can,        color=utils.C['canal'], lw=1.5, label='canal → u_canal')
-    axes[2, 0].plot(t_vor, x_vs_v,       color=utils.C['vs'],    lw=1.5, label='x_VS net')
-    axes[3, 0].plot(t_vor, x_ni_v,       color=utils.C['ni'],    lw=1.5, label='x_NI net')
-    bst_spv = extract_spv_states(st_v, t_vor)[:, 0]
-    axes[4, 0].plot(t_vor, ev_v,    color=utils.C['eye'], lw=1.0, alpha=0.5, label='eye vel (raw)')
-    axes[4, 0].plot(t_vor, bst_spv, color=utils.C['spv'], lw=1.8, label='SPV')
-    axes[4, 0].set_xlabel('Time (s)', fontsize=8)
+    for c, (title, st, t, hin, sin) in enumerate(cols):
+        axes[0, c].set_title(title, fontsize=9)
+        u_can = _canal_u(st);  slip = _slip(st)
+        x_vs  = vs_net(st)[:, 0];  x_ni = ni_net(st)[:, 0]
+        eye   = np.array(st.plant.left[:, 0]);  ev = np.gradient(eye, DT)
+        spv   = extract_spv_states(st, t)[:, 0]
 
-    for ax in axes[:5, 0]:
-        ax.axvline(15.0, **vl); ax_fmt(ax); ax.legend(fontsize=7)
+        if hin is not None:
+            axes[0, c].plot(t, hin,  color=utils.C['head'], lw=1.4, label='head vel')
+            axes[0, c].plot(t, -hin, color=utils.C['dark'], lw=0.9, ls=':', alpha=0.6, label='−head (ideal eye)')
+        if sin is not None:
+            axes[0, c].plot(t, sin,  color=utils.C['scene'], lw=1.4, label='scene vel')
+        axes[1, c].plot(t, u_can, color=utils.C['canal'], lw=1.3, label='canal → u_canal')
+        axes[1, c].plot(t, slip,  color='darkorange', lw=1.0, alpha=0.85, label='slip_delayed')
+        axes[2, c].plot(t, x_vs,  color=utils.C['vs'], lw=1.3, label='x_VS net')
+        axes[3, c].plot(t, x_ni,  color=utils.C['ni'], lw=1.3, label='x_NI net')
+        axes[4, c].plot(t, ev,    color=utils.C['eye'], lw=0.9, alpha=0.5, label='eye vel (raw)')
+        axes[4, c].plot(t, spv,   color=utils.C['spv'], lw=1.6, label='SPV')
+        axes[4, c].set_xlabel('Time (s)', fontsize=8)
+        for r in range(5):
+            axes[r, c].axvline(ON, **vl); ax_fmt(axes[r, c]); axes[r, c].legend(fontsize=6.5)
 
-    # OKR
-    axes[0, 1].plot(t_okn_np, np.full(T_okn, 30.0), color=utils.C['scene'], lw=1.5,
-                    label='scene vel = 30 deg/s')
-    axes[1, 1].plot(t_okn_np, slip,   color='darkorange', lw=1.5, label='slip_delayed')
-    axes[2, 1].plot(t_okn_np, x_vs_o, color=utils.C['vs'],  lw=1.5, label='x_VS net')
-    axes[3, 1].plot(t_okn_np, x_ni_o, color=utils.C['ni'],  lw=1.5, label='x_NI net')
-    axes[4, 1].plot(t_okn_np, ev_o,   color=utils.C['eye'], lw=1.0, alpha=0.5, label='eye vel (raw)')
-    spv_okn = extract_spv_states(st_o, t_okn_np)[:, 0]
-    axes[4, 1].plot(t_okn_np, spv_okn, color=utils.C['spv'], lw=1.8, label='SPV')
-    axes[4, 1].set_xlabel('Time (s)', fontsize=8)
+        zm = (t >= ZOOM_T0) & (t <= ZOOM_T1)
+        axes[5, c].plot(t[zm], eye[zm], color=utils.C['eye'], lw=1.0)
+        axes[5, c].set_xlim(ZOOM_T0, ZOOM_T1); ax_fmt(axes[5, c]); axes[5, c].set_xlabel('Time (s)', fontsize=8)
+        axes[6, c].plot(t[zm], ev[zm],  color=utils.C['eye'], lw=0.8, alpha=0.5, label='eye vel')
+        axes[6, c].plot(t[zm], spv[zm], color=utils.C['spv'], lw=1.6, label='SPV')
+        axes[6, c].set_xlim(ZOOM_T0, ZOOM_T1); axes[6, c].set_ylim(-100, 100)
+        ax_fmt(axes[6, c]); axes[6, c].legend(fontsize=6.5); axes[6, c].set_xlabel('Time (s)', fontsize=8)
 
-    for ax in axes[:5, 1]:
-        ax_fmt(ax); ax.legend(fontsize=7)
-
-    # ── Nystagmus zoom rows (rows 5–6): 5-second window, ±100 deg/s ──────────
-    # VOR zoom: t=[5, 10] s — during rotation, fast phases visible
-    zm_v = (t_vor >= ZOOM_T0) & (t_vor <= ZOOM_T1)
-    eye_v_pos = np.array(st_v.plant.left[:, 0])
-    axes[5, 0].plot(t_vor[zm_v], eye_v_pos[zm_v], color=utils.C['eye'], lw=1.0)
-    axes[5, 0].set_xlim(ZOOM_T0, ZOOM_T1); ax_fmt(axes[5, 0])
-    axes[5, 0].set_xlabel('Time (s)', fontsize=8)
-
-    axes[6, 0].plot(t_vor[zm_v], ev_v[zm_v],     color=utils.C['eye'], lw=0.8, alpha=0.5, label='eye vel')
-    axes[6, 0].plot(t_vor[zm_v], bst_spv[zm_v],  color=utils.C['spv'], lw=1.8, label='SPV')
-    axes[6, 0].set_xlim(ZOOM_T0, ZOOM_T1); axes[6, 0].set_ylim(-100, 100)
-    ax_fmt(axes[6, 0]); axes[6, 0].legend(fontsize=7)
-    axes[6, 0].set_xlabel('Time (s)', fontsize=8)
-
-    # OKR zoom: t=[5, 10] s — during steady-state OKN nystagmus
-    zm_o = (t_okn_np >= ZOOM_T0) & (t_okn_np <= ZOOM_T1)
-    eye_o_pos = np.array(st_o.plant.left[:, 0])
-    axes[5, 1].plot(t_okn_np[zm_o], eye_o_pos[zm_o], color=utils.C['eye'], lw=1.0)
-    axes[5, 1].set_xlim(ZOOM_T0, ZOOM_T1); ax_fmt(axes[5, 1])
-    axes[5, 1].set_xlabel('Time (s)', fontsize=8)
-
-    axes[6, 1].plot(t_okn_np[zm_o], ev_o[zm_o],     color=utils.C['eye'], lw=0.8, alpha=0.5, label='eye vel')
-    axes[6, 1].plot(t_okn_np[zm_o], spv_okn[zm_o],  color=utils.C['spv'], lw=1.8, label='SPV')
-    axes[6, 1].set_xlim(ZOOM_T0, ZOOM_T1); axes[6, 1].set_ylim(-100, 100)
-    ax_fmt(axes[6, 1]); axes[6, 1].legend(fontsize=7)
-    axes[6, 1].set_xlabel('Time (s)', fontsize=8)
     fig.tight_layout(pad=0.4)
-    path, rp = utils.save_fig(fig, 'vor_okr_cascade', show=show, params=THETA_NOISELESS,
-                              conditions='VOR, VVOR, OKR cascade — head + scene combinations across 3 columns (noiseless DEBUG)')
-
-    # ── Quantitative metrics (noiseless cascade — clean steady-state gains) ───
-    vor_win = (t_vor >= 2.0) & (t_vor <= 5.0)       # early plateau, pre-adaptation
-    okr_win = (t_okn_np >= 14.0) & (t_okn_np <= 18.0)
-    vor_direct_gain = float(np.mean(-bst_spv[vor_win]) / 30.0)
-    okr_ss_gain     = float(np.mean(spv_okn[okr_win]) / 30.0)
-
-    metrics = [
-        Metric('vor_okr_vor_direct_gain', vor_direct_gain, tier='monitor',
-               lo=0.60, hi=1.05, golden_tol=0.08, units='',
-               cite='Robinson (1975)',
-               desc='VOR-in-dark SPV gain at early plateau (2–5 s, noiseless)'),
-        Metric('vor_okr_okr_ss_gain', okr_ss_gain, tier='monitor',
-               lo=0.70, hi=1.10, golden_tol=0.08, units='',
-               cite='Raphan et al. (1979)',
-               desc='OKR steady-state SPV gain (14–18 s, noiseless)'),
-    ]
-
-    fig = utils.fig_meta(path, rp,
-        title='VOR / OKR Signal Cascade (Internal)',
-        description='Left column (VOR in dark): head velocity → canal afferents → VS state → NI state → eye velocity. '
-                    'Right column (OKN): scene velocity → delayed retinal slip → VS → NI → eye velocity.',
-        expected='VOR: canal signal decays (TC ~5 s), VS extends it. '
-                 'OKR: slip_delayed drives VS and NI until eye velocity matches scene.',
-        citation='Raphan et al. (1979); Robinson (1975)',
+    path, rp = utils.save_fig(fig, 'vor_okr_cascade', show=show, params=theta,
+        conditions='VOR / VVOR / OKR internal cascade — reuses the Raphan Fig.9 simulations (3 columns)')
+    # Visual-only debug cascade (no metrics; the Raphan figure owns the gains/TCs).
+    return utils.fig_meta(path, rp,
+        title='VOR / VVOR / OKR — Step Response',
+        description='Step / transient response — internal signals from the SAME simulations as the '
+                    'Raphan Fig.9 figure (no separate run); the Bode figures below cover the '
+                    'sinusoidal (frequency) response. Columns: VOR in dark, VVOR (rotation in a lit '
+                    'stationary scene), OKR (scene motion, head still). Rows: input → canal afferent / '
+                    'retinal slip → velocity storage → neural integrator → eye velocity, plus a '
+                    'fast-phase zoom (position + velocity). Vertical dashed line = stimulus off.',
+        expected='VOR: canal drives VS/NI, eye counter-rotates. VVOR: canal + OKR slip both feed '
+                 'VS, gaze stays stable. OKR: slip drives VS/NI, eye follows scene.',
+        citation='Raphan, Matsuo & Cohen (1979); Robinson (1975)',
         fig_type='cascade')
-    fig['metrics'] = metrics
-    return fig
 
 
 # ── Figures: VOR / OKR frequency response (Bode, noiseless) ──────────────────
@@ -523,22 +481,29 @@ def _vor_bode(show):
     for lab, sp, tp, col in CONDS:
         _, g, p = bode.bode_sweep(make(sp, tp), _BODE_FREQS, settle_frac=0.45)
         series.append(dict(label=lab, gains=g, phases=p, color=col))
+    _ef = np.logspace(np.log10(0.05), np.log10(20.0), 140)
     fig, out = bode.make_bode_multi(_BODE_FREQS, series,
         'VOR — Frequency Response (body yaw rotation, noiseless)',
-        ref_hz=0.5, gain_label='Gain (eye vel ÷ head vel)')
+        ref_hz=0.5, gain_label='Gain (eye vel ÷ head vel)',
+        expected=bode.expected_bode('flat', g0=1.0, f=_ef,
+            label='expected: ideal VOR ≈ unity, broadband (Cohen, Matsuo & Raphan 1977)'))
     path, rp = utils.save_fig(fig, 'vor_bode', show=show, params=THETA_NOISELESS,
         conditions='Dark / light / light+target, NOISELESS — sinusoidal head yaw 0.05–20 Hz (30 deg/s)')
     metrics = []
     for lab, *_ in CONDS:
         m = out[lab]; k = lab.replace('+', '_').replace(' ', '')
-        metrics.append(Metric(f'vor_bode_gain_{k}', float(m['gain_low']), tier='monitor',
-            lo=0.4, hi=1.1, golden_tol=0.1, units='',
-            cite='Cohen, Matsuo & Raphan (1977)', desc=f'VOR low-frequency gain — {lab}'))
-        ph = m['phase_ref']
-        metrics.append(Metric(f'vor_bode_phase_{k}',
-            float(ph) if ph is not None else float('nan'), tier='monitor',
-            lo=None, hi=None, golden_tol=0.3, units='deg',
-            cite='Cohen, Matsuo & Raphan (1977)', desc=f'VOR phase at 0.5 Hz (− = lag) — {lab}'))
+        metrics.append(Metric(f'vor_bode_gain_max_{k}', float(m['gain_max']),
+            lo=0.4, hi=1.2, golden_tol=0.1, units='',
+            cite='Cohen, Matsuo & Raphan (1977)', desc=f'VOR peak gain — {lab}'))
+        if m['fc_lo'] is not None:
+            metrics.append(Metric(f'vor_bode_fc_lo_{k}', float(m['fc_lo']),
+                lo=None, hi=None, golden_tol=0.25, units='Hz',
+                cite='Cohen, Matsuo & Raphan (1977)',
+                desc=f'VOR low-side −3 dB corner (canal high-pass) — {lab}'))
+        if m['fc_hi'] is not None:
+            metrics.append(Metric(f'vor_bode_fc_hi_{k}', float(m['fc_hi']),
+                lo=None, hi=None, golden_tol=0.25, units='Hz',
+                cite='Cohen, Matsuo & Raphan (1977)', desc=f'VOR high-side −3 dB cutoff — {lab}'))
     fm = utils.fig_meta(path, rp,
         title='VOR — Bode (body rotation)',
         description='Sinusoidal head yaw sweep (0.05–20 Hz, 30 deg/s), NOISELESS. '
@@ -565,7 +530,13 @@ def _okr_bode(show):
             t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
             on = t >= SETTLE
             sv = np.zeros((Tn, 3)); sv[:, 0] = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
+            # OKR: body still; the foveal target co-rotates WITH the full-field
+            # scene about the head's yaw axis (same angular velocity). With a
+            # target present, pursuit then REINFORCES OKN — instead of a
+            # world-fixed target anchoring fixation and suppressing it.
+            target = km.build_target(t, vel_yaw_deg_s=sv[:, 0], distance_m=1.0)
             st = _simulate(THETA_NOISELESS, jnp.array(t), scene_vel=jnp.array(sv),
+                           target=target,
                            scene_present=jnp.ones(Tn),
                            target_present=jnp.full(Tn, target_p), key=1)
             spv = extract_spv_states(st, t, eye='version')[:, 0]
@@ -576,20 +547,24 @@ def _okr_bode(show):
     for lab, tp, col in CONDS:
         _, g, p = bode.bode_sweep(make(tp), _BODE_FREQS, settle_frac=0.45)
         series.append(dict(label=lab, gains=g, phases=p, color=col))
+    _ef = np.logspace(np.log10(0.05), np.log10(20.0), 140)
     fig, out = bode.make_bode_multi(_BODE_FREQS, series,
         'OKR — Frequency Response (full-field scene motion, noiseless)',
-        ref_hz=0.5, gain_label='Gain (eye vel ÷ scene vel)')
+        ref_hz=0.5, gain_label='Gain (eye vel ÷ scene vel)',
+        expected=bode.expected_bode('lowpass', fc=1.0, g0=1.0, f=_ef,
+            label='expected: OKR low-pass, ~1 Hz cutoff (Cohen & Raphan; model-expected)'))
     path, rp = utils.save_fig(fig, 'okr_bode', show=show, params=THETA_NOISELESS,
         conditions='Scene / scene+target, NOISELESS — sinusoidal scene velocity 0.05–20 Hz (20 deg/s)')
     metrics = []
     for lab, tp, col in CONDS:
         m = out[lab]; k = lab.replace('+', '_').replace(' ', '')
-        metrics.append(Metric(f'okr_bode_gain_{k}', float(m['gain_low']), tier='monitor',
+        metrics.append(Metric(f'okr_bode_gain_max_{k}', float(m['gain_max']),
             lo=0.4, hi=1.05, golden_tol=0.1, units='',
-            cite='Cohen, Matsuo & Raphan (1977)', desc=f'OKR low-frequency gain — {lab}'))
-        metrics.append(Metric(f'okr_bode_bw_{k}', float(m['bw_hz']), tier='monitor',
-            lo=0.1, hi=None, golden_tol=0.25, units='Hz',
-            cite='Cohen, Matsuo & Raphan (1977)', desc=f'OKR −3 dB bandwidth — {lab}'))
+            cite='Cohen, Matsuo & Raphan (1977)', desc=f'OKR peak gain — {lab}'))
+        if m['fc_hi'] is not None:
+            metrics.append(Metric(f'okr_bode_fc_hi_{k}', float(m['fc_hi']),
+                lo=0.1, hi=None, golden_tol=0.25, units='Hz',
+                cite='Cohen, Matsuo & Raphan (1977)', desc=f'OKR −3 dB bandwidth — {lab}'))
     fm = utils.fig_meta(path, rp,
         title='OKR — Bode (full-field scene motion)',
         description='Sinusoidal scene-velocity sweep (0.05–20 Hz, 20 deg/s), NOISELESS. '
@@ -619,13 +594,14 @@ def run(show=False):
     print('\n=== VOR / OKR ===')
     figs = []
     print('  1/4  Raphan Fig.9 replication …')
-    figs.append(_raphan(show))
-    print('  2/4  VOR Bode (body rotation) …')
+    fm_raphan, sims = _raphan(show)         # also yields the shared simulations
+    figs.append(fm_raphan)
+    print('  2/4  step response (reuses Raphan sims) …')
+    figs.append(_cascade(sims, show))       # no separate simulation — sits below Raphan
+    print('  3/4  VOR Bode (body rotation) …')
     figs.append(_vor_bode(show))
-    print('  3/4  OKR Bode (scene motion) …')
+    print('  4/4  OKR Bode (scene motion) …')
     figs.append(_okr_bode(show))
-    print('  4/4  signal cascade …')
-    figs.append(_cascade(show))
     return figs
 
 

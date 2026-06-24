@@ -75,34 +75,80 @@ def _interp_crossing(freqs, gains, thresh):
     return float('nan')
 
 
-def bode_metrics(freqs, gains, phases, ref_hz=None, highpass=False):
-    """Uniform scalar metrics from a Bode sweep.
+def bode_metrics(freqs, gains, phases=None, ref_hz=None, highpass=False):
+    """Unified scalar metrics from a Bode sweep — one scheme for every system:
 
-    Returns dict with:
-        gain_low : low-frequency (DC-ish) gain — gains[0], or gains[-1] if highpass
-        bw_hz    : −3 dB bandwidth relative to gain_low (corner frequency)
-        phase_ref: phase (deg) at `ref_hz` (nearest swept frequency), or None
+        gain_max : peak gain across the sweep
+        fc_lo    : low-side −3 dB cutoff — frequency where the gain rises through
+                   gain_max/√2 below the peak (high-pass character; None when the
+                   gain never falls on the low side — i.e. low-pass / flat)
+        fc_hi    : high-side −3 dB cutoff / bandwidth — frequency where the gain
+                   falls through gain_max/√2 above the peak (low-pass character;
+                   None when the gain never falls on the high side — high-pass / flat)
 
-    `highpass=True` (e.g. tVOR) takes the plateau at the HIGH-frequency end and
-    the corner where gain falls to gain_low/√2 going down in frequency.
+    `phases`, `ref_hz`, `highpass` are accepted for call compatibility but no
+    longer yield metrics (the phase curve stays on the plot only; the peak is
+    auto-located, so `highpass` no longer matters).
     """
     freqs = np.asarray(freqs, float)
     gains = np.asarray(gains, float)
-    gain_low = float(gains[-1] if highpass else gains[0])
-    thresh = gain_low / np.sqrt(2.0)
-    bw = _interp_crossing(freqs, gains, thresh)
-    phase_ref = None
-    if ref_hz is not None and len(freqs):
-        phase_ref = float(phases[int(np.argmin(np.abs(freqs - ref_hz)))])
-    return dict(gain_low=gain_low, bw_hz=bw, phase_ref=phase_ref)
+    if not len(freqs):
+        return dict(gain_max=float('nan'), fc_lo=None, fc_hi=None)
+    i_peak   = int(np.argmax(gains))
+    gain_max = float(gains[i_peak])
+    thresh   = gain_max / np.sqrt(2.0)
+    fc_hi = _interp_crossing(freqs[i_peak:],           gains[i_peak:],           thresh)
+    fc_lo = _interp_crossing(freqs[:i_peak + 1][::-1], gains[:i_peak + 1][::-1], thresh)
+    _clean = lambda x: None if (x is None or x != x) else float(x)   # NaN/None → None
+    return dict(gain_max=gain_max, fc_lo=_clean(fc_lo), fc_hi=_clean(fc_hi))
 
 
 # Standard frequency grid (Hz) for closed-loop sweeps — log-spaced 0.05–5 Hz.
 STD_FREQS = np.array([0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0, 5.0])
 
 
+def expected_bode(kind, fc=1.0, g0=1.0, g_inf=1.0, label='expected', f=None):
+    """Hypothetical / textbook expected Bode curve on a fine grid — returns a
+    dict(f=, gain=, phase=, label=) ready to pass as `expected=` to the make_bode
+    helpers (drawn as a thin no-dot reference line).
+
+    kind:
+      'lowpass'  — first-order LP, DC gain g0, corner fc:  g0/√(1+(f/fc)²)
+      'highpass' — first-order HP, HF gain g_inf, corner fc: g_inf·(f/fc)/√(1+(f/fc)²)
+      'flat'     — constant gain g0 (e.g. VOR ≈ unity, broadband)
+    """
+    if f is None:
+        f = np.logspace(np.log10(0.05), np.log10(5.0), 120)
+    f = np.asarray(f, float)
+    r = f / fc
+    if kind == 'lowpass':
+        gain  = g0 / np.sqrt(1.0 + r ** 2)
+        phase = -np.degrees(np.arctan(r))
+    elif kind == 'highpass':
+        gain  = g_inf * r / np.sqrt(1.0 + r ** 2)
+        phase = np.degrees(np.arctan(1.0 / np.maximum(r, 1e-9)))
+    elif kind == 'flat':
+        gain  = np.full_like(f, g0)
+        phase = np.zeros_like(f)
+    else:
+        raise ValueError(f'unknown expected_bode kind: {kind}')
+    return dict(f=f, gain=gain, phase=phase, label=label)
+
+
+def _overlay_expected(axg, axp, expected):
+    """Overlay a thin, marker-less expected curve on gain + phase axes.
+    `expected` = dict(f=, gain=, phase=, label=)."""
+    if not expected:
+        return
+    ef, eg, ep = expected['f'], expected['gain'], expected['phase']
+    lab = expected.get('label', 'expected')
+    axg.loglog(ef, eg, '-', color='#999999', lw=1.1, alpha=0.9, zorder=1, label=lab)
+    axp.semilogx(ef, ep, '-', color='#999999', lw=1.1, alpha=0.9, zorder=1)
+
+
 def make_bode_figure(freqs, gains, phases, title, ref_hz=0.5, highpass=False,
-                     gain_label='Gain', figsize=(7.5, 6.0), color='#2166ac'):
+                     gain_label='Gain', figsize=(7.5, 6.0), color='#2166ac',
+                     expected=None):
     """Standard 2-panel Bode figure (gain loglog + phase semilogx) + metrics.
 
     Returns (fig, metrics_dict) where metrics_dict has gain_low / bw_hz / phase_ref.
@@ -114,26 +160,23 @@ def make_bode_figure(freqs, gains, phases, title, ref_hz=0.5, highpass=False,
     fig.suptitle(title, fontsize=11, fontweight='bold')
 
     axg.loglog(freqs, gains, 'o-', color=color, lw=1.6, ms=5)
-    gl = m['gain_low']
-    axg.axhline(gl, color='gray', lw=0.8, ls=':', alpha=0.7,
-                label=f'{"high" if highpass else "low"}-f gain {gl:.3g}')
-    if gl > 0:
-        axg.axhline(gl / np.sqrt(2.0), color='tomato', lw=0.8, ls='--', alpha=0.6,
+    gm = m['gain_max']
+    axg.axhline(gm, color='gray', lw=0.8, ls=':', alpha=0.7, label=f'max gain {gm:.3g}')
+    if gm > 0:
+        axg.axhline(gm / np.sqrt(2.0), color='tomato', lw=0.8, ls='--', alpha=0.6,
                     label='−3 dB')
-    if m['bw_hz'] == m['bw_hz']:   # not NaN
-        axg.axvline(m['bw_hz'], color='tomato', lw=1.0, ls=':', alpha=0.7,
-                    label=f'BW {m["bw_hz"]:.2g} Hz')
+    for fc, lbl in ((m['fc_lo'], 'fc_lo'), (m['fc_hi'], 'fc_hi')):
+        if fc is not None:
+            axg.axvline(fc, color='tomato', lw=1.0, ls=':', alpha=0.7, label=f'{lbl} {fc:.2g} Hz')
+    _overlay_expected(axg, axp, expected)
     axg.set_ylabel(gain_label, fontsize=9)
     axg.grid(True, which='both', alpha=0.2)
     axg.legend(fontsize=8, loc='best')
 
     axp.semilogx(freqs, phases, 's-', color=color, lw=1.6, ms=5)
     axp.axhline(0, color='k', lw=0.4)
-    if ref_hz is not None and m['phase_ref'] is not None:
+    if ref_hz is not None:
         axp.axvline(ref_hz, color='gray', lw=0.8, ls=':', alpha=0.6)
-        axp.annotate(f'{m["phase_ref"]:.0f}° @ {ref_hz:g} Hz',
-                     xy=(ref_hz, m['phase_ref']), fontsize=8,
-                     xytext=(5, 5), textcoords='offset points')
     axp.set_ylabel('Phase (deg, − = lag)', fontsize=9)
     axp.set_xlabel('Frequency (Hz)', fontsize=9)
     axp.grid(True, which='both', alpha=0.2)
@@ -143,7 +186,7 @@ def make_bode_figure(freqs, gains, phases, title, ref_hz=0.5, highpass=False,
 
 
 def make_bode_multi(freqs, series, title, ref_hz=0.5, highpass=False,
-                    gain_label='Gain', figsize=(8.5, 6.5)):
+                    gain_label='Gain', figsize=(8.5, 6.5), expected=None):
     """Multi-curve Bode — several conditions on one gain + phase figure.
 
     series: list of dict(label=, gains=, phases=, color=).
@@ -162,6 +205,7 @@ def make_bode_multi(freqs, series, title, ref_hz=0.5, highpass=False,
         axg.loglog(freqs, g, 'o-', color=col, lw=1.5, ms=4, label=lab)
         axp.semilogx(freqs, p, 's-', color=col, lw=1.5, ms=4, label=lab)
     axg.axhline(1.0, color='gray', lw=0.6, ls=':', alpha=0.5)
+    _overlay_expected(axg, axp, expected)
     axg.set_ylabel(gain_label, fontsize=9)
     axg.grid(True, which='both', alpha=0.2)
     axg.legend(fontsize=8, loc='best')
