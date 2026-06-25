@@ -188,8 +188,8 @@ def _bode(show):
         pt3 = np.zeros((Tn, 3)); pt3[:, 2] = 1.0; pt3[:, 0] = np.tan(np.radians(pos))
         vt3 = np.zeros((Tn, 3)); vt3[:, 0] = vel.astype(np.float32)
         st  = _run(THETA_NOISELESS, t, jnp.array(pt3), jnp.array(vt3), key=0)
-        eye_spv = extract_spv_states(st, t)[:, 0]
-        return t, vel, eye_spv
+        eye_spv, slow = extract_spv_states(st, t, return_mask=True)
+        return t, vel, eye_spv[:, 0], slow      # gap-aware fit over valid slow-phase samples
 
     freqs, gains, phases = bode.bode_sweep(run_fn, FREQS, settle_frac=0.45)
     fig, m = bode.make_bode_figure(

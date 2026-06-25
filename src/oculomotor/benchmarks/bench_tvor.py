@@ -257,7 +257,8 @@ def _bode(show):
                       target_present_array=np.full(Tn, target_p),
                       return_states=True, key=KEY)
         eye = (np.array(st.plant.left) + np.array(st.plant.right)) / 2.0
-        yaw_spv = extract_spv_states(st, t, eye='version')[:, 0]
+        yaw_spv, _spv_mask = extract_spv_states(st, t, eye='version', return_mask=True)
+        yaw_spv = yaw_spv[:, 0]
         m = t >= (t[0] + 0.4 * (t[-1] - t[0]))
         # Reference the geometric ideal (V/d) against the eye's ACTUAL fixation
         # distance (vergence-derived), not the fixed target distance D. In
@@ -270,7 +271,7 @@ def _bode(show):
         verg_fix = max(float(np.mean(verg[m])), 0.2)            # deg (guard small/divergent)
         d_fix    = params.sensory.ipd / (2.0 * np.tan(np.radians(verg_fix) * 0.5))
         ideal    = -(hv[:, 0] / d_fix) * (180.0 / np.pi)       # geometric-ideal eye yaw vel (deg/s)
-        g, ph    = bode.bode_point(t, ideal, yaw_spv, f, settle_frac=0.4)
+        g, ph    = bode.bode_point(t, ideal, yaw_spv, f, settle_frac=0.4, output_mask=_spv_mask)
         tor_amp, _, _ = bode.fit_sinusoid(t[m], eye[m, 2], f)   # torsion (roll) amplitude
         return g, ph, float(tor_amp)
 

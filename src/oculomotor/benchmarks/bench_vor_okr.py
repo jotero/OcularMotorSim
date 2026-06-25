@@ -504,8 +504,8 @@ def _vor_bode(show, low_f=False):
             st = _simulate(THETA_NOISELESS, jnp.array(t), head_vel=jnp.array(hv),
                            scene_present=jnp.full(Tn, scene_p),
                            target_present=jnp.full(Tn, target_p), key=0)
-            spv = extract_spv_states(st, t, eye='version')[:, 0]
-            return t, hv[:, 0], -spv      # −eye so compensatory is in phase with head
+            spv, slow = extract_spv_states(st, t, eye='version', return_mask=True)
+            return t, hv[:, 0], -spv[:, 0], slow   # −eye compensatory; slow = valid SPV mask (gap-aware fit)
         return run_fn
 
     series = []
@@ -579,8 +579,8 @@ def _okr_bode(show):
                            target=target,
                            scene_present=jnp.ones(Tn),
                            target_present=jnp.full(Tn, target_p), key=1)
-            spv = extract_spv_states(st, t, eye='version')[:, 0]
-            return t, sv[:, 0], spv       # eye follows scene (same sign)
+            spv, slow = extract_spv_states(st, t, eye='version', return_mask=True)
+            return t, sv[:, 0], spv[:, 0], slow   # eye follows scene; slow = valid SPV mask (gap-aware fit)
         return run_fn
 
     series = []

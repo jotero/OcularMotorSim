@@ -29,31 +29,49 @@ def fit_sinusoid(t, y, f):
     return float(np.hypot(A, B)), float(np.arctan2(B, A)), float(C)
 
 
-def bode_point(t, drive, output, f, settle_frac=0.5):
+def bode_point(t, drive, output, f, settle_frac=0.5, output_mask=None):
     """Gain and phase (deg) of `output` relative to `drive` at frequency `f`.
 
     Only the steady-state tail is used (the last ``1 − settle_frac`` of the
     record), so the initial transient doesn't bias the fit.
+
+    GAP-AWARE: if `output_mask` (a boolean (T,) array of VALID output samples) is
+    given, the output sinusoid is fit only over those samples. This is for SPV
+    outputs, where fast-phase epochs are masked: fitting the *valid* slow-phase
+    samples directly avoids the amplitude loss of interpolating a straight chord
+    across blanked high-frequency cycles (which fakes a high-f rolloff). The
+    least-squares sinusoid fit handles non-contiguous samples fine as long as
+    they span the cycle. The drive is always clean → fit over the full window.
     """
     t = np.asarray(t, dtype=float)
     t0, t1 = t[0], t[-1]
-    mask = t >= (t0 + settle_frac * (t1 - t0))
-    amp_in,  ph_in,  _ = fit_sinusoid(t[mask], np.asarray(drive)[mask],  f)
-    amp_out, ph_out, _ = fit_sinusoid(t[mask], np.asarray(output)[mask], f)
+    win = t >= (t0 + settle_frac * (t1 - t0))
+    amp_in,  ph_in,  _ = fit_sinusoid(t[win], np.asarray(drive)[win],  f)
+    ow = win if output_mask is None else (win & np.asarray(output_mask, dtype=bool))
+    if ow.sum() < 4:            # too few valid samples for a 3-param fit → fall back
+        ow = win
+    amp_out, ph_out, _ = fit_sinusoid(t[ow], np.asarray(output)[ow], f)
     gain = amp_out / amp_in if amp_in > 1e-9 else float('nan')
     phase = np.degrees(((ph_out - ph_in + np.pi) % (2.0 * np.pi)) - np.pi)
     return gain, phase
 
 
 def bode_sweep(run_fn, freqs, settle_frac=0.5):
-    """Sweep `freqs`, calling ``run_fn(f) -> (t, drive, output)`` at each.
+    """Sweep `freqs`, calling ``run_fn(f)`` at each.
+
+    ``run_fn(f)`` returns either ``(t, drive, output)`` or
+    ``(t, drive, output, output_mask)``, where ``output_mask`` flags the VALID
+    output samples for a gap-aware fit (e.g. the slow-phase mask of an SPV
+    output).  The drive is always treated as clean.
 
     Returns (freqs, gains, phases_deg) as float arrays.
     """
     gains, phases = [], []
     for f in freqs:
-        t, drive, output = run_fn(f)
-        g, p = bode_point(t, drive, output, f, settle_frac)
+        res = run_fn(f)
+        t, drive, output = res[0], res[1], res[2]
+        omask = res[3] if len(res) > 3 else None
+        g, p = bode_point(t, drive, output, f, settle_frac, output_mask=omask)
         gains.append(g)
         phases.append(p)
     return np.asarray(freqs, float), np.asarray(gains, float), np.asarray(phases, float)

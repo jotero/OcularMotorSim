@@ -224,7 +224,24 @@ def extract_z_opn(states):
     return np.array(states.brain.sg.z_opn)
 
 
-def extract_spv_states(states, t, margin_s=0.05, eye='left'):
+def _dilate_fast(is_fast, dt, margin_pre_s, margin_post_s):
+    """Expand each fast-phase run by margin_pre_s before its start and
+    margin_post_s after its end (ASYMMETRIC).  The post side covers post-saccadic
+    plant ringing; the pre side is kept small because the slow phase *before* a
+    quick phase is clean and the z_opn edge already marks onset sharply.  A
+    symmetric ±50 ms margin throws away good pre-saccade slow-phase data and, at
+    high oscillation frequencies, blanks whole cycles (corrupting Bode gain)."""
+    f = np.asarray(is_fast, dtype=bool)
+    out = f.copy()
+    for k in range(1, int(round(margin_post_s / dt)) + 1):
+        out[k:]  |= f[:-k]      # extend forward  (post-saccade settling)
+    for k in range(1, int(round(margin_pre_s / dt)) + 1):
+        out[:-k] |= f[k:]       # extend backward (pre-saccade)
+    return out
+
+
+def extract_spv_states(states, t, margin_pre_s=0.01, margin_post_s=0.06,
+                       margin_s=None, eye='left', return_mask=False):
     """Slow-phase velocity from a SimState trajectory, all 3 axes.
 
     Uses the OPN latch state (z_opn) for fast-phase detection, which is reliable
@@ -233,7 +250,12 @@ def extract_spv_states(states, t, margin_s=0.05, eye='left'):
     Args:
         states:   SimState trajectory
         t:        (T,) time array (s)
-        margin_s: symmetric window expansion around each fast-phase epoch (s)
+        margin_pre_s / margin_post_s: asymmetric window expansion before / after
+                  each fast-phase epoch (s).  Default 0.01 / 0.06.
+        margin_s: legacy symmetric override (sets pre=post=margin_s) for callers
+                  that need the old behaviour.
+        return_mask: if True, also return the (T,) boolean slow-phase mask (the
+                  valid, non-masked samples) — used by the gap-aware Bode fit.
         eye:      'left'    — left-eye plant state (legacy default)
                   'right'   — right-eye plant state
                   'version' — cyclopean (L+R)/2 — true conjugate slow-phase velocity
@@ -257,16 +279,23 @@ def extract_spv_states(states, t, margin_s=0.05, eye='left'):
         ep = ep_L - ep_R
     else:
         raise ValueError(f"eye={eye!r}; expected 'left', 'right', 'version', or 'vergence'")
-    return np.stack([
-        extract_spv(t, np.gradient(ep[:, i], dt), z_opn=z_opn, margin_s=margin_s)
+    spv = np.stack([
+        extract_spv(t, np.gradient(ep[:, i], dt), z_opn=z_opn,
+                    margin_pre_s=margin_pre_s, margin_post_s=margin_post_s, margin_s=margin_s)
         for i in range(3)
     ], axis=1)
+    if return_mask:
+        mp, mq = (margin_s, margin_s) if margin_s is not None else (margin_pre_s, margin_post_s)
+        slow = ~_dilate_fast(np.asarray(z_opn) < 50.0, dt, mp, mq)
+        return spv, slow
+    return spv
 
 
 # ── Slow-phase velocity ────────────────────────────────────────────────────────
 
-def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0, margin_s=0.05,
-                z_opn=None, smooth_s=0.0):
+def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0,
+                margin_pre_s=0.01, margin_post_s=0.06, margin_s=None,
+                z_opn=None, smooth_s=0.0, return_mask=False):
     """Slow-phase velocity by masking fast phases and interpolating.
 
     Prefers z_opn (OPN latch state) when provided — z_opn transitions sharply at
@@ -280,8 +309,11 @@ def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0, margin_s=0.05,
         burst:           (T,) burst signal (yaw component); used only when z_opn
                          is None.  At least one of burst / z_opn must be given.
         burst_threshold: deg/s — burst amplitude threshold (burst fallback only)
-        margin_s:        s    — symmetric window expansion around each fast-phase
-                         epoch; covers plant ringing after burst ends
+        margin_pre_s / margin_post_s: asymmetric expansion before / after each
+                         fast-phase epoch (s). Post (~0.06) covers plant ringing;
+                         pre (~0.01) is small (pre-saccade slow phase is clean).
+        margin_s:        legacy symmetric override (sets pre=post=margin_s).
+        return_mask:     if True, also return the (T,) boolean slow-phase mask.
         z_opn:           (T,) OPN state from SG or extract_z_opn(states).
                          Fast phases detected as z_opn < 50.
         smooth_s:        s — if > 0, median-filter the result over this window to
@@ -292,25 +324,26 @@ def extract_spv(t, eye_vel, burst=None, burst_threshold=10.0, margin_s=0.05,
         (T,) slow-phase velocity — fast-phase samples replaced by linear
         interpolation across the masked epochs (optionally median-smoothed).
     """
-    dt       = float(t[1] - t[0])
-    margin_n = max(1, int(margin_s / dt))
+    dt = float(t[1] - t[0])
+    if margin_s is not None:                       # back-compat: symmetric ±margin_s
+        margin_pre_s = margin_post_s = margin_s
     if z_opn is not None:
         is_fast = np.asarray(z_opn) < 50.0
     elif burst is not None:
         is_fast = np.abs(np.asarray(burst)) > burst_threshold
     else:
         raise ValueError("extract_spv: provide either burst or z_opn")
-    is_fast  = binary_dilation(is_fast, structure=np.ones(2 * margin_n + 1))
-    slow     = ~is_fast
+    is_fast = _dilate_fast(is_fast, dt, margin_pre_s, margin_post_s)
+    slow    = ~is_fast
     if slow.sum() < 2:
-        return eye_vel.copy()
+        return (eye_vel.copy(), slow) if return_mask else eye_vel.copy()
     spv = np.interp(t, t[slow], eye_vel[slow])
     if smooth_s and smooth_s > 0:
         w = max(1, int(round(smooth_s / dt)))
         if w % 2 == 0:
             w += 1
         spv = median_filter(spv, size=w, mode='nearest')
-    return spv
+    return (spv, slow) if return_mask else spv
 
 
 # ── Saccade kinematics ────────────────────────────────────────────────────────

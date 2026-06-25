@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-25 12:05",
-  "version": "e74732f-dirty",
+  "generated": "2026-06-25 14:25",
+  "version": "2e36c5e-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -118,9 +118,9 @@
       "id": "vor_okr",
       "title": "2. VOR / OKR",
       "description": "Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip \u2192 VS goes through K_vor_direct\u00b7(saccadically-gated slip) + K_cereb_okr\u00b7(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.",
-      "runtime_s": 1336.42,
-      "version": "e74732f-dirty.482f913",
-      "generated": "2026-06-25 12:00",
+      "runtime_s": 1576.6,
+      "version": "2e36c5e-dirty.0039210",
+      "generated": "2026-06-25 14:02",
       "figures": [
         {
           "rel": "figures/vor_raphan_fig9.png",
@@ -135,22 +135,22 @@
           "metrics": [
             {
               "name": "vor_okr_vvor_gain",
-              "value": 0.8803484700755027,
+              "value": 0.8741449640897525,
               "golden": 0.8803484700755027
             },
             {
               "name": "vor_okr_postrot_tc",
-              "value": 34.567980377071976,
+              "value": 34.96411630829157,
               "golden": 34.567980377071976
             },
             {
               "name": "vor_okr_okan_tc",
-              "value": 20.480132051780533,
+              "value": 19.987246436331528,
               "golden": 20.480132051780533
             },
             {
               "name": "vor_okr_okn_ss_gain",
-              "value": 0.8283334904532901,
+              "value": 0.8276932153382535,
               "golden": 0.8283334904532901
             }
           ]
@@ -180,33 +180,23 @@
           "metrics": [
             {
               "name": "vor_bode_gain_max_dark",
-              "value": 1.0639100557731944,
-              "golden": 1.0618505897107464
-            },
-            {
-              "name": "vor_bode_fc_hi_dark",
-              "value": 3.368830596591935,
-              "golden": 3.129819948014761
+              "value": 1.0654781734311978,
+              "golden": 1.0639100557731944
             },
             {
               "name": "vor_bode_gain_max_light",
-              "value": 1.0678644493623721,
-              "golden": 1.0501575759068653
-            },
-            {
-              "name": "vor_bode_fc_hi_light",
-              "value": 2.9967724478130005,
-              "golden": 4.236195585098479
+              "value": 1.0884375927720198,
+              "golden": 1.0678644493623721
             },
             {
               "name": "vor_bode_gain_max_light_target",
-              "value": 1.1205726517139205,
-              "golden": 1.1552276764230862
+              "value": 1.153838634539373,
+              "golden": 1.1205726517139205
             },
             {
               "name": "vor_bode_fc_hi_light_target",
-              "value": 19.49258864387995,
-              "golden": 16.061022374924377
+              "value": 16.18568709509469,
+              "golden": 19.49258864387995
             }
           ]
         },
@@ -223,23 +213,23 @@
           "metrics": [
             {
               "name": "okr_bode_gain_max_scene",
-              "value": 0.5365849275991404,
-              "golden": 0.5109652388023699
+              "value": 0.5237034741510047,
+              "golden": 0.5365849275991404
             },
             {
               "name": "okr_bode_fc_hi_scene",
-              "value": 0.22941667397815121,
-              "golden": 0.5985477267842734
+              "value": 7.633101619178555,
+              "golden": 0.22941667397815121
             },
             {
               "name": "okr_bode_gain_max_scene_target",
-              "value": 1.0330056242410488,
-              "golden": 0.83244336075668
+              "value": 1.0317409698796745,
+              "golden": 1.0330056242410488
             },
             {
               "name": "okr_bode_fc_hi_scene_target",
-              "value": 0.8314727961708029,
-              "golden": 2.6059663421315173
+              "value": 5.688665582791498,
+              "golden": 0.8314727961708029
             }
           ]
         }
@@ -249,9 +239,9 @@
       "id": "gravity",
       "title": "3. Gravity Estimator + T-VOR",
       "description": "Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path \u2014 gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).",
-      "runtime_s": 935.49,
-      "version": "9877e87-dirty.ed37ec6",
-      "generated": "2026-06-25 07:55",
+      "runtime_s": 1011.52,
+      "version": "2e36c5e-dirty.0039210",
+      "generated": "2026-06-25 14:19",
       "figures": [
         {
           "rel": "figures/gravity_ocr.png",
@@ -301,42 +291,42 @@
           "metrics": [
             {
               "name": "gravity_ovar_mod_10",
-              "value": 3.3236583418013215,
+              "value": 3.3473475570524256,
               "golden": 3.3236583418013215
             },
             {
               "name": "gravity_ovar_bias_10",
-              "value": -25.049359837158,
+              "value": -25.064637708613013,
               "golden": -25.049359837158
             },
             {
               "name": "gravity_ovar_mod_30",
-              "value": 3.523193086469104,
+              "value": 3.543848646706332,
               "golden": 3.523193086469104
             },
             {
               "name": "gravity_ovar_bias_30",
-              "value": -28.772284540911834,
+              "value": -28.795812420454997,
               "golden": -28.772284540911834
             },
             {
               "name": "gravity_ovar_mod_60",
-              "value": 2.7085150703810923,
+              "value": 2.681375207176519,
               "golden": 2.7085150703810923
             },
             {
               "name": "gravity_ovar_bias_60",
-              "value": -33.294085231071094,
+              "value": -33.337425747915795,
               "golden": -33.294085231071094
             },
             {
               "name": "gravity_ovar_mod_90",
-              "value": 2.436070010518864,
+              "value": 2.472230942905943,
               "golden": 2.436070010518864
             },
             {
               "name": "gravity_ovar_bias_90",
-              "value": -34.80805056582122,
+              "value": -34.85435600248682,
               "golden": -34.80805056582122
             }
           ]
@@ -354,32 +344,32 @@
           "metrics": [
             {
               "name": "gravity_tilt_tc_0",
-              "value": 34.16358537350969,
+              "value": 34.22528269774314,
               "golden": 34.16358537350969
             },
             {
               "name": "gravity_tilt_tc_30",
-              "value": 15.354952128667652,
+              "value": 15.46513300778491,
               "golden": 15.354952128667652
             },
             {
               "name": "gravity_tilt_tc_60",
-              "value": 10.04684417616074,
+              "value": 10.043582285893638,
               "golden": 10.04684417616074
             },
             {
               "name": "gravity_tilt_tc_90",
-              "value": 8.984859933819774,
+              "value": 9.022772002676646,
               "golden": 8.984859933819774
             },
             {
               "name": "gravity_tilt_reversal_60",
-              "value": 1.2255365726895864,
+              "value": 1.2248188978913077,
               "golden": 1.2255365726895864
             },
             {
               "name": "gravity_tilt_reversal_90",
-              "value": -0.035626935833774506,
+              "value": -0.03989628466005663,
               "golden": -0.035626935833774506
             }
           ]
@@ -431,7 +421,7 @@
             },
             {
               "name": "tvor_bode_gain_max_scene",
-              "value": 0.4315368964394235,
+              "value": 0.419665602733996,
               "golden": 0.4315368964394235
             },
             {
@@ -441,7 +431,7 @@
             },
             {
               "name": "tvor_bode_gain_max_scene_target",
-              "value": 0.4125433628116737,
+              "value": 0.42715511252980276,
               "golden": 0.4125433628116737
             },
             {
@@ -457,9 +447,9 @@
       "id": "pursuit",
       "title": "4. Smooth Pursuit",
       "description": "Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct\u00b7(saccadically-gated retinal slip) + K_cereb_pu\u00b7(cerebellar EC correction); the closed-loop pursuit memory \u03c4_eff \u2248 1.45 s (Smith predictor) despite the long pop-leak \u03c4_pursuit = 40 s.",
-      "runtime_s": 280.59,
-      "version": "e74732f-dirty.482f913",
-      "generated": "2026-06-25 12:05",
+      "runtime_s": 273.96,
+      "version": "2e36c5e-dirty.0039210",
+      "generated": "2026-06-25 14:24",
       "figures": [
         {
           "rel": "figures/pursuit_velocity_range.png",
@@ -474,12 +464,12 @@
           "metrics": [
             {
               "name": "pursuit_ss_gain_5degs",
-              "value": 0.9855665006185866,
+              "value": 0.9626990566419076,
               "golden": 0.9855665006185866
             },
             {
               "name": "pursuit_ss_gain_10degs",
-              "value": 0.9766457694621783,
+              "value": 0.9859145075897919,
               "golden": 0.9766457694621783
             },
             {
@@ -502,13 +492,13 @@
           "metrics": [
             {
               "name": "pursuit_bode_gain_max",
-              "value": 0.9017604856389237,
-              "golden": 0.7886987293638558
+              "value": 0.9089828405913584,
+              "golden": 0.9017604856389237
             },
             {
               "name": "pursuit_bode_fc_hi",
-              "value": 0.20973579548903953,
-              "golden": 0.4139068544879653
+              "value": 0.3493195796286799,
+              "golden": 0.20973579548903953
             }
           ]
         },
@@ -748,9 +738,9 @@
       "id": "fixation",
       "title": "6. Fixation",
       "description": "Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).",
-      "runtime_s": 75.83,
-      "version": "9877e87-dirty.ed37ec6",
-      "generated": "2026-06-25 08:07",
+      "runtime_s": 75.63,
+      "version": "2e36c5e-dirty.0039210",
+      "generated": "2026-06-25 14:25",
       "figures": [
         {
           "rel": "figures/fixation_noise_comparison.png",

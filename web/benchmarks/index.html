@@ -104,15 +104,15 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-06-25 12:11</strong> &nbsp;|&nbsp;
-      Version: <strong>e74732f-dirty.1c14e0d</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-06-25 15:00</strong> &nbsp;|&nbsp;
+      Version: <strong>2e36c5e-dirty.c1f074f</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
-    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 11 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 68</p>
-    <div class="warn-banner">&#9888; <b>7 of 7</b> sections were run on an older version (current build <b>e74732f-dirty.1c14e0d</b>). Versions present: 9877e87-dirty.ed37ec6, e74732f-dirty.482f913. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law.</div>
+    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 10 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 67</p>
+    <div class="warn-banner">&#9888; <b>7 of 7</b> sections were run on an older version (current build <b>2e36c5e-dirty.c1f074f</b>). Versions present: 2e36c5e-dirty.0039210, 9877e87-dirty.ed37ec6. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 182.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:24</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>1. Saccades <span class="rt">· 182.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:24</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
@@ -259,7 +259,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 1336.4s · e74732f-dirty.482f913 · 2026-06-25 12:00</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 1576.6s · 2e36c5e-dirty.0039210 · 2026-06-25 14:02</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -277,33 +277,33 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_vvor_gain">VVOR slow-phase gain during rotation in light (10–25 s)</td>
-            <td class="num">0.8803</td>
+            <td class="num">0.8741</td>
             <td class="num">[0.85, 1.1] <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>]</span></td>
-            <td class="num">0.8803</td>
+            <td class="num">0.8741</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="vor_okr_postrot_tc">VOR post-rotatory SPV decay time constant (VS-extended)</td>
-            <td class="num">34.57 s</td>
+            <td class="num">34.96 s</td>
             <td class="num">[10, 30] <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>]</span></td>
-            <td class="num">34.57</td>
+            <td class="num">34.96</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_okan_tc">OKAN SPV decay time constant after scene off (~tau_vs)</td>
-            <td class="num">20.48 s</td>
+            <td class="num">19.99 s</td>
             <td class="num">[10, 30] <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>]</span></td>
-            <td class="num">20.48</td>
+            <td class="num">19.99</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_okr_okn_ss_gain">OKN steady-state SPV gain (last 10 s of scene-on)</td>
-            <td class="num">0.8283</td>
+            <td class="num">0.8277</td>
             <td class="num">[0.75, 1.1] <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>]</span></td>
-            <td class="num">0.8283</td>
+            <td class="num">0.8277</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Panels A–F matching Raphan et al. (1979) Fig.9. Left col: SPV only. Right col: CUP (canal estimate), INT (velocity storage), SPV overlaid. A/B: VOR in dark. C/D: OKN+OKAN. E/F: VVOR (light→dark). A: post-rot SPV TC 10–30 s. C: OKN gain~1, OKAN TC~20 s. E: VVOR gain>0.85 during rotation; post-rot TC similar to A. B/D/F: INT follows SPV; CUP decays at canal TC (~5 s).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>]</span></p></div>
@@ -336,49 +336,33 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_max_dark">VOR peak gain — dark</td>
-            <td class="num">1.064</td>
+            <td class="num">1.065</td>
             <td class="num">[0.4, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.064</td>
-            <td class="num">+0.0%</td>
-          </tr>
-          <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
-            <td class="what" title="vor_bode_fc_hi_dark">VOR high-side −3 dB cutoff — dark</td>
-            <td class="num">3.369 Hz</td>
-            <td class="num">—</td>
-            <td class="num">3.369</td>
+            <td class="num">1.065</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_max_light">VOR peak gain — light</td>
-            <td class="num">1.068</td>
+            <td class="num">1.088</td>
             <td class="num">[0.4, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.068</td>
-            <td class="num">+0.0%</td>
-          </tr>
-          <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
-            <td class="what" title="vor_bode_fc_hi_light">VOR high-side −3 dB cutoff — light</td>
-            <td class="num">2.997 Hz</td>
-            <td class="num">—</td>
-            <td class="num">2.997</td>
+            <td class="num">1.088</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_max_light_target">VOR peak gain — light+target</td>
-            <td class="num">1.121</td>
+            <td class="num">1.154</td>
             <td class="num">[0.4, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.121</td>
+            <td class="num">1.154</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_fc_hi_light_target">VOR high-side −3 dB cutoff — light+target</td>
-            <td class="num">19.49 Hz</td>
+            <td class="num">16.19 Hz</td>
             <td class="num">—</td>
-            <td class="num">19.49</td>
+            <td class="num">16.19</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal head yaw sweep (≤30 deg/s, peak position capped at 20° so the target stays in range), NOISELESS. Eye velocity (SPV) ÷ head velocity in dark, light, light+target. Light gain ≈ 1 across frequency (VVOR); dark gain rolls off (high-pass) below ~0.01 Hz — visible only with low_f=True.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>, <a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></p></div>
@@ -399,33 +383,33 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_gain_max_scene">OKR peak gain — scene</td>
-            <td class="num">0.5366</td>
+            <td class="num">0.5237</td>
             <td class="num">[0.4, 1.05] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">0.5366</td>
+            <td class="num">0.5237</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_fc_hi_scene">OKR −3 dB bandwidth — scene</td>
-            <td class="num">0.2294 Hz</td>
+            <td class="num">7.633 Hz</td>
             <td class="num">[0.1, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">0.2294</td>
+            <td class="num">7.633</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_gain_max_scene_target">OKR peak gain — scene+target</td>
-            <td class="num">1.033</td>
+            <td class="num">1.032</td>
             <td class="num">[0.4, 1.05] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.033</td>
+            <td class="num">1.032</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_fc_hi_scene_target">OKR −3 dB bandwidth — scene+target</td>
-            <td class="num">0.8315 Hz</td>
+            <td class="num">5.689 Hz</td>
             <td class="num">[0.1, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">0.8315</td>
+            <td class="num">5.689</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal scene-velocity sweep (0.05–20 Hz, 20 deg/s), NOISELESS. Eye velocity (SPV) ÷ scene velocity for scene-only and scene+target. OKR is low-pass — gain rolls off above ~0.5 Hz; a stationary target suppresses it. Gain ≈ 1 at low f, rolls off above ~0.5 Hz.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></p></div>
@@ -435,7 +419,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 935.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:55</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 1011.5s · 2e36c5e-dirty.0039210 · 2026-06-25 14:19</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path — gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -496,65 +480,65 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="gravity_ovar_mod_10">OVAR SPV modulation amplitude at 10° tilt (∝ sin tilt)</td>
-            <td class="num">3.324 deg/s</td>
+            <td class="num">3.347 deg/s</td>
             <td class="num">[0.2, 1.5] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">3.324</td>
+            <td class="num">3.347</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_10">OVAR steady-state average SPV (screw/translation bias) at 10° tilt</td>
-            <td class="num">-25.05 deg/s</td>
+            <td class="num">-25.06 deg/s</td>
             <td class="num">[-35, 0] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">-25.05</td>
+            <td class="num">-25.06</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="gravity_ovar_mod_30">OVAR SPV modulation amplitude at 30° tilt (∝ sin tilt)</td>
-            <td class="num">3.523 deg/s</td>
+            <td class="num">3.544 deg/s</td>
             <td class="num">[0.6, 3] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">3.523</td>
+            <td class="num">3.544</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_30">OVAR steady-state average SPV (screw/translation bias) at 30° tilt</td>
-            <td class="num">-28.77 deg/s</td>
+            <td class="num">-28.8 deg/s</td>
             <td class="num">[-40, -5] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">-28.77</td>
+            <td class="num">-28.8</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_mod_60">OVAR SPV modulation amplitude at 60° tilt (∝ sin tilt)</td>
-            <td class="num">2.709 deg/s</td>
+            <td class="num">2.681 deg/s</td>
             <td class="num">[1.2, 4.5] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">2.709</td>
+            <td class="num">2.681</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_60">OVAR steady-state average SPV (screw/translation bias) at 60° tilt</td>
-            <td class="num">-33.29 deg/s</td>
+            <td class="num">-33.34 deg/s</td>
             <td class="num">[-45, -10] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">-33.29</td>
+            <td class="num">-33.34</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_mod_90">OVAR SPV modulation amplitude at 90° tilt (∝ sin tilt)</td>
-            <td class="num">2.436 deg/s</td>
+            <td class="num">2.472 deg/s</td>
             <td class="num">[1.5, 5] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">2.436</td>
+            <td class="num">2.472</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_ovar_bias_90">OVAR steady-state average SPV (screw/translation bias) at 90° tilt</td>
-            <td class="num">-34.81 deg/s</td>
+            <td class="num">-34.85 deg/s</td>
             <td class="num">[-50, -12] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">-34.81</td>
+            <td class="num">-34.85</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">60°/s rotation, tilt angles [10.0, 30.0, 60.0, 90.0]°. Replicates Laurens & Angelaki (2011) Fig 5. SPV sinusoidally modulated at rotation period. Modulation amplitude ∝ sin(tilt). g_est oscillates ±G₀ sin(α). A small residual v_lin DC bias along the rotation axis ("screw direction") reflects the perceived sustained linear translation reported by subjects during prolonged OVAR (Denise et al. 1988; Wood 2002).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>, <a class="cref" href="#ref-13" title="Denise P, Darlot C, Droulez J, Cohen B, Berthoz A (1988). Motion perceptions induced by off-vertical axis rotation (OVAR) at small angles of tilt. Experimental Brain Research 67:604–611.">13</a>, <a class="cref" href="#ref-14" title="Wood SJ (2002). Human otolith–ocular reflexes during off-vertical axis rotation: effect of frequency on tilt–translation ambiguity and motion sickness. Neuroscience Letters 323:41–44.">14</a>]</span></p></div>
@@ -575,49 +559,49 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_tc_0">Post-rotatory version-SPV decay TC at 0° post-stop tilt</td>
-            <td class="num">34.16 s</td>
+            <td class="num">34.23 s</td>
             <td class="num">[18, 45] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">34.16</td>
+            <td class="num">34.23</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_tc_30">Post-rotatory version-SPV decay TC at 30° post-stop tilt</td>
-            <td class="num">15.35 s</td>
+            <td class="num">15.47 s</td>
             <td class="num">[8, 22] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">15.35</td>
+            <td class="num">15.47</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_tc_60">Post-rotatory version-SPV decay TC at 60° post-stop tilt</td>
-            <td class="num">10.05 s</td>
+            <td class="num">10.04 s</td>
             <td class="num">[4, 15] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">10.05</td>
+            <td class="num">10.04</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_tc_90">Post-rotatory version-SPV decay TC at 90° post-stop tilt</td>
-            <td class="num">8.985 s</td>
+            <td class="num">9.023 s</td>
             <td class="num">[3, 12] <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></td>
-            <td class="num">8.985</td>
+            <td class="num">9.023</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_reversal_60">Sustained late post-rotatory SPV at 60° — reversal / opposite-direction nystagmus</td>
-            <td class="num">1.226 deg/s</td>
+            <td class="num">1.225 deg/s</td>
             <td class="num">[-3, 3]</td>
-            <td class="num">1.226</td>
+            <td class="num">1.225</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="gravity_tilt_reversal_90">Sustained late post-rotatory SPV at 90° — reversal / opposite-direction nystagmus</td>
-            <td class="num">-0.03563 deg/s</td>
+            <td class="num">-0.0399 deg/s</td>
             <td class="num">[-3, 3]</td>
-            <td class="num">-0.03563</td>
+            <td class="num">-0.0399</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Upright 60°/s yaw; tilt [0.0, 30.0, 60.0, 90.0]° applied after stop. Replicates Laurens & Angelaki (2011) Fig 6. Per-rotatory identical. TC decreases with post-stop tilt. 0°: TC ≈ τ_vs. 90°: TC ≈ τ_canal.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-11" title="Laurens J, Angelaki DE (2011). The functional significance of velocity storage and its dependence on gravity. Experimental Brain Research 210:407–422.">11</a>]</span></p></div>
@@ -678,9 +662,9 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="tvor_bode_gain_max_scene">tVOR peak gain vs geometric ideal (high-f plateau) — scene</td>
-            <td class="num">0.4315</td>
+            <td class="num">0.4197</td>
             <td class="num">[0.3, 1.4] <span class="crefs">[<a class="cref" href="#ref-16" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">16</a>, <a class="cref" href="#ref-17" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">17</a>]</span></td>
-            <td class="num">0.4315</td>
+            <td class="num">0.4197</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
@@ -694,9 +678,9 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="tvor_bode_gain_max_scene_target">tVOR peak gain vs geometric ideal (high-f plateau) — scene+target</td>
-            <td class="num">0.4125</td>
+            <td class="num">0.4272</td>
             <td class="num">[0.3, 1.4] <span class="crefs">[<a class="cref" href="#ref-16" title="Paige GD, Tomko DL (1991). Eye movement responses to linear head motion in the squirrel monkey. I. Basic characteristics. Journal of Neurophysiology 65:1170–1182.">16</a>, <a class="cref" href="#ref-17" title="Angelaki DE, Hess BJM (2001). Direction of heading and vestibular control of binocular eye movements. Vision Research 41:3215–3228.">17</a>]</span></td>
-            <td class="num">0.4125</td>
+            <td class="num">0.4272</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
@@ -714,7 +698,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 280.6s · e74732f-dirty.482f913 · 2026-06-25 12:05</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 274.0s · 2e36c5e-dirty.0039210 · 2026-06-25 14:24</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -732,17 +716,17 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_ss_gain_5degs">Steady-state pursuit gain (SPV ÷ target vel) at 5 deg/s ramp</td>
-            <td class="num">0.9856</td>
+            <td class="num">0.9627</td>
             <td class="num">[0.8, 1.1] <span class="crefs">[<a class="cref" href="#ref-18" title="Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.">18</a>]</span></td>
-            <td class="num">0.9856</td>
+            <td class="num">0.9627</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_ss_gain_10degs">Steady-state pursuit gain at 10 deg/s ramp</td>
-            <td class="num">0.9766</td>
+            <td class="num">0.9859</td>
             <td class="num">[0.8, 1.1] <span class="crefs">[<a class="cref" href="#ref-18" title="Lisberger SG, Westbrook LE (1985). Properties of visual inputs that initiate horizontal smooth pursuit eye movements in monkeys. Journal of Neuroscience 5:1662–1673.">18</a>]</span></td>
-            <td class="num">0.9766</td>
+            <td class="num">0.9859</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
@@ -771,17 +755,17 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_bode_gain_max">Pursuit peak gain</td>
-            <td class="num">0.9018</td>
+            <td class="num">0.909</td>
             <td class="num">[0.7, 1.1] <span class="crefs">[<a class="cref" href="#ref-21" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">21</a>]</span></td>
-            <td class="num">0.9018</td>
+            <td class="num">0.909</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_bode_fc_hi">Pursuit −3 dB bandwidth (Hz)</td>
-            <td class="num">0.2097 Hz</td>
+            <td class="num">0.3493 Hz</td>
             <td class="num">[0.3, +∞] <span class="crefs">[<a class="cref" href="#ref-21" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">21</a>]</span></td>
-            <td class="num">0.2097</td>
+            <td class="num">0.3493</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. Gain = eye-velocity (SPV) ÷ target-velocity; phase lag vs frequency. Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-21" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">21</a>]</span></p></div>
@@ -803,7 +787,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 405.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:06</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 405.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:06</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -1095,7 +1079,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 75.8s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:07</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>6. Fixation <span class="rt">· 75.6s · 2e36c5e-dirty.0039210 · 2026-06-25 14:25</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1141,7 +1125,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 103.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:09</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 103.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:09</span> <span class="stale">&#9888; out of date — code now 2e36c5e-dirty.c1f074f</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
