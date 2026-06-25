@@ -184,11 +184,16 @@ def step(activations, weights, u_vel, brain_params, u_tonic=0.0):
     # implement via a fast lead-filter state `u_lp` (LP of u_vel at tau_fast ~ dt):
     #   du_lp/dt = (u_vel − u_lp) / tau_fast       state — fast 1st-order LP
     #   u_vel'   ≈ du_lp/dt = (u_vel − u_lp)/tau_fast    smoothed derivative
-    # tau_mn_eff per axis: yaw uses 1.5·tau_mn (MLF mix: half ABN→LR direct +
-    # half AIN→MLF→CN3_MR, both share tau_mn); pitch/roll use tau_mn alone.
+    # tau_mn_eff per axis: yaw uses mn_ff_yaw·tau_mn; pitch/roll use tau_mn.
+    # mn_ff_yaw is the conjugate-yaw MN-LP feedforward factor. The version-
+    # averaged value is 1.5 (half ABN→LR direct 1-stage + half AIN→MLF→CN3_MR
+    # 2-stage). That averaging over- and under-compensates the two eyes equally;
+    # the EXACT per-eye split is mn_ff_yaw=1.0 (the common 1st stage, here) +
+    # fcp.mlf_lead (the adducting MR's extra stage, in the FCP). 1.5 + mlf_lead=0
+    # = the legacy compromise.
     # tau_fast = dt = 0.001 s sets the lead-filter pole — the residual eye lag
     # behind NI_net is ~tau_fast (~1 ms), down from ~tau_mn_eff (~7 ms).
-    tau_mn_eff   = brain_params.tau_mn * jnp.array([1.5, 1.0, 1.0])
+    tau_mn_eff   = brain_params.tau_mn * jnp.array([brain_params.mn_ff_yaw, 1.0, 1.0])
     tau_fast     = 0.001     # lead-filter pole; sets the residual eye lag (~tau_fast)
     u_vel_dot    = (u_vel - weights.u_lp) / tau_fast        # smoothed u_vel'
     du_lp        = u_vel_dot                                # state derivative of u_lp

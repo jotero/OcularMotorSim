@@ -146,6 +146,16 @@ def _overlay_expected(axg, axp, expected):
     axp.semilogx(ef, ep, '-', color='#999999', lw=1.1, alpha=0.9, zorder=1)
 
 
+def _plain_gain_yaxis(axg):
+    """Plain-number y-ticks (1, 0.8, 0.6, 0.4 …) on the log gain axis instead of
+    10ˣ scientific notation — gains read much more naturally that way."""
+    from matplotlib.ticker import FuncFormatter, LogLocator
+    fmt = FuncFormatter(lambda y, _: f'{y:g}')
+    axg.yaxis.set_minor_locator(LogLocator(base=10.0, subs=(2.0, 4.0, 6.0, 8.0)))
+    axg.yaxis.set_major_formatter(fmt)
+    axg.yaxis.set_minor_formatter(fmt)
+
+
 def make_bode_figure(freqs, gains, phases, title, ref_hz=0.5, highpass=False,
                      gain_label='Gain', figsize=(7.5, 6.0), color='#2166ac',
                      expected=None):
@@ -172,6 +182,7 @@ def make_bode_figure(freqs, gains, phases, title, ref_hz=0.5, highpass=False,
     axg.set_ylabel(gain_label, fontsize=9)
     axg.grid(True, which='both', alpha=0.2)
     axg.legend(fontsize=8, loc='best')
+    _plain_gain_yaxis(axg)
 
     axp.semilogx(freqs, phases, 's-', color=color, lw=1.6, ms=5)
     axp.axhline(0, color='k', lw=0.4)
@@ -209,6 +220,7 @@ def make_bode_multi(freqs, series, title, ref_hz=0.5, highpass=False,
     axg.set_ylabel(gain_label, fontsize=9)
     axg.grid(True, which='both', alpha=0.2)
     axg.legend(fontsize=8, loc='best')
+    _plain_gain_yaxis(axg)
     axp.axhline(0, color='k', lw=0.4)
     if ref_hz is not None:
         axp.axvline(ref_hz, color='gray', lw=0.6, ls=':', alpha=0.4)

@@ -192,9 +192,20 @@ def step(activations, premotor_activity, brain_params):
     # MLF: AIN firing rates feed contralateral CN3_MR through the MLF tract.
     # MLF axon conduction cap (g_mlf_L/R · NERVE_MAX) is frequency-selective.
     # Driven by AIN ACTIVATIONS.
+    #
+    # Per-eye (monocular) lead compensation: the adducting MR rides a 2-stage
+    # path (AIN tau_mn → MLF → CN3_MR tau_mn) vs the abducting LR's 1-stage, so a
+    # conjugate command lands the eyes disconjugately (post-saccadic vergence
+    # transient). Since rates[AIN] + tau_mn·d(rates[AIN])/dt = premotor[AIN],
+    # blending the lagged AIN output toward its premotor input cancels up to one
+    # tau_mn of AIN lag → the MR behaves like the 1-stage LR. mlf_lead ∈ [0,1]:
+    # 0 = pure version (no compensation); 1 = full monocular compensation.
+    a = brain_params.mlf_lead
+    ain_R_mlf = (1.0 - a) * rates[AIN_R] + a * premotor[AIN_R]
+    ain_L_mlf = (1.0 - a) * rates[AIN_L] + a * premotor[AIN_L]
     mlf = jnp.zeros(N_STATES) \
-        .at[CN3_MR_L].set(_smooth_clip(rates[AIN_R], brain_params.g_mlf_L * _NERVE_MAX)) \
-        .at[CN3_MR_R].set(_smooth_clip(rates[AIN_L], brain_params.g_mlf_R * _NERVE_MAX))
+        .at[CN3_MR_L].set(_smooth_clip(ain_R_mlf, brain_params.g_mlf_L * _NERVE_MAX)) \
+        .at[CN3_MR_R].set(_smooth_clip(ain_L_mlf, brain_params.g_mlf_R * _NERVE_MAX))
 
     # MN dynamics: linear LP integrating premotor + MLF inputs; leak uses
     # the current firing rate (= membrane state under normal operation since

@@ -415,10 +415,13 @@ class BrainParams(NamedTuple):
     # unaffected). Heun stability: dt/τ_fac = 0.05, dt/τ_dep = 0.01.
     tau_fac:               float = 0.020  # BN facilitation rise/decay TC (s)
     tau_dep:               float = 0.100  # BN depression follower TC (s) — sets post-saccadic recovery duration
-    alpha_fac:             float = 1.0    # facilitation gain: g_dyn = 1 + alpha_fac·z_fac during burst —
+    alpha_fac:             float = 0.5    # facilitation gain: g_dyn = 1 + alpha_fac·z_fac during burst —
                                             # post-inhibitory-rebound boost of the burst neurons (z_fac rises
-                                            # toward 1 while OPN is paused).  ~1.0 steepens the main sequence
-                                            # toward 700(1−e^{−A/7}) without de-stabilising the burst loop.
+                                            # toward 1 while OPN is paused). Lowered 1.0 → 0.5: at 1.0 the
+                                            # facilitation over-drove the burst near the end, giving a ~0.36°
+                                            # command overshoot (40°) + post-saccadic ring; 0.5 trims that to
+                                            # ~0.08° with #saccades still 1 and peak velocity essentially
+                                            # unchanged (g_burst caps large saccades).
     alpha_dep:             float = 0.0    # depression gain: g_dyn dips by alpha_dep × z_dep after burst
 
     # Saccade target selection — handled inside the saccade generator
@@ -675,6 +678,28 @@ class BrainParams(NamedTuple):
     # Vergence is preserved in either case (CN3_MR drives MR directly).
     g_mlf_L:               float        = 1.0   # left  MLF synaptic gain (AIN_R → MR_L)
     g_mlf_R:               float        = 1.0   # right MLF synaptic gain (AIN_L → MR_R)
+    mn_ff_yaw:             float        = 1.0   # conjugate-yaw MN-LP pulse-step feedforward factor
+                                                  # (× tau_mn). 1.0 (default) = the common 1st MN stage —
+                                                  # empirically settles the post-saccadic landing ~4×
+                                                  # cleaner than the version-averaged 1.5, which over-
+                                                  # drives and rings (saccades were also slightly too
+                                                  # fast at 1.5; 1.0 trims peak velocity ~5%). The exact
+                                                  # per-eye split is 1.0 here + mlf_lead (MR's extra
+                                                  # stage), but mlf_lead worsens the post-saccadic ring,
+                                                  # so it stays dormant (0). 1.5 = legacy compromise.
+    mlf_lead:              float        = 0.0   # per-eye (monocular) MLF lead compensation [0,1].
+                                                  # The adducting MR is driven 2-stage (AIN tau_mn →
+                                                  # MLF → CN3_MR tau_mn) while the abducting LR is
+                                                  # 1-stage, so a conjugate command lands the eyes
+                                                  # disconjugately → post-saccadic vergence transient.
+                                                  # Blends the lagged AIN output with its premotor
+                                                  # input on the MLF tract: rates[AIN]+tau_mn·d/dt =
+                                                  # premotor[AIN], so this cancels up to one tau_mn of
+                                                  # AIN lag. 0 = pure version command (no monocular
+                                                  # compensation, current); 1 = full monocular
+                                                  # compensation (MR behaves 1-stage like LR → conjugate
+                                                  # landing). Tunable; physiological saccadic
+                                                  # disconjugacy is preserved at lower values.
 
     # ── Cerebellum — prediction-error correction (cerebellum.md) ──────────────
     # Currently only the pursuit region is wired (paraflocculus_ventral /

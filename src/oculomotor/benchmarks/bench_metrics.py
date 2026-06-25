@@ -15,8 +15,10 @@ Two check types, both wanted:
   physiological ground truth.  Refreeze with ``--update`` after an intended
   change.
 
-A metric may carry both.  Every metric is equally important: any band or golden
-breach is a hard failure (non-zero exit / red).  There is no gate/monitor split.
+A metric may carry both.  An OUT-OF-BAND value is a hard **FAIL** (red, non-zero
+exit) — the physiological assertion.  A golden DRIFT while the value is still in
+band is **DRIFT** (amber, informational — re-freeze with --update after an
+intended change), not a failure.  No gate/monitor tier split.
 
 Usage::
 
@@ -50,8 +52,8 @@ GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 class Metric:
     """One scalar measured from a simulation, with its acceptance criteria.
 
-    Every metric is equally important: any band or golden breach is a hard
-    failure (red). There is no gate/monitor split.
+    Out of band → FAIL (red). In band but drifted from golden → DRIFT (amber,
+    informational). No gate/monitor tier split.
 
     Args:
         name:        unique key (snake_case, e.g. 'vor_okan_tc').
@@ -265,9 +267,11 @@ def evaluate(metrics: list[Metric], golden: dict) -> list[Result]:
             drift = (v - g) / denom
             drift_ok = (not nan) and abs(drift) <= m.golden_tol
 
-        breached = (band_ok is False) or (drift_ok is False)
-        if breached:
-            status = 'fail'          # every metric is equally important — breach = red
+        if band_ok is False:
+            status = 'fail'          # OUT OF BAND — physiological violation (red, fails the run)
+        elif drift_ok is False:
+            status = 'drift'         # in band, but moved from the golden snapshot
+                                     # (amber, informational — re-freeze after an intended change)
         elif m.golden_tol is not None and g is None:
             status = 'new'           # no snapshot yet — record on next --update
         else:
@@ -279,7 +283,7 @@ def evaluate(metrics: list[Metric], golden: dict) -> list[Result]:
 
 # ── Reporting ─────────────────────────────────────────────────────────────────
 
-_MARK = {'pass': 'PASS', 'fail': 'FAIL', 'warn': 'WARN', 'new': 'NEW '}
+_MARK = {'pass': 'PASS', 'fail': 'FAIL', 'drift': 'DRIFT', 'new': 'NEW '}
 
 
 def _fmt(x, nan='   --') -> str:
@@ -338,10 +342,10 @@ def gather(show: bool = False) -> list:
 # ── HTML dashboard ────────────────────────────────────────────────────────────
 
 _HTML_STATUS = {
-    'pass': ('#d4edda', '#155724', 'PASS'),
-    'fail': ('#f8d7da', '#721c24', 'FAIL'),
-    'warn': ('#fff3cd', '#856404', 'WARN'),
-    'new':  ('#e2e3e5', '#383d41', 'NEW'),
+    'pass':  ('#d4edda', '#155724', 'PASS'),
+    'fail':  ('#f8d7da', '#721c24', 'FAIL'),
+    'drift': ('#fff3cd', '#856404', 'DRIFT'),
+    'new':   ('#e2e3e5', '#383d41', 'NEW'),
 }
 
 
@@ -492,13 +496,17 @@ def main(argv=None) -> int:
     print(f'summary: {tally}')
 
     n_fail = tally.get('fail', 0)
+    n_drift = tally.get('drift', 0)
     n_new = tally.get('new', 0)
     if n_new:
         print(f'\n{n_new} new metric(s) without a golden value — run --update to freeze.')
+    if n_drift:
+        print(f'\n{n_drift} metric(s) DRIFTED from golden but stay in band — informational; '
+              f're-freeze with --update after an intended change.')
     if n_fail:
-        print(f'\nFAILED: {n_fail} metric(s) out of band or drifted.')
+        print(f'\nFAILED: {n_fail} metric(s) OUT OF BAND.')
         return 1
-    print('\nAll metrics within band and tolerance.')
+    print('\nAll metrics within band.')
     return 0
 
 

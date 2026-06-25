@@ -482,7 +482,12 @@ def main():
     )
     schema_keys = set(schema.keys()) if isinstance(schema, dict) else set()
     missing_keys = sorted(code_keys - schema_keys)
-    stale_keys   = sorted(schema_keys - code_keys)
+    # `alias: true` entries (e.g. b_vs_L/R) are patient-facing aliases the runner
+    # expands into a param slice — documented in the schema for the LLM pipeline,
+    # but not BrainParams fields, so they are NOT stale.
+    stale_keys   = sorted(
+        k for k in (schema_keys - code_keys)
+        if not (isinstance(schema.get(k), dict) and schema[k].get('alias')))
 
     html = _build_html(brain_fields, sensory_fields, plant_fields,
                        schema_path, missing_keys, stale_keys)

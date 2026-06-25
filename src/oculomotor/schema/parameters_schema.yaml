@@ -73,6 +73,7 @@ brain.b_vs:
   length: 6
 
 brain.b_vs_L:
+  alias: true   # patient-facing alias expanded into b_vs (6,); not a BrainParams field
   group: self_motion_estimation
   units: "deg/s"
   anatomy: "Left vestibular-nucleus resting bias"
@@ -88,6 +89,7 @@ brain.b_vs_L:
     - {name: "Left VN infarct", value: 0, tag: vn}
 
 brain.b_vs_R:
+  alias: true   # patient-facing alias expanded into b_vs (6,); not a BrainParams field
   group: self_motion_estimation
   units: "deg/s"
   anatomy: "Right vestibular-nucleus resting bias"
@@ -1156,6 +1158,31 @@ brain.tau_mn:
     (Robinson 1981; Sylvestre & Cullen 1999).  ~5 ms is the membrane TC of
     oculomotor motoneurons.  Behaviorally invisible at healthy plant TCs
     (~150-200 ms), but a clean state-level hook for MN-pathology modelling.
+
+brain.mn_ff_yaw:
+  group: final_common_pathway
+  units: "—"
+  anatomy: "Version MN-LP feedforward scale (pulse–step plant inverse, yaw)"
+  description: |
+    Scales the yaw motoneuron-LP feedforward term in the NI pulse–step
+    (τ_mn_eff = τ_mn·[mn_ff_yaw, 1, 1]).  1.0 (default) = the common 1st MN
+    stage — settles the post-saccadic landing ~4× cleaner.  1.5 = the
+    version-averaged inverse (half 1-stage abducting LR + half 2-stage
+    adducting MR via MLF), which over-drives the saccade end and rings.  The
+    exact per-eye split is 1.0 here plus mlf_lead (the MR's extra stage).
+  range: [0, 2]
+
+brain.mlf_lead:
+  group: final_common_pathway
+  units: "—"
+  anatomy: "Per-eye MLF feedforward lead blend (adducting MR)"
+  description: |
+    Per-eye MLF feedforward lead in the FCP, 0–1.  0 (default, dormant) = pure
+    version drive; 1 = full monocular compensation of the adducting eye's extra
+    MR conduction stage (AIN→MLF→CN3-MR).  A legitimate per-eye knob (e.g. INO
+    modelling) but not the post-saccadic lever — it trades the onset velocity
+    gap for a larger settling ring (Decomp #4/#6, post_saccadic_motion.md).
+  range: [0, 1]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SensoryParams — Semicircular Canals

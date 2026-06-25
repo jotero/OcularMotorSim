@@ -5,7 +5,7 @@
     "golden_tol": 0.2,
     "units": "pd/D",
     "cite": "Schor (1979)",
-    "desc": "Behavioural AC/A ratio (Δvergence pd ÷ Δaccommodation D)"
+    "desc": "Behavioural AC/A ratio (\u0394vergence pd \u00f7 \u0394accommodation D)"
   },
   "aca_vergence_delta": {
     "lo": 0.0,
@@ -13,7 +13,7 @@
     "golden_tol": 0.2,
     "units": "deg",
     "cite": "Schor (1979); Morgan (1944)",
-    "desc": "Extra convergence from AC/A (lens-driven vergence, on − off)"
+    "desc": "Extra convergence from AC/A (lens-driven vergence, on \u2212 off)"
   },
   "acc_bode_fc_hi": {
     "lo": 0.5,
@@ -21,7 +21,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Stark et al. (1965)",
-    "desc": "Accommodation −3 dB bandwidth (Hz)"
+    "desc": "Accommodation \u22123 dB bandwidth (Hz)"
   },
   "acc_bode_gain_max": {
     "lo": 0.5,
@@ -37,7 +37,7 @@
     "golden_tol": 0.3,
     "units": "D",
     "cite": "Hung (1992); Schor (1988)",
-    "desc": "Tonic-accommodation (dark focus) adaptation after 32 s near (open-loop residual, near-conditioned − far control). Physiological near-induced dark-focus shift ≈ 0.1–0.6 D."
+    "desc": "Tonic-accommodation (dark focus) adaptation after 32 s near (open-loop residual, near-conditioned \u2212 far control). Physiological near-induced dark-focus shift \u2248 0.1\u20130.6 D."
   },
   "acc_darkfocus_tc_s": {
     "lo": 5.0,
@@ -45,31 +45,31 @@
     "golden_tol": 0.3,
     "units": "s",
     "cite": "Hung (1992)",
-    "desc": "Dark-hold persistence TC of the adapted dark focus (Hung target ~15–20 s)."
+    "desc": "Dark-hold persistence TC of the adapted dark focus (Hung target ~15\u201320 s)."
   },
   "acc_step_gain": {
     "lo": 0.75,
     "hi": 1.05,
     "golden_tol": 0.1,
     "units": "",
-    "cite": "Del Águila-Carrasco (2017)",
-    "desc": "Accommodation SS gain (response ÷ demand)"
+    "cite": "Del \u00c1guila-Carrasco (2017)",
+    "desc": "Accommodation SS gain (response \u00f7 demand)"
   },
   "acc_step_latency_ms": {
     "lo": 150.0,
     "hi": 500.0,
     "golden_tol": 0.2,
     "units": "ms",
-    "cite": "Del Águila-Carrasco (2017); Read (2022)",
-    "desc": "Accommodation step latency (demand step → 10% of response)"
+    "cite": "Del \u00c1guila-Carrasco (2017); Read (2022)",
+    "desc": "Accommodation step latency (demand step \u2192 10% of response)"
   },
   "acc_step_peak_vel": {
     "lo": 1.0,
     "hi": null,
     "golden_tol": 0.25,
     "units": "D/s",
-    "cite": "Del Águila-Carrasco (2017)",
-    "desc": "Peak accommodation velocity (far→near step)"
+    "cite": "Del \u00c1guila-Carrasco (2017)",
+    "desc": "Peak accommodation velocity (far\u2192near step)"
   },
   "acc_step_tc_s": {
     "lo": 0.1,
@@ -101,7 +101,7 @@
     "golden_tol": 0.3,
     "units": "deg",
     "cite": "numerical sanity (noise-off stability; no physiological band)",
-    "desc": "Eye-position std with all noise off (should be ≈0 — stability sanity)"
+    "desc": "Eye-position std with all noise off (should be \u22480 \u2014 stability sanity)"
   },
   "gravity_ocr_gain": {
     "lo": 0.8,
@@ -109,7 +109,7 @@
     "golden_tol": 0.1,
     "units": "",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OCR amplitude ratio: measured SS torsion ÷ −G_OCR·G0·sin(θ)"
+    "desc": "OCR amplitude ratio: measured SS torsion \u00f7 \u2212G_OCR\u00b7G0\u00b7sin(\u03b8)"
   },
   "gravity_ocr_sin_rmse": {
     "lo": null,
@@ -125,7 +125,7 @@
     "golden_tol": 0.25,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR steady-state average SPV (screw/translation bias) at 10° tilt"
+    "desc": "OVAR steady-state average SPV (screw/translation bias) at 10\u00b0 tilt"
   },
   "gravity_ovar_bias_30": {
     "lo": -40.0,
@@ -133,7 +133,7 @@
     "golden_tol": 0.25,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR steady-state average SPV (screw/translation bias) at 30° tilt"
+    "desc": "OVAR steady-state average SPV (screw/translation bias) at 30\u00b0 tilt"
   },
   "gravity_ovar_bias_60": {
     "lo": -45.0,
@@ -141,7 +141,7 @@
     "golden_tol": 0.25,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR steady-state average SPV (screw/translation bias) at 60° tilt"
+    "desc": "OVAR steady-state average SPV (screw/translation bias) at 60\u00b0 tilt"
   },
   "gravity_ovar_bias_90": {
     "lo": -50.0,
@@ -149,7 +149,7 @@
     "golden_tol": 0.25,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR steady-state average SPV (screw/translation bias) at 90° tilt"
+    "desc": "OVAR steady-state average SPV (screw/translation bias) at 90\u00b0 tilt"
   },
   "gravity_ovar_mod_10": {
     "lo": 0.2,
@@ -157,7 +157,7 @@
     "golden_tol": 0.2,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR SPV modulation amplitude at 10° tilt (∝ sin tilt)"
+    "desc": "OVAR SPV modulation amplitude at 10\u00b0 tilt (\u221d sin tilt)"
   },
   "gravity_ovar_mod_30": {
     "lo": 0.6,
@@ -165,7 +165,7 @@
     "golden_tol": 0.2,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR SPV modulation amplitude at 30° tilt (∝ sin tilt)"
+    "desc": "OVAR SPV modulation amplitude at 30\u00b0 tilt (\u221d sin tilt)"
   },
   "gravity_ovar_mod_60": {
     "lo": 1.2,
@@ -173,7 +173,7 @@
     "golden_tol": 0.2,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR SPV modulation amplitude at 60° tilt (∝ sin tilt)"
+    "desc": "OVAR SPV modulation amplitude at 60\u00b0 tilt (\u221d sin tilt)"
   },
   "gravity_ovar_mod_90": {
     "lo": 1.5,
@@ -181,7 +181,7 @@
     "golden_tol": 0.2,
     "units": "deg/s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "OVAR SPV modulation amplitude at 90° tilt (∝ sin tilt)"
+    "desc": "OVAR SPV modulation amplitude at 90\u00b0 tilt (\u221d sin tilt)"
   },
   "gravity_tilt_reversal_60": {
     "lo": -3.0,
@@ -189,7 +189,7 @@
     "golden_tol": 0.3,
     "units": "deg/s",
     "cite": "model limitation (not in literature)",
-    "desc": "Sustained late post-rotatory SPV at 60° — reversal / opposite-direction nystagmus"
+    "desc": "Sustained late post-rotatory SPV at 60\u00b0 \u2014 reversal / opposite-direction nystagmus"
   },
   "gravity_tilt_reversal_90": {
     "lo": -3.0,
@@ -197,7 +197,7 @@
     "golden_tol": 0.3,
     "units": "deg/s",
     "cite": "model limitation (not in literature)",
-    "desc": "Sustained late post-rotatory SPV at 90° — reversal / opposite-direction nystagmus"
+    "desc": "Sustained late post-rotatory SPV at 90\u00b0 \u2014 reversal / opposite-direction nystagmus"
   },
   "gravity_tilt_tc_0": {
     "lo": 18.0,
@@ -205,7 +205,7 @@
     "golden_tol": 0.2,
     "units": "s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "Post-rotatory version-SPV decay TC at 0° post-stop tilt"
+    "desc": "Post-rotatory version-SPV decay TC at 0\u00b0 post-stop tilt"
   },
   "gravity_tilt_tc_30": {
     "lo": 8.0,
@@ -213,7 +213,7 @@
     "golden_tol": 0.2,
     "units": "s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "Post-rotatory version-SPV decay TC at 30° post-stop tilt"
+    "desc": "Post-rotatory version-SPV decay TC at 30\u00b0 post-stop tilt"
   },
   "gravity_tilt_tc_60": {
     "lo": 4.0,
@@ -221,7 +221,7 @@
     "golden_tol": 0.2,
     "units": "s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "Post-rotatory version-SPV decay TC at 60° post-stop tilt"
+    "desc": "Post-rotatory version-SPV decay TC at 60\u00b0 post-stop tilt"
   },
   "gravity_tilt_tc_90": {
     "lo": 3.0,
@@ -229,7 +229,7 @@
     "golden_tol": 0.2,
     "units": "s",
     "cite": "Laurens & Angelaki (2011)",
-    "desc": "Post-rotatory version-SPV decay TC at 90° post-stop tilt"
+    "desc": "Post-rotatory version-SPV decay TC at 90\u00b0 post-stop tilt"
   },
   "listing_halfangle_slope": {
     "lo": 0.7,
@@ -269,7 +269,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "OKR −3 dB bandwidth — scene"
+    "desc": "OKR \u22123 dB bandwidth \u2014 scene"
   },
   "okr_bode_fc_hi_scene_target": {
     "lo": 0.1,
@@ -277,7 +277,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "OKR −3 dB bandwidth — scene+target"
+    "desc": "OKR \u22123 dB bandwidth \u2014 scene+target"
   },
   "okr_bode_gain_max_scene": {
     "lo": 0.4,
@@ -285,7 +285,7 @@
     "golden_tol": 0.1,
     "units": "",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "OKR peak gain — scene"
+    "desc": "OKR peak gain \u2014 scene"
   },
   "okr_bode_gain_max_scene_target": {
     "lo": 0.4,
@@ -293,7 +293,7 @@
     "golden_tol": 0.1,
     "units": "",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "OKR peak gain — scene+target"
+    "desc": "OKR peak gain \u2014 scene+target"
   },
   "pursuit_bode_fc_hi": {
     "lo": 0.3,
@@ -301,7 +301,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Lisberger et al. (1981)",
-    "desc": "Pursuit −3 dB bandwidth (Hz)"
+    "desc": "Pursuit \u22123 dB bandwidth (Hz)"
   },
   "pursuit_bode_gain_max": {
     "lo": 0.7,
@@ -317,7 +317,7 @@
     "golden_tol": 0.2,
     "units": "ms",
     "cite": "Rashbass (1961); Carl & Gellman (1987)",
-    "desc": "Pursuit onset latency at 10 deg/s (ramp onset → SPV > 2 deg/s)"
+    "desc": "Pursuit onset latency at 10 deg/s (ramp onset \u2192 SPV > 2 deg/s)"
   },
   "pursuit_ss_gain_10degs": {
     "lo": 0.8,
@@ -333,15 +333,23 @@
     "golden_tol": 0.08,
     "units": "",
     "cite": "Lisberger & Westbrook (1985)",
-    "desc": "Steady-state pursuit gain (SPV ÷ target vel) at 5 deg/s ramp"
+    "desc": "Steady-state pursuit gain (SPV \u00f7 target vel) at 5 deg/s ramp"
+  },
+  "sac_cascade_count_noiseless": {
+    "lo": 1.0,
+    "hi": 2.0,
+    "golden_tol": 0.0,
+    "units": "saccades",
+    "cite": "burst stop integrity (Robinson 1975 local feedback)",
+    "desc": "WORST-amplitude saccade count per noiseless target step \u2014 must be 1 (clean) or 2 (primary + 1 corrective); >2 \u21d2 burst oscillating / mis-terminating"
   },
   "sac_mainseq_resid_max": {
     "lo": null,
-    "hi": 0.2,
+    "hi": 0.25,
     "golden_tol": 0.15,
     "units": "",
     "cite": "Bahill et al. (1975)",
-    "desc": "Max fractional deviation from 700(1−e^−A/7), amplitudes ≥5°"
+    "desc": "Max fractional deviation from 700(1\u2212e^\u2212A/7), amplitudes \u22655\u00b0 (the idealized curve over-predicts small saccades, so ~20% at 5\u00b0 is expected)"
   },
   "sac_oblique_straightness": {
     "lo": null,
@@ -349,7 +357,7 @@
     "golden_tol": 0.2,
     "units": "",
     "cite": "Smit et al. (1990); van Gisbergen et al. (1985)",
-    "desc": "Max trajectory curvature (perp dev ÷ amplitude) over oblique directions"
+    "desc": "Max trajectory curvature (perp dev \u00f7 amplitude) over oblique directions"
   },
   "sac_peak_vel_20deg": {
     "lo": 550.0,
@@ -357,23 +365,31 @@
     "golden_tol": 0.05,
     "units": "deg/s",
     "cite": "Bahill et al. (1975)",
-    "desc": "Peak velocity of a 20° saccade (main-sequence saturation)"
+    "desc": "Peak velocity of a 20\u00b0 saccade (main-sequence saturation)"
   },
   "sac_postsac_peak_long_noiseless": {
     "lo": 0.0,
     "hi": 0.8,
     "golden_tol": 0.25,
     "units": "deg/s",
-    "cite": "post-saccadic stability — EC self-motion suppression",
-    "desc": "WORST-amplitude PEAK slow-phase speed in the LONG hold window — sustained post-saccadic oscillation/drift (noiseless target ~0)"
+    "cite": "post-saccadic stability \u2014 EC self-motion suppression",
+    "desc": "WORST-amplitude PEAK slow-phase speed in the LONG hold window \u2014 sustained post-saccadic oscillation/drift (noiseless target ~0)"
   },
   "sac_postsac_peak_short_noiseless": {
     "lo": 0.0,
     "hi": 1.0,
     "golden_tol": 0.25,
     "units": "deg/s",
-    "cite": "post-saccadic stability — EC self-motion suppression",
-    "desc": "WORST-amplitude PEAK slow-phase speed in the SHORT window just after the saccade — immediate ring/glissade (noiseless target ~0)"
+    "cite": "post-saccadic stability \u2014 EC self-motion suppression",
+    "desc": "WORST-amplitude PEAK slow-phase speed in the SHORT window just after the saccade \u2014 immediate ring/glissade (noiseless target ~0)"
+  },
+  "sac_postsac_verg_peak_noiseless": {
+    "lo": 0.0,
+    "hi": 1.5,
+    "golden_tol": 0.25,
+    "units": "deg/s",
+    "cite": "post-saccadic stability \u2014 per-eye (MLF) motor asymmetry",
+    "desc": "WORST-amplitude PEAK post-saccadic vergence (L\u2212R) velocity \u2014 the per-eye MN/MLF glissade asymmetry the version metric averages away (Side 2; target ~0)"
   },
   "sac_primary_gain": {
     "lo": 0.8,
@@ -381,14 +397,14 @@
     "golden_tol": 0.05,
     "units": "",
     "cite": "Robinson (1975)",
-    "desc": "Mean primary-saccade amplitude / target amplitude (≥5°)"
+    "desc": "Mean primary-saccade amplitude / target amplitude (\u22655\u00b0)"
   },
   "sac_refractory_isi_median_ms": {
     "lo": 150.0,
     "hi": 500.0,
     "golden_tol": 0.25,
     "units": "ms",
-    "cite": "Becker & Jürgens (1979)",
+    "cite": "Becker & J\u00fcrgens (1979)",
     "desc": "Median across amplitudes of the per-amplitude refractory-ISI threshold"
   },
   "sac_refractory_isi_ms": {
@@ -396,8 +412,8 @@
     "hi": 350.0,
     "golden_tol": 0.25,
     "units": "ms",
-    "cite": "Becker & Jürgens (1979)",
-    "desc": "Smallest double-step ISI yielding a distinct 2nd saccade (A=20°)"
+    "cite": "Becker & J\u00fcrgens (1979)",
+    "desc": "Smallest double-step ISI yielding a distinct 2nd saccade (A=20\u00b0)"
   },
   "tvor_bode_gain_max_dark": {
     "lo": 0.3,
@@ -405,7 +421,7 @@
     "golden_tol": 0.2,
     "units": "",
     "cite": "Paige & Tomko (1991); Angelaki & Hess (2001)",
-    "desc": "tVOR peak gain vs geometric ideal (high-f plateau) — dark"
+    "desc": "tVOR peak gain vs geometric ideal (high-f plateau) \u2014 dark"
   },
   "tvor_bode_gain_max_scene": {
     "lo": 0.3,
@@ -413,7 +429,7 @@
     "golden_tol": 0.2,
     "units": "",
     "cite": "Paige & Tomko (1991); Angelaki & Hess (2001)",
-    "desc": "tVOR peak gain vs geometric ideal (high-f plateau) — scene"
+    "desc": "tVOR peak gain vs geometric ideal (high-f plateau) \u2014 scene"
   },
   "tvor_bode_gain_max_scene_target": {
     "lo": 0.3,
@@ -421,7 +437,7 @@
     "golden_tol": 0.2,
     "units": "",
     "cite": "Paige & Tomko (1991); Angelaki & Hess (2001)",
-    "desc": "tVOR peak gain vs geometric ideal (high-f plateau) — scene+target"
+    "desc": "tVOR peak gain vs geometric ideal (high-f plateau) \u2014 scene+target"
   },
   "tvor_torsion_cross_dark": {
     "lo": null,
@@ -429,7 +445,7 @@
     "golden_tol": 0.3,
     "units": "deg",
     "cite": "cross-axis somatogravic / OCR coupling",
-    "desc": "Cross-axis torsion amplitude at 1 Hz during lateral translation — dark"
+    "desc": "Cross-axis torsion amplitude at 1 Hz during lateral translation \u2014 dark"
   },
   "tvor_torsion_cross_scene": {
     "lo": null,
@@ -437,7 +453,7 @@
     "golden_tol": 0.3,
     "units": "deg",
     "cite": "cross-axis somatogravic / OCR coupling",
-    "desc": "Cross-axis torsion amplitude at 1 Hz during lateral translation — scene"
+    "desc": "Cross-axis torsion amplitude at 1 Hz during lateral translation \u2014 scene"
   },
   "tvor_torsion_cross_scene_target": {
     "lo": null,
@@ -445,7 +461,7 @@
     "golden_tol": 0.3,
     "units": "deg",
     "cite": "cross-axis somatogravic / OCR coupling",
-    "desc": "Cross-axis torsion amplitude at 1 Hz during lateral translation — scene+target"
+    "desc": "Cross-axis torsion amplitude at 1 Hz during lateral translation \u2014 scene+target"
   },
   "verg_asym_facilitation": {
     "lo": 1.0,
@@ -453,7 +469,7 @@
     "golden_tol": 0.25,
     "units": "",
     "cite": "Zee et al. (1992)",
-    "desc": "Zee SVBN facilitation: asymmetric ÷ symmetric peak vergence velocity"
+    "desc": "Zee SVBN facilitation: asymmetric \u00f7 symmetric peak vergence velocity"
   },
   "verg_bode_fc_hi": {
     "lo": 0.3,
@@ -461,7 +477,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Rashbass & Westheimer (1961)",
-    "desc": "Vergence −3 dB bandwidth (Hz)"
+    "desc": "Vergence \u22123 dB bandwidth (Hz)"
   },
   "verg_bode_gain_max": {
     "lo": 0.5,
@@ -477,7 +493,7 @@
     "golden_tol": 0.2,
     "units": "",
     "cite": "Zee et al. (1992); Collewijn et al. (1988)",
-    "desc": "Symmetric peak-velocity ratio convergence ÷ divergence (>1 expected)"
+    "desc": "Symmetric peak-velocity ratio convergence \u00f7 divergence (>1 expected)"
   },
   "verg_latency_ms": {
     "lo": 80.0,
@@ -485,7 +501,7 @@
     "golden_tol": 0.25,
     "units": "ms",
     "cite": "Rashbass & Westheimer (1961)",
-    "desc": "Vergence latency (step → 10% of change)"
+    "desc": "Vergence latency (step \u2192 10% of change)"
   },
   "verg_overshoot": {
     "lo": null,
@@ -493,7 +509,7 @@
     "golden_tol": 0.3,
     "units": "",
     "cite": "Hung et al. (1986)",
-    "desc": "Convergence overshoot fraction (peak − SS)/(SS − start)"
+    "desc": "Convergence overshoot fraction (peak \u2212 SS)/(SS \u2212 start)"
   },
   "verg_phoria_adapt": {
     "lo": 0.3,
@@ -501,7 +517,7 @@
     "golden_tol": 0.25,
     "units": "deg",
     "cite": "Hung (1992); Schor (1988)",
-    "desc": "Tonic-vergence (phoria) adaptation after 32 s near (open-loop residual, near-conditioned − far control). Physiological retained phoria ≈ a few Δ (~0.3–3°); current model over-retains (cross-coupled AC/A holds convergence)."
+    "desc": "Tonic-vergence (phoria) adaptation after 32 s near (open-loop residual, near-conditioned \u2212 far control). Physiological retained phoria \u2248 a few \u0394 (~0.3\u20133\u00b0); current model over-retains (cross-coupled AC/A holds convergence)."
   },
   "verg_phoria_tc_s": {
     "lo": 5.0,
@@ -509,7 +525,7 @@
     "golden_tol": 0.3,
     "units": "s",
     "cite": "Hung (1992)",
-    "desc": "Dark-hold persistence TC of the adapted phoria (Hung target ~15–20 s). A railed value (≥~150 s) means vergence does NOT relax in the dark — AC/A keeps converting the still-wound accommodation tonic into convergence."
+    "desc": "Dark-hold persistence TC of the adapted phoria (Hung target ~15\u201320 s). A railed value (\u2265~150 s) means vergence does NOT relax in the dark \u2014 AC/A keeps converting the still-wound accommodation tonic into convergence."
   },
   "verg_sym_conv_err": {
     "lo": null,
@@ -525,7 +541,7 @@
     "golden_tol": 0.3,
     "units": "deg",
     "cite": "Mays (1984)",
-    "desc": "Max |version| during symmetric vergence (conjugacy — should be ≈0)"
+    "desc": "Max |version| during symmetric vergence (conjugacy \u2014 should be \u22480)"
   },
   "verg_tc_s": {
     "lo": 0.1,
@@ -541,7 +557,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "VOR high-side −3 dB cutoff — dark"
+    "desc": "VOR high-side \u22123 dB cutoff \u2014 dark"
   },
   "vor_bode_fc_hi_light": {
     "lo": null,
@@ -549,7 +565,15 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "VOR high-side −3 dB cutoff — light"
+    "desc": "VOR high-side \u22123 dB cutoff \u2014 light"
+  },
+  "vor_bode_fc_hi_light_target": {
+    "lo": null,
+    "hi": null,
+    "golden_tol": 0.25,
+    "units": "Hz",
+    "cite": "Cohen, Matsuo & Raphan (1977)",
+    "desc": "VOR high-side \u22123 dB cutoff \u2014 light+target"
   },
   "vor_bode_fc_lo_light_target": {
     "lo": null,
@@ -557,7 +581,7 @@
     "golden_tol": 0.25,
     "units": "Hz",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "VOR low-side −3 dB corner (canal high-pass) — light+target"
+    "desc": "VOR low-side \u22123 dB corner (canal high-pass) \u2014 light+target"
   },
   "vor_bode_gain_max_dark": {
     "lo": 0.4,
@@ -565,7 +589,7 @@
     "golden_tol": 0.1,
     "units": "",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "VOR peak gain — dark"
+    "desc": "VOR peak gain \u2014 dark"
   },
   "vor_bode_gain_max_light": {
     "lo": 0.4,
@@ -573,7 +597,7 @@
     "golden_tol": 0.1,
     "units": "",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "VOR peak gain — light"
+    "desc": "VOR peak gain \u2014 light"
   },
   "vor_bode_gain_max_light_target": {
     "lo": 0.4,
@@ -581,7 +605,7 @@
     "golden_tol": 0.1,
     "units": "",
     "cite": "Cohen, Matsuo & Raphan (1977)",
-    "desc": "VOR peak gain — light+target"
+    "desc": "VOR peak gain \u2014 light+target"
   },
   "vor_okr_okan_tc": {
     "lo": 10.0,
@@ -613,6 +637,6 @@
     "golden_tol": 0.08,
     "units": "",
     "cite": "Raphan, Matsuo & Cohen (1979)",
-    "desc": "VVOR slow-phase gain during rotation in light (10–25 s)"
+    "desc": "VVOR slow-phase gain during rotation in light (10\u201325 s)"
   }
 }
