@@ -117,7 +117,13 @@
       "WebSearch",
       "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_verg_pred_test.py\")",
       "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_verify_fix.py\")",
-      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_drift.py\")"
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_drift.py\")",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 d:\\\\OneDrive\\\\UC` Berkeley\\\\OMlab` -` JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_diag_burst_tradeoff.py)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.run_benchmarks --html-only)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.run_benchmarks)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 d:\\\\OneDrive\\\\UC` Berkeley\\\\OMlab` -` JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_eval_from_data.py)",
+      "PowerShell(& git -C \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\" status --short)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.gen_parameters)"
     ],
     "additionalDirectories": [
       "d:\\OneDrive\\UC Berkeley\\OMlab - JOM\\Code\\ClaudeOculomotorJax\\outputs"
