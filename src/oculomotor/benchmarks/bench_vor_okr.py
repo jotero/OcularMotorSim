@@ -452,24 +452,55 @@ def _cascade(sims, show):
 _BODE_FREQS = np.array([0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0,
                         5.0, 7.0, 10.0, 15.0, 20.0])
 
+# VOR Bode amplitude / settle policy.
+#  - Cap PEAK POSITION at _VOR_BODE_POS_MAX so the earth-fixed target never leaves
+#    the foveatable range (~±25°): velocity = min(VMAX, POS_MAX·2πf) (bode.capped_velocity_amp).
+#    Without this a constant-velocity sweep puts the target at ±95° at 0.05 Hz and
+#    the light+target point collapses into out-of-range nystagmus (a pure artifact).
+#  - Run each point past the velocity-storage transient (~4·TC_VS) at low f so the
+#    steady-state fit isn't biased by the still-charging storage.
+_VOR_BODE_VMAX     = 30.0      # deg/s — peak velocity above the position-cap knee
+_VOR_BODE_POS_MAX  = 20.0      # deg   — peak position excursion cap (< ~±25° fixation limit)
+_VOR_TC_VS         = 35.0      # s     — velocity-storage settle (post-rotatory TC scale)
+_VOR_SETTLE_FRAC   = 0.5       # fit uses the last half of each record
+# Opt-in low-frequency extension (down to 0.005 Hz) that reveals the dark high-pass
+# rolloff + phase lead. OFF in the suite (long records at low f are slow); enable
+# via _vor_bode(low_f=True) for the illustrative figure.
+_VOR_BODE_FREQS_LOWF = np.array([0.005, 0.01, 0.02])
 
-def _vor_bode(show):
+
+def _vor_bode(show, low_f=False):
     """VOR frequency response — sinusoidal head yaw, NOISELESS. Eye velocity
-    (SPV) ÷ head velocity (compensatory gain ≈ 1). Conditions: dark, light, light+target."""
-    AMP, N_CYC, SETTLE = 30.0, 5, 2.0
+    (SPV) ÷ head velocity (compensatory gain ≈ 1). Conditions: dark, light, light+target.
+
+    Peak position is capped at _VOR_BODE_POS_MAX so the earth-fixed target never
+    leaves range (no out-of-range artifact). `low_f=True` extends the sweep down
+    to 0.005 Hz to show the dark high-pass rolloff (slow — long low-f records)."""
+    AMP, N_CYC = _VOR_BODE_VMAX, 4
     CONDS = [('dark', 0.0, 0.0, '#444444'),
              ('light', 1.0, 0.0, '#1b7837'),
              ('light+target', 1.0, 1.0, '#c0392b')]
+    freqs = (np.concatenate([_VOR_BODE_FREQS_LOWF, _BODE_FREQS]) if low_f else _BODE_FREQS)
 
     def make(scene_p, target_p):
         def run_fn(f):
-            # Floor the oscillation duration (≥5 s) so the settle_frac analysis
-            # window always lands inside the oscillation, not the pre-oscillation
-            # dead time — otherwise high-f points (short records) fit garbage.
-            T_end = min(SETTLE + max(N_CYC / f, 5.0), 50.0)
-            t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
-            on = t >= SETTLE
-            hv = np.zeros((Tn, 3)); hv[:, 0] = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
+            w = 2 * np.pi * f
+            V = bode.capped_velocity_amp(f, AMP, _VOR_BODE_POS_MAX)   # keep target in range
+            period = 1.0 / f
+            # Fit uses the last (1 − settle_frac); size the record so that window
+            # holds ≥ N_CYC cycles AND (at low f) clears the ~4·TC_VS storage transient.
+            T_end = (N_CYC * period) / (1.0 - _VOR_SETTLE_FRAC)
+            # Full velocity-storage settle (~4·TC) is only paid for in the opt-in
+            # low_f sweep — the suite would otherwise spend minutes on the 0.05 Hz
+            # point. In the suite the cap already removes the gross artifact; the
+            # mid-band gain is ~1 through the transient, so a 4-cycle record suffices.
+            if low_f and period > 0.3 * _VOR_TC_VS:
+                T_end = max(T_end, 4.0 * _VOR_TC_VS / _VOR_SETTLE_FRAC)
+            # Floor: high-f records must clear the plant/processing transient (~0.5 s)
+            # + the SPV-mask window before the fit half — else 5–20 Hz points notch out.
+            T_end = float(np.clip(T_end, 10.0, 1600.0))
+            t = np.arange(0.0, T_end, DT); Tn = len(t)
+            hv = np.zeros((Tn, 3)); hv[:, 0] = V * np.sin(w * t)     # oscillate throughout (starts at 0)
             st = _simulate(THETA_NOISELESS, jnp.array(t), head_vel=jnp.array(hv),
                            scene_present=jnp.full(Tn, scene_p),
                            target_present=jnp.full(Tn, target_p), key=0)
@@ -479,16 +510,18 @@ def _vor_bode(show):
 
     series = []
     for lab, sp, tp, col in CONDS:
-        _, g, p = bode.bode_sweep(make(sp, tp), _BODE_FREQS, settle_frac=0.45)
+        _, g, p = bode.bode_sweep(make(sp, tp), freqs, settle_frac=_VOR_SETTLE_FRAC)
         series.append(dict(label=lab, gains=g, phases=p, color=col))
-    _ef = np.logspace(np.log10(0.05), np.log10(20.0), 140)
-    fig, out = bode.make_bode_multi(_BODE_FREQS, series,
+    _ef = np.logspace(np.log10(freqs.min()), np.log10(20.0), 140)
+    fig, out = bode.make_bode_multi(freqs, series,
         'VOR — Frequency Response (body yaw rotation, noiseless)',
         ref_hz=0.5, gain_label='Gain (eye vel ÷ head vel)',
         expected=bode.expected_bode('flat', g0=1.0, f=_ef,
             label='expected: ideal VOR ≈ unity, broadband (Cohen, Matsuo & Raphan 1977)'))
     path, rp = utils.save_fig(fig, 'vor_bode', show=show, params=THETA_NOISELESS,
-        conditions='Dark / light / light+target, NOISELESS — sinusoidal head yaw 0.05–20 Hz (30 deg/s)')
+        conditions=f'Dark / light / light+target, NOISELESS — sinusoidal head yaw '
+                   f'{freqs.min():.3g}–20 Hz (≤30 deg/s, peak position capped at '
+                   f'{_VOR_BODE_POS_MAX:.0f}°)')
     metrics = []
     for lab, *_ in CONDS:
         m = out[lab]; k = lab.replace('+', '_').replace(' ', '')
@@ -506,9 +539,11 @@ def _vor_bode(show):
                 cite='Cohen, Matsuo & Raphan (1977)', desc=f'VOR high-side −3 dB cutoff — {lab}'))
     fm = utils.fig_meta(path, rp,
         title='VOR — Bode (body rotation)',
-        description='Sinusoidal head yaw sweep (0.05–20 Hz, 30 deg/s), NOISELESS. '
+        description='Sinusoidal head yaw sweep (≤30 deg/s, peak position capped at '
+                    f'{_VOR_BODE_POS_MAX:.0f}° so the target stays in range), NOISELESS. '
                     'Eye velocity (SPV) ÷ head velocity in dark, light, light+target.',
-        expected='Light gain ≈ 1 across frequency (VVOR); dark gain drops below ~0.2 Hz (canal high-pass).',
+        expected='Light gain ≈ 1 across frequency (VVOR); dark gain rolls off (high-pass) '
+                 'below ~0.01 Hz — visible only with low_f=True.',
         citation='Cohen, Matsuo & Raphan (1977); Raphan et al. (1979)',
         fig_type='behavior')
     fm['metrics'] = metrics
@@ -519,6 +554,7 @@ def _okr_bode(show):
     """OKR frequency response — sinusoidal full-field scene motion (head still),
     NOISELESS. Eye velocity (SPV) ÷ scene velocity. Conditions: scene, scene+target."""
     AMP, N_CYC, SETTLE = 20.0, 5, 2.0
+    POS_MAX = 20.0   # deg — cap peak scene/target excursion (keep co-rotating target in range)
     CONDS = [('scene', 0.0, '#1b7837'), ('scene+target', 1.0, '#c0392b')]
 
     def make(target_p):
@@ -529,7 +565,11 @@ def _okr_bode(show):
             T_end = min(SETTLE + max(N_CYC / f, 5.0), 50.0)
             t = np.arange(0.0, T_end, DT); Tn = len(t); w = 2 * np.pi * f
             on = t >= SETTLE
-            sv = np.zeros((Tn, 3)); sv[:, 0] = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
+            # Cap peak scene/target excursion (= V/w) so the co-rotating target
+            # stays foveatable — else at 0.05 Hz it swings to 64° and the
+            # scene+target point dips below pure scene (out-of-range artifact).
+            V  = bode.capped_velocity_amp(f, AMP, POS_MAX)
+            sv = np.zeros((Tn, 3)); sv[:, 0] = np.where(on, V * np.sin(w * (t - SETTLE)), 0.0)
             # OKR: body still; the foveal target co-rotates WITH the full-field
             # scene about the head's yaw axis (same angular velocity). With a
             # target present, pursuit then REINFORCES OKN — instead of a

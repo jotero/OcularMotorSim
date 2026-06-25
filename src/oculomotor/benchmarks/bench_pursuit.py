@@ -167,7 +167,11 @@ def _bode(show):
     Gain = eye-velocity (SPV) ÷ target-velocity amplitude; phase lag vs frequency.
     Replaces the old (messy) sinusoidal-pursuit figure.
     """
-    AMP    = 10.0   # deg/s peak target velocity
+    AMP     = 10.0   # deg/s peak target velocity (above the position-cap knee)
+    POS_MAX = 20.0   # deg — cap peak target eccentricity so it stays foveatable.
+                     # The one-sided (1−cos) target peaks at 2·V/w, so cap V at the
+                     # POS_MAX/2 amplitude (peak = POS_MAX). Without this the 0.1 Hz
+                     # point puts the target at 32° (out of range) and the gain craters.
     FREQS  = np.array([0.1, 0.2, 0.35, 0.5, 0.7, 1.0, 1.5, 2.0])
     N_CYC  = 5
     SETTLE = 1.5
@@ -177,9 +181,10 @@ def _bode(show):
         t  = np.arange(0.0, T_end, DT)
         Tn = len(t)
         w  = 2 * np.pi * f
+        V  = bode.capped_velocity_amp(f, AMP, POS_MAX / 2.0)
         on = t >= SETTLE
-        vel = np.where(on, AMP * np.sin(w * (t - SETTLE)), 0.0)
-        pos = np.where(on, -(AMP / w) * (np.cos(w * (t - SETTLE)) - 1.0), 0.0)
+        vel = np.where(on, V * np.sin(w * (t - SETTLE)), 0.0)
+        pos = np.where(on, -(V / w) * (np.cos(w * (t - SETTLE)) - 1.0), 0.0)
         pt3 = np.zeros((Tn, 3)); pt3[:, 2] = 1.0; pt3[:, 0] = np.tan(np.radians(pos))
         vt3 = np.zeros((Tn, 3)); vt3[:, 0] = vel.astype(np.float32)
         st  = _run(THETA_NOISELESS, t, jnp.array(pt3), jnp.array(vt3), key=0)

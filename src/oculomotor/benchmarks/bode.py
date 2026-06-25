@@ -59,6 +59,26 @@ def bode_sweep(run_fn, freqs, settle_frac=0.5):
     return np.asarray(freqs, float), np.asarray(gains, float), np.asarray(phases, float)
 
 
+def capped_velocity_amp(f, v_max, pos_max):
+    """Peak velocity for a sinusoidal Bode point whose peak POSITION excursion is
+    capped at ``pos_max`` (deg).
+
+    For a sinusoid, position amplitude = v/(2πf), so holding velocity constant
+    makes the excursion blow up as 1/f at low frequency — which drives an
+    earth-fixed fixation target far out of the oculomotor / visual range (e.g.
+    ±95° at 0.05 Hz, 30 deg/s) and corrupts the point (the target becomes
+    unfoveatable; pursuit winds up; the response degrades into nystagmus).
+    Capping position keeps every point physical::
+
+        v = min(v_max, pos_max · 2πf)
+
+    Above the knee ``f_knee = v_max/(2π·pos_max)`` it is the constant ``v_max``;
+    below it, velocity scales down with f so the excursion stays ≤ ``pos_max``.
+    Use this in every closed-loop Bode ``run_fn`` so no sweep leaves range.
+    """
+    return float(min(v_max, pos_max * 2.0 * np.pi * f))
+
+
 def _interp_crossing(freqs, gains, thresh):
     """Highest frequency at which `gains` crosses `thresh` (log-f linear interp).
 

@@ -104,15 +104,15 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-06-25 08:10</strong> &nbsp;|&nbsp;
-      Version: <strong>9877e87-dirty.48acb6f</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-06-25 12:11</strong> &nbsp;|&nbsp;
+      Version: <strong>e74732f-dirty.1c14e0d</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
-    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 10 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 70</p>
-    <div class="warn-banner">&#9888; <b>7 of 7</b> sections were run on an older version (current build <b>9877e87-dirty.48acb6f</b>). Versions present: 9877e87-dirty.ed37ec6. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law.</div>
+    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 11 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 68</p>
+    <div class="warn-banner">&#9888; <b>7 of 7</b> sections were run on an older version (current build <b>e74732f-dirty.1c14e0d</b>). Versions present: 9877e87-dirty.ed37ec6, e74732f-dirty.482f913. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 182.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:24</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>1. Saccades <span class="rt">· 182.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:24</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
@@ -259,7 +259,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 888.1s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:39</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 1336.4s · e74732f-dirty.482f913 · 2026-06-25 12:00</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -336,60 +336,52 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_max_dark">VOR peak gain — dark</td>
-            <td class="num">1.062</td>
+            <td class="num">1.064</td>
             <td class="num">[0.4, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.062</td>
+            <td class="num">1.064</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_fc_hi_dark">VOR high-side −3 dB cutoff — dark</td>
-            <td class="num">3.13 Hz</td>
+            <td class="num">3.369 Hz</td>
             <td class="num">—</td>
-            <td class="num">3.13</td>
+            <td class="num">3.369</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_max_light">VOR peak gain — light</td>
-            <td class="num">1.05</td>
+            <td class="num">1.068</td>
             <td class="num">[0.4, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.05</td>
+            <td class="num">1.068</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_fc_hi_light">VOR high-side −3 dB cutoff — light</td>
-            <td class="num">4.236 Hz</td>
+            <td class="num">2.997 Hz</td>
             <td class="num">—</td>
-            <td class="num">4.236</td>
+            <td class="num">2.997</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_gain_max_light_target">VOR peak gain — light+target</td>
-            <td class="num">1.155</td>
+            <td class="num">1.121</td>
             <td class="num">[0.4, 1.2] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">1.155</td>
-            <td class="num">+0.0%</td>
-          </tr>
-          <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
-            <td class="what" title="vor_bode_fc_lo_light_target">VOR low-side −3 dB corner (canal high-pass) — light+target</td>
-            <td class="num">0.1507 Hz</td>
-            <td class="num">—</td>
-            <td class="num">0.1507</td>
+            <td class="num">1.121</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="vor_bode_fc_hi_light_target">VOR high-side −3 dB cutoff — light+target</td>
-            <td class="num">16.06 Hz</td>
+            <td class="num">19.49 Hz</td>
             <td class="num">—</td>
-            <td class="num">16.06</td>
+            <td class="num">19.49</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal head yaw sweep (0.05–20 Hz, 30 deg/s), NOISELESS. Eye velocity (SPV) ÷ head velocity in dark, light, light+target. Light gain ≈ 1 across frequency (VVOR); dark gain drops below ~0.2 Hz (canal high-pass).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>, <a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal head yaw sweep (≤30 deg/s, peak position capped at 20° so the target stays in range), NOISELESS. Eye velocity (SPV) ÷ head velocity in dark, light, light+target. Light gain ≈ 1 across frequency (VVOR); dark gain rolls off (high-pass) below ~0.01 Hz — visible only with low_f=True.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-9" title="Raphan T, Matsuo V, Cohen B (1979). Velocity storage in the vestibulo-ocular reflex arc (VOR). Experimental Brain Research 35:229–248.">9</a>, <a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></p></div>
       </div>
     </div>
 
@@ -407,33 +399,33 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_gain_max_scene">OKR peak gain — scene</td>
-            <td class="num">0.511</td>
+            <td class="num">0.5366</td>
             <td class="num">[0.4, 1.05] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">0.511</td>
+            <td class="num">0.5366</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_fc_hi_scene">OKR −3 dB bandwidth — scene</td>
-            <td class="num">0.5985 Hz</td>
+            <td class="num">0.2294 Hz</td>
             <td class="num">[0.1, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">0.5985</td>
+            <td class="num">0.2294</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_gain_max_scene_target">OKR peak gain — scene+target</td>
-            <td class="num">0.8324</td>
+            <td class="num">1.033</td>
             <td class="num">[0.4, 1.05] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">0.8324</td>
+            <td class="num">1.033</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="okr_bode_fc_hi_scene_target">OKR −3 dB bandwidth — scene+target</td>
-            <td class="num">2.606 Hz</td>
+            <td class="num">0.8315 Hz</td>
             <td class="num">[0.1, +∞] <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></td>
-            <td class="num">2.606</td>
+            <td class="num">0.8315</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal scene-velocity sweep (0.05–20 Hz, 20 deg/s), NOISELESS. Eye velocity (SPV) ÷ scene velocity for scene-only and scene+target. OKR is low-pass — gain rolls off above ~0.5 Hz; a stationary target suppresses it. Gain ≈ 1 at low f, rolls off above ~0.5 Hz.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-10" title="Cohen B, Matsuo V, Raphan T (1977). Quantitative analysis of the velocity characteristics of optokinetic nystagmus and optokinetic after-nystagmus. Journal of Physiology 270:321–344.">10</a>]</span></p></div>
@@ -443,7 +435,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 935.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:55</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 935.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:55</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path — gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -722,7 +714,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 260.4s · 9877e87-dirty.ed37ec6 · 2026-06-25 07:59</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 280.6s · e74732f-dirty.482f913 · 2026-06-25 12:05</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -779,17 +771,17 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="pursuit_bode_gain_max">Pursuit peak gain</td>
-            <td class="num">0.7887</td>
+            <td class="num">0.9018</td>
             <td class="num">[0.7, 1.1] <span class="crefs">[<a class="cref" href="#ref-21" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">21</a>]</span></td>
-            <td class="num">0.7887</td>
+            <td class="num">0.9018</td>
             <td class="num">+0.0%</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="pursuit_bode_fc_hi">Pursuit −3 dB bandwidth (Hz)</td>
-            <td class="num">0.4139 Hz</td>
+            <td class="num">0.2097 Hz</td>
             <td class="num">[0.3, +∞] <span class="crefs">[<a class="cref" href="#ref-21" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">21</a>]</span></td>
-            <td class="num">0.4139</td>
+            <td class="num">0.2097</td>
             <td class="num">+0.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. Gain = eye-velocity (SPV) ÷ target-velocity; phase lag vs frequency. Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-21" title="Lisberger SG, Evinger C, Johanson GW, Fuchs AF (1981). Relationship between eye acceleration and retinal image velocity during foveal smooth pursuit in man and monkey. Journal of Neurophysiology 46:229–249.">21</a>]</span></p></div>
@@ -811,7 +803,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 405.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:06</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 405.9s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:06</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -1103,7 +1095,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 75.8s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:07</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>6. Fixation <span class="rt">· 75.8s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:07</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1149,7 +1141,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 103.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:09</span> <span class="stale">&#9888; out of date — code now 9877e87-dirty.48acb6f</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 103.5s · 9877e87-dirty.ed37ec6 · 2026-06-25 08:09</span> <span class="stale">&#9888; out of date — code now e74732f-dirty.1c14e0d</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
