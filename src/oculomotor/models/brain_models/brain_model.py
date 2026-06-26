@@ -664,7 +664,12 @@ class BrainParams(NamedTuple):
     # ~0.92 (10 deg/s) / ~0.76 (20 deg/s) while still dipping the gate during
     # the catch-up saccade itself.
     saccadic_suppression_threshold:    float = 0.3   # raw_gate ≤ this → fully suppressed
-    saccadic_suppression_steepness:    float = 1.5   # power applied to thresholded gate
+    saccadic_suppression_steepness:    float = 0.0   # 0 DISABLES the gate (raw**0 = 1, fully open); was 1.5.
+                                                     # With mlf_lead=0.5 the EC residual is small enough that
+                                                     # suppression is unnecessary — and the gate was magnitude-
+                                                     # graded, under-suppressing small saccades anyway. Kept as
+                                                     # a knob; a future probabilistic EC (scene+target+efference)
+                                                     # may reinstate it. >0 re-enables (power on thresholded gate).
                                                               # 1.0 = transparent (ceiling >> normal burst); <1 = conduction block
                                                               # Nerve order: [LR_L,MR_L,SR_L,IR_L,SO_L,IO_L, LR_R,MR_R,SR_R,IR_R,SO_R,IO_R]
                                                               # INO: g_nerve[MR_L or MR_R] ↓  →  adducting saccades slow, fixation preserved
@@ -685,9 +690,9 @@ class BrainParams(NamedTuple):
                                                   # drives and rings (saccades were also slightly too
                                                   # fast at 1.5; 1.0 trims peak velocity ~5%). The exact
                                                   # per-eye split is 1.0 here + mlf_lead (MR's extra
-                                                  # stage), but mlf_lead worsens the post-saccadic ring,
-                                                  # so it stays dormant (0). 1.5 = legacy compromise.
-    mlf_lead:              float        = 0.0   # per-eye (monocular) MLF lead compensation [0,1].
+                                                  # stage), now 0.5 (the EC-residual sweet spot — see
+                                                  # mlf_lead). 1.5 = legacy compromise.
+    mlf_lead:              float        = 0.5   # per-eye (monocular) MLF lead compensation [0,1].
                                                   # The adducting MR is driven 2-stage (AIN tau_mn →
                                                   # MLF → CN3_MR tau_mn) while the abducting LR is
                                                   # 1-stage, so a conjugate command lands the eyes
@@ -695,11 +700,16 @@ class BrainParams(NamedTuple):
                                                   # Blends the lagged AIN output with its premotor
                                                   # input on the MLF tract: rates[AIN]+tau_mn·d/dt =
                                                   # premotor[AIN], so this cancels up to one tau_mn of
-                                                  # AIN lag. 0 = pure version command (no monocular
-                                                  # compensation, current); 1 = full monocular
+                                                  # AIN lag. 0 = pure version command; 1 = full monocular
                                                   # compensation (MR behaves 1-stage like LR → conjugate
-                                                  # landing). Tunable; physiological saccadic
-                                                  # disconjugacy is preserved at lower values.
+                                                  # landing). 0.5 (DEFAULT) is the empirical sweet spot:
+                                                  # the EC residual (→ post-saccadic OKR drift) is minimised
+                                                  # where the actual eye-motion shape best matches the EC's
+                                                  # command prediction — V-shaped in mlf_lead, min ~0.5 (1
+                                                  # over-leads and re-grows it). Cuts the post-sac ring
+                                                  # ~3–6× across saccade sizes, lifts peak velocity toward
+                                                  # the main-sequence ideal, halves oblique curvature, and
+                                                  # makes the saccadic-suppression gate unnecessary.
 
     # ── Cerebellum — prediction-error correction (cerebellum.md) ──────────────
     # Currently only the pursuit region is wired (paraflocculus_ventral /
