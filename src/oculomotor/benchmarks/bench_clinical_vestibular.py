@@ -25,7 +25,6 @@ import matplotlib.pyplot as plt
 from oculomotor.sim.simulator import (
     PARAMS_DEFAULT, with_brain, with_sensory, simulate, SimConfig,
     with_uvh, with_vn_lesion,
-    _IDX_VS_L, _IDX_VS_R,
 )
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import ax_fmt, vs_net, extract_spv_states, fit_tc
