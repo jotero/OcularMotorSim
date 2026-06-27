@@ -56,7 +56,9 @@ import jax.numpy as jnp
 from oculomotor.models.plant_models.muscle_geometry import (
     M_NUCLEUS, M_NERVE_PROJ,
     G_NUCLEUS_DEFAULT, G_NERVE_DEFAULT,
-    AIN_L, AIN_R, MR_L, MR_R, CN3_MR_L, CN3_MR_R,
+    AIN_L, AIN_R, CN3_MR_L, CN3_MR_R,
+    LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,
+    LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
 )
 
 __all__ = ['G_NUCLEUS_DEFAULT', 'G_NERVE_DEFAULT', 'N_STATES', 'step', 'rest_state',
@@ -100,6 +102,69 @@ def _smooth_clip(z, g_max):
     can invert cleanly.  See web/plant_compensation.md.
     """
     return z - jax.nn.softplus(z - g_max)
+
+
+def _smooth_clip_sym(z, g_max):
+    """Smooth TWO-SIDED clip into [-g_max, +g_max].
+
+    Same top as `_smooth_clip` (pull saturates at +g_max) plus a mirror floor at
+    -g_max.  Used for the *lesion-gated* cranial-nerve output (g_max = g_nerve *
+    NERVE_MAX): a complete conduction block (g_max -> 0) then silences the muscle
+    in BOTH directions, instead of letting it "push" (fire negative) once the
+    positive pull is clipped away — a denervated muscle exerts no force.
+
+        output = z - softplus(z - g_max) + softplus(-z - g_max)
+            |z| << g_max :  ~ z       (linear; healthy push-pull preserved)
+            z  >>  g_max :  ~ +g_max  (pull saturates)
+            z  << -g_max :  ~ -g_max  (push saturates)
+            g_max -> 0   :  ~ 0       (complete block: silent both ways)
+
+    This keeps g_nerve a PURE clip (conduction block) distinct from g_nucleus,
+    the linear gain (cell loss) applied to the drive before rectification.  For a
+    healthy nerve (g_max = NERVE_MAX) the floor term softplus(-z - NM) is ~0 over
+    the whole physiological drive range (max push ~-78 << -NM=-350), so it is a
+    no-op vs the one-sided clip; it only bites once a lesion brings the cap down
+    toward the operating range.
+    """
+    return z - jax.nn.softplus(z - g_max) + jax.nn.softplus(-z - g_max)
+
+
+# ── Pull-only (co-contraction) output ─────────────────────────────────────────
+# Make the output nerves pull-only by lifting each reciprocal antagonist pair
+# (_RECIP_PAIRS) by a COMMON-MODE amount c=relu(-min) so both stay >=0.  Each
+# pair's rotation axes are exact negatives, so their sum is a plant null direction
+# → c cancels in the (LR-MR)/2 decode → EXACTLY transparent to the eye and the
+# linear pulse-step controller (verified bit-identical for horizontal/vertical/
+# oblique saccades AND for g_nerve / g_nucleus lesions), while the firing now
+# matches physiology: the antagonist keeps pulling, dropping out only near its
+# off-extreme.  This supersedes the signed-drive abstraction (antagonist fires
+# negative) — which was only ever a workaround for the OLD floor's real mistake:
+# rectifying each muscle INDEPENDENTLY (a differential op that corrupts the decode
+# → velocity loss + glissade).  Modes (A/B + rollback):
+#   'shift'  (default) — co-contraction lift: pull-only, transparent.
+#   'signed'           — antagonist fires negative (legacy abstraction).
+#   'indep'            — independent relu (the old floor): velocity loss + glissade.
+_FLOOR_MODE = 'shift'
+
+# Reciprocal antagonist pairs whose rotation axes are exact negatives (sum = a
+# plant null direction): LR↔MR (yaw), SR↔IR (vertical recti), SO↔IO (obliques).
+# Lifting a pair together does not move the eye.
+_RECIP_PAIRS = ((LR_L, MR_L), (SR_L, IR_L), (SO_L, IO_L),
+                (LR_R, MR_R), (SR_R, IR_R), (SO_R, IO_R))
+
+
+def _pullonly(nerves):
+    """Re-express each reciprocal nerve pair as pull-only output (see _FLOOR_MODE)."""
+    if _FLOOR_MODE == 'signed':
+        return nerves
+    for ia, ib in _RECIP_PAIRS:
+        if _FLOOR_MODE == 'shift':
+            c = jax.nn.relu(-jnp.minimum(nerves[ia], nerves[ib]))     # common-mode lift
+            nerves = nerves.at[ia].add(c).at[ib].add(c)
+        else:                                                          # 'indep'
+            nerves = nerves.at[ia].set(jax.nn.relu(nerves[ia])) \
+                           .at[ib].set(jax.nn.relu(nerves[ib]))
+    return nerves
 
 
 # ── State + registries ────────────────────────────────────────────────────────
@@ -220,14 +285,20 @@ def step(activations, premotor_activity, brain_params):
     # — half-lesion produces both slowed saccades AND tonic strabismus.
     # Uniform symmetric baseline (default) is invisible at the plant (zero-sum
     # decode columns); asymmetry — intrinsic or lesion-induced — drives drift.
-    # Axon conduction cap (g_nerve · NERVE_MAX) acts at the cranial nerve.
+    # Axon conduction cap (g_nerve · NERVE_MAX) acts at the cranial nerve as a
+    # TWO-SIDED clip: a complete block (g_nerve=0) silences the muscle in both
+    # directions (no pull AND no push), so a denervated muscle exerts no force.
+    # No-op for healthy nerves (push stays well inside ±NERVE_MAX); see
+    # _smooth_clip_sym.  g_nerve is the pure CLIP (conduction block); g_nucleus
+    # above is the linear GAIN (cell loss) — two distinct lesion mechanisms.
     m_proj   = M_NERVE_PROJ \
         .at[MR_L, AIN_R].set(0.0) \
         .at[MR_R, AIN_L].set(0.0)
     r_base12 = brain_params.r_baseline
     r_base14 = jnp.concatenate([r_base12, jnp.zeros(2)])    # AIN doesn't project to nerves
-    nerves   = _smooth_clip(m_proj @ (rates + g_nuc14 * r_base14),
-                            brain_params.g_nerve * _NERVE_MAX)                   # (12,)
+    nerves   = _smooth_clip_sym(m_proj @ (rates + g_nuc14 * r_base14),
+                                brain_params.g_nerve * _NERVE_MAX)               # (12,)
+    nerves   = _pullonly(nerves)        # experimental pull-only output (default no-op)
     return State(mn=dx_mn), nerves
 
 
