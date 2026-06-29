@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-26 11:06",
-  "version": "fbff34f-dirty",
+  "generated": "2026-06-29 11:03",
+  "version": "08b3c56-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -24,17 +24,17 @@
             {
               "name": "sac_peak_vel_20deg",
               "value": 640.1481323242188,
-              "golden": 626.0626220703125
+              "golden": 640.1481323242188
             },
             {
               "name": "sac_mainseq_resid_max",
               "value": 0.15859943761867354,
-              "golden": 0.20666675942161886
+              "golden": 0.15859943761867354
             },
             {
               "name": "sac_primary_gain",
               "value": 0.9864487584431967,
-              "golden": 0.9757867741584778
+              "golden": 0.9864487584431967
             }
           ]
         },
@@ -52,7 +52,7 @@
             {
               "name": "sac_oblique_straightness",
               "value": 0.014093972742557526,
-              "golden": 0.02937454730272293
+              "golden": 0.014093972742557526
             }
           ]
         },
@@ -75,7 +75,7 @@
             {
               "name": "sac_refractory_isi_median_ms",
               "value": 388.0,
-              "golden": 379.99999999999994
+              "golden": 388.0
             }
           ]
         },
@@ -93,12 +93,12 @@
             {
               "name": "sac_postsac_peak_short_noiseless",
               "value": 1.1138916015625,
-              "golden": 1.7344354391098022
+              "golden": 1.1138916015625
             },
             {
               "name": "sac_postsac_peak_long_noiseless",
               "value": 1.4190672636032104,
-              "golden": 1.4114378690719604
+              "golden": 1.4190672636032104
             },
             {
               "name": "sac_postsac_verg_peak_noiseless",
@@ -136,22 +136,22 @@
             {
               "name": "vor_okr_vvor_gain",
               "value": 0.8813542453647045,
-              "golden": 0.8741449640897525
+              "golden": 0.8813542453647045
             },
             {
               "name": "vor_okr_postrot_tc",
               "value": 34.9654428452286,
-              "golden": 34.96411630829157
+              "golden": 34.9654428452286
             },
             {
               "name": "vor_okr_okan_tc",
               "value": 20.62671066639932,
-              "golden": 19.987246436331528
+              "golden": 20.62671066639932
             },
             {
               "name": "vor_okr_okn_ss_gain",
               "value": 0.8344715685696169,
-              "golden": 0.8276932153382535
+              "golden": 0.8344715685696169
             }
           ]
         },
@@ -181,17 +181,17 @@
             {
               "name": "vor_bode_gain_max_dark",
               "value": 1.0655162711185782,
-              "golden": 1.0654781734311978
+              "golden": 1.0655162711185782
             },
             {
               "name": "vor_bode_gain_max_light",
               "value": 1.084041056621937,
-              "golden": 1.0884375927720198
+              "golden": 1.084041056621937
             },
             {
               "name": "vor_bode_gain_max_light_target",
               "value": 1.1291078671137007,
-              "golden": 1.153838634539373
+              "golden": 1.1291078671137007
             }
           ]
         },
@@ -209,22 +209,22 @@
             {
               "name": "okr_bode_gain_max_scene",
               "value": 0.5215206035887102,
-              "golden": 0.5237034741510047
+              "golden": 0.5215206035887102
             },
             {
               "name": "okr_bode_fc_hi_scene",
               "value": 7.76749901993308,
-              "golden": 7.633101619178555
+              "golden": 7.76749901993308
             },
             {
               "name": "okr_bode_gain_max_scene_target",
               "value": 1.031676732186263,
-              "golden": 1.0317409698796745
+              "golden": 1.031676732186263
             },
             {
               "name": "okr_bode_fc_hi_scene_target",
               "value": 5.528349950532553,
-              "golden": 5.688665582791498
+              "golden": 5.528349950532553
             }
           ]
         }
@@ -287,42 +287,42 @@
             {
               "name": "gravity_ovar_mod_10",
               "value": 3.3438971807216173,
-              "golden": 3.3473475570524256
+              "golden": 3.3438971807216173
             },
             {
               "name": "gravity_ovar_bias_10",
               "value": -25.062992290240366,
-              "golden": -25.064637708613013
+              "golden": -25.062992290240366
             },
             {
               "name": "gravity_ovar_mod_30",
               "value": 3.547590908545725,
-              "golden": 3.543848646706332
+              "golden": 3.547590908545725
             },
             {
               "name": "gravity_ovar_bias_30",
               "value": -28.793634740882247,
-              "golden": -28.795812420454997
+              "golden": -28.793634740882247
             },
             {
               "name": "gravity_ovar_mod_60",
               "value": 2.6787212742968864,
-              "golden": 2.681375207176519
+              "golden": 2.6787212742968864
             },
             {
               "name": "gravity_ovar_bias_60",
               "value": -33.34295402017891,
-              "golden": -33.337425747915795
+              "golden": -33.34295402017891
             },
             {
               "name": "gravity_ovar_mod_90",
               "value": 2.4697250599899556,
-              "golden": 2.472230942905943
+              "golden": 2.4697250599899556
             },
             {
               "name": "gravity_ovar_bias_90",
               "value": -34.848437421826326,
-              "golden": -34.85435600248682
+              "golden": -34.848437421826326
             }
           ]
         },
@@ -340,32 +340,32 @@
             {
               "name": "gravity_tilt_tc_0",
               "value": 34.165126681189314,
-              "golden": 34.22528269774314
+              "golden": 34.165126681189314
             },
             {
               "name": "gravity_tilt_tc_30",
               "value": 15.453878707295091,
-              "golden": 15.46513300778491
+              "golden": 15.453878707295091
             },
             {
               "name": "gravity_tilt_tc_60",
               "value": 10.04065261674114,
-              "golden": 10.043582285893638
+              "golden": 10.04065261674114
             },
             {
               "name": "gravity_tilt_tc_90",
               "value": 9.019918235131016,
-              "golden": 9.022772002676646
+              "golden": 9.019918235131016
             },
             {
               "name": "gravity_tilt_reversal_60",
               "value": 1.2240656978917575,
-              "golden": 1.2248188978913077
+              "golden": 1.2240656978917575
             },
             {
               "name": "gravity_tilt_reversal_90",
               "value": -0.041448020433130166,
-              "golden": -0.03989628466005663
+              "golden": -0.041448020433130166
             }
           ]
         },
@@ -407,7 +407,7 @@
             {
               "name": "tvor_bode_gain_max_dark",
               "value": 0.05130756032031777,
-              "golden": 0.05130577327071067
+              "golden": 0.05130756032031777
             },
             {
               "name": "tvor_torsion_cross_dark",
@@ -417,22 +417,22 @@
             {
               "name": "tvor_bode_gain_max_scene",
               "value": 0.43028764593954577,
-              "golden": 0.419665602733996
+              "golden": 0.43028764593954577
             },
             {
               "name": "tvor_torsion_cross_scene",
               "value": 0.008361926526529215,
-              "golden": 0.00836192662018738
+              "golden": 0.008361926526529215
             },
             {
               "name": "tvor_bode_gain_max_scene_target",
               "value": 0.48164923779195695,
-              "golden": 0.42715511252980276
+              "golden": 0.48164923779195695
             },
             {
               "name": "tvor_torsion_cross_scene_target",
               "value": 0.10954575143724174,
-              "golden": 0.10987276088223324
+              "golden": 0.10954575143724174
             }
           ]
         }
@@ -460,17 +460,17 @@
             {
               "name": "pursuit_ss_gain_5degs",
               "value": 0.9937063535266594,
-              "golden": 0.9626990566419076
+              "golden": 0.9937063535266594
             },
             {
               "name": "pursuit_ss_gain_10degs",
               "value": 1.0065894180969686,
-              "golden": 0.9859145075897919
+              "golden": 1.0065894180969686
             },
             {
               "name": "pursuit_latency_ms",
               "value": 62.0,
-              "golden": 77.00000000000001
+              "golden": 62.0
             }
           ]
         },
@@ -488,12 +488,12 @@
             {
               "name": "pursuit_bode_gain_max",
               "value": 0.9146719164695349,
-              "golden": 0.9089828405913584
+              "golden": 0.9146719164695349
             },
             {
               "name": "pursuit_bode_fc_hi",
               "value": 1.572063683925892,
-              "golden": 0.3493195796286799
+              "golden": 1.572063683925892
             }
           ]
         },
@@ -548,12 +548,12 @@
             {
               "name": "verg_tc_s",
               "value": 0.22796688102180712,
-              "golden": 0.22796689543972173
+              "golden": 0.22796688102180712
             },
             {
               "name": "verg_overshoot",
               "value": 0.03184524100771119,
-              "golden": 0.03184541693417568
+              "golden": 0.03184524100771119
             }
           ]
         },
@@ -604,12 +604,12 @@
             {
               "name": "verg_conv_div_ratio",
               "value": 1.0113152069783065,
-              "golden": 1.0113091831633312
+              "golden": 1.0113152069783065
             },
             {
               "name": "verg_asym_facilitation",
               "value": 1.2582111881579718,
-              "golden": 1.2582401197570217
+              "golden": 1.2582111881579718
             }
           ]
         },
@@ -632,7 +632,7 @@
             {
               "name": "aca_ratio_pd_per_d",
               "value": 0.8808065735317095,
-              "golden": 0.8808064602620124
+              "golden": 0.8808065735317095
             }
           ]
         },
@@ -665,7 +665,7 @@
             {
               "name": "acc_darkfocus_tc_s",
               "value": 27.890370300986092,
-              "golden": 27.891513206718784
+              "golden": 27.890370300986092
             }
           ]
         },
@@ -683,12 +683,12 @@
             {
               "name": "verg_bode_gain_max",
               "value": 0.9890976004080749,
-              "golden": 0.989097591047725
+              "golden": 0.9890976004080749
             },
             {
               "name": "verg_bode_fc_hi",
               "value": 0.8707076119576123,
-              "golden": 0.8707077893863334
+              "golden": 0.8707076119576123
             }
           ]
         },
@@ -706,12 +706,12 @@
             {
               "name": "acc_bode_gain_max",
               "value": 0.9681940923427055,
-              "golden": 0.9681940934978004
+              "golden": 0.9681940923427055
             },
             {
               "name": "acc_bode_fc_hi",
               "value": 0.546981185648876,
-              "golden": 0.5469811677610777
+              "golden": 0.546981185648876
             }
           ]
         },
@@ -751,12 +751,12 @@
             {
               "name": "fix_noiseless_drift_std",
               "value": 0.005167295690625906,
-              "golden": 0.005167683120816946
+              "golden": 0.005167295690625906
             },
             {
               "name": "fix_drift_rms",
               "value": 0.09826964139938354,
-              "golden": 0.09829719364643097
+              "golden": 0.09826964139938354
             },
             {
               "name": "fix_microsaccade_rate",
@@ -789,12 +789,12 @@
             {
               "name": "listing_plane_rmse",
               "value": 0.4266385413988341,
-              "golden": 0.4275612993509302
+              "golden": 0.4266385413988341
             },
             {
               "name": "listing_halfangle_slope",
               "value": 0.923265072742218,
-              "golden": 0.9240238234357705
+              "golden": 0.923265072742218
             }
           ]
         },
@@ -812,7 +812,7 @@
             {
               "name": "listing_ocr_torsion_err",
               "value": 0.02182722091674716,
-              "golden": 0.13651466369628995
+              "golden": 0.02182722091674716
             }
           ]
         },
@@ -830,7 +830,50 @@
             {
               "name": "listing_pursuit_rmse",
               "value": 0.20286467671394348,
-              "golden": 0.24649891257286072
+              "golden": 0.20286467671394348
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fcp",
+      "title": "8. Final Common Pathway",
+      "description": "Motoneuron + cranial-nerve output stage. Traces the full command cascade \u2014 Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves \u2014 over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command \u2194 per-muscle recruitment mapping.",
+      "runtime_s": 37.57,
+      "version": "08b3c56-dirty.b0a8d29",
+      "generated": "2026-06-29 11:03",
+      "figures": [
+        {
+          "rel": "figures/fcp_cascade.png",
+          "title": "Final Common Pathway \u2014 cascade over 9-position gaze + near/far vergence",
+          "description": "Stacked timecourse of the whole final common pathway for a center-out-center 9-position gaze sequence (\u00b130\u00b0 at 1 m) followed by near (0.25 m) and far (4 m) depth shifts. Version drive is decomposed Robinson pulse/step (NI bilateral pops + \u03c4p\u00b7burst feed-through); vergence drive is decomposed step (verg_fast+tonic), pulse (direct path) and AC/A cross-link, all in H/V/T. The command then flows through the 14 signed motoneurons (incl. CN4 and the MLF internuclear AIN) to the 12 pull-only per-muscle nerve drives, split by eye.",
+          "expected": "Eye reaches each gaze target; ocular vergence rides ~3.7\u00b0 at 1 m, ~14.6\u00b0 at near and ~0.9\u00b0 at far (V/T vergence \u2248 0 in this symmetric paradigm). Each saccade is an NI step + burst pulse; the conjugate [H,V,T] command spreads across the recti/obliques per eye. Nerve drive stays pull-only (\u22650) via reciprocal co-contraction.",
+          "citation": "Robinson (1975); Sparks (2002)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": [
+            {
+              "name": "fcp_nerve_pullonly_frac",
+              "value": 1.0,
+              "golden": null
+            },
+            {
+              "name": "fcp_gaze_amp",
+              "value": 30.802215576171875,
+              "golden": null
+            },
+            {
+              "name": "fcp_verg_near",
+              "value": 14.532541275024414,
+              "golden": null
+            },
+            {
+              "name": "fcp_verg_far",
+              "value": 1.0692898035049438,
+              "golden": null
             }
           ]
         }

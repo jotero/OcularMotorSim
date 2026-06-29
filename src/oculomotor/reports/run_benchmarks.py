@@ -79,6 +79,7 @@ MODULES = [
     'bench_vergence',
     'bench_fixation',
     'bench_listing',
+    'bench_fcp',
 ]
 
 # Section ids never rendered into the report (data may still exist in

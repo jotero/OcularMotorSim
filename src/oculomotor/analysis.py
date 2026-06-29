@@ -26,6 +26,10 @@ extract_sg(states, theta)
     Full SG signal extraction: x_copy, e_held, z_opn, z_acc,
     e_res, e_pd, u_burst, x_ni.
 
+extract_fcp_cascade(states, theta)
+    Full final-common-pathway cascade as a dict: version + vergence
+    pulse/step, AC/A, MN(14) firing, per-muscle nerves(12).
+
 extract_z_opn(states)
     OPN latch state z_opn directly from state (no recomputation). (T,)
 
@@ -57,6 +61,8 @@ from oculomotor.models.sensory_models.sensory_model import (
 from oculomotor.models.brain_models.perception_cyclopean import C_pos, C_target_visible
 from oculomotor.models.brain_models import saccade_generator   as sg_mod
 from oculomotor.models.brain_models import brain_model         as brain_mod
+from oculomotor.models.brain_models import final_common_pathway as fcp_mod
+from oculomotor.models.brain_models import vergence_accommodation as va_mod
 
 try:
     from scipy.special import softplus as _sp_softplus
@@ -164,6 +170,79 @@ def extract_burst(states, theta):
                                 jnp.zeros(3), jnp.zeros(3), theta.brain)
         return u
     return np.array(jax.vmap(_at)(states))   # (T, 3)
+
+
+# ── Final common pathway ────────────────────────────────────────────────────────
+
+def extract_fcp_cascade(states, theta):
+    """Recompute the full final-common-pathway cascade from a trajectory.
+
+    Decomposes the conjugate (version) and vergence drive into Robinson
+    pulse / step, then carries the command through the motoneurons to the
+    per-muscle nerve drive — matching ``final_common_pathway.step`` exactly
+    (same f-I clip, MLF strip, two-sided nerve clip, pull-only output).
+
+    Args:
+        states: SimState trajectory (T, …)
+        theta:  Params NamedTuple
+
+    Returns:
+        dict of numpy arrays (angles deg, firing rates spk/s):
+            eye        (T,3)  version eye position 0.5·(L+R)
+            eye_verg   (T,)   ocular vergence L_yaw − R_yaw
+            ni_L, ni_R (T,3)  NI bilateral pops (the version step)
+            v_pulse    (T,3)  version pulse = τp·burst (feed-through)
+            verg_step  (T,3)  vergence step = verg_fast + verg_tonic
+            verg_pulse (T,3)  vergence pulse = τp·(K_phasic·disparity + SVBN)
+            aca        (T,)   AC/A cross-link (horizontal only)
+            mn         (T,14) motoneuron firing (signed f-I; CN4/AIN may go negative)
+            nerves     (T,12) per-muscle nerve drive (pull-only)
+    """
+    bp       = theta.brain
+    tau_p    = float(theta.plant.tau_p)
+    NM       = float(fcp_mod._NERVE_MAX)
+    AC_A     = float(bp.AC_A)
+    DEG_PD   = float(va_mod._DEG_PER_PD)
+    K_phasic = float(bp.K_phasic_verg)
+    g_svbn   = float(bp.g_svbn_conv)
+    X_svbn   = float(bp.X_svbn_conv)
+    opn_tonic = float(sg_mod._OPN_TONIC)
+
+    # version: eye position, NI step, burst feed-through pulse
+    L = np.array(states.plant.left); R = np.array(states.plant.right)
+    eye      = 0.5 * (L + R)
+    eye_verg = L[:, 0] - R[:, 0]
+    ni_L = np.array(states.brain.ni.L); ni_R = np.array(states.brain.ni.R)
+    v_pulse = tau_p * extract_burst(states, theta)
+
+    # motoneurons (signed f-I rates) → per-muscle nerves (pull-only), as in fcp.step
+    g_nuc14  = jnp.concatenate([bp.g_nucleus, bp.g_nucleus[:2]])
+    r_base14 = jnp.concatenate([bp.r_baseline, jnp.zeros(2)])
+    m_proj   = (fcp_mod.M_NERVE_PROJ
+                .at[fcp_mod.MR_L, fcp_mod.AIN_R].set(0.0)
+                .at[fcp_mod.MR_R, fcp_mod.AIN_L].set(0.0))
+    mn = jnp.asarray(states.brain.fcp.mn)
+    def _nerves(m):
+        z = m_proj @ (fcp_mod._smooth_clip(m, NM) + g_nuc14 * r_base14)
+        return fcp_mod._pullonly(fcp_mod._smooth_clip_sym(z, bp.g_nerve * NM))
+    rates  = np.array(jax.vmap(lambda m: fcp_mod._smooth_clip(m, NM))(mn))   # (T,14)
+    nerves = np.array(jax.vmap(_nerves)(mn))                                  # (T,12)
+
+    # vergence pulse / step decomposition (H/V/T)
+    verg_step = np.array(states.brain.va.verg_fast) + np.array(states.brain.va.verg_tonic)
+    disp     = np.array(states.brain.pc.target_disparity)[:, -3:]            # current disparity
+    vc       = np.array(states.brain.va.verg_copy)
+    gate_opn = np.array(states.brain.sg.z_opn) / opn_tonic
+    z_act    = np.clip(1.0 - gate_opn, 0.0, 1.0)[:, None]                    # (T,1) OPN open gate
+    br       = disp - vc
+    u_svbn   = z_act * np.sign(br) * g_svbn * (1.0 - np.exp(-np.abs(br) / X_svbn))
+    verg_pulse = tau_p * (K_phasic * disp + u_svbn)
+    aca = AC_A * DEG_PD * (np.array(states.brain.va.acc_fast)
+                           + np.array(states.brain.va.acc_slow))             # (T,) H-only
+
+    return dict(eye=eye, eye_verg=eye_verg, ni_L=ni_L, ni_R=ni_R, v_pulse=v_pulse,
+                verg_step=verg_step, verg_pulse=verg_pulse, aca=np.asarray(aca),
+                mn=rates, nerves=nerves)
 
 
 def extract_sg(states, theta):
