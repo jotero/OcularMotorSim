@@ -19,7 +19,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // ── Renderer + scene ──────────────────────────────────────────────────────────
 const canvas   = document.getElementById('avatar-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
+// Supersample: render above the display's native pixel ratio and let the browser
+// downsample. On top of MSAA (antialias:true) this is the biggest win for jagged
+// edges — especially on standard (dpr=1) monitors. Capped at 3 so retina displays
+// don't render an absurd buffer for this small canvas.
+renderer.setPixelRatio(Math.min(window.devicePixelRatio * 2, 3));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.autoClear = false;   // we clear manually between viewports
 
@@ -218,9 +222,9 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   const prop = (mesh) => { mesh.frustumCulled = false; mesh.visible = false;
                            scene.add(mesh); return mesh; };
 
-  targetSphere = prop(new THREE.Mesh(new THREE.SphereGeometry(0.022 * _modelUnit, 20, 14), overlay(0xe23b3b)));
-  gazeRayL = prop(new THREE.Mesh(new THREE.CylinderGeometry(0.004 * _modelUnit, 0.004 * _modelUnit, 1, 8), overlay(0x2166ac)));   // left  — blue (matches plots)
-  gazeRayR = prop(new THREE.Mesh(new THREE.CylinderGeometry(0.004 * _modelUnit, 0.004 * _modelUnit, 1, 8), overlay(0xd6604d)));   // right — red  (matches plots)
+  targetSphere = prop(new THREE.Mesh(new THREE.SphereGeometry(0.022 * _modelUnit, 48, 32), overlay(0xe23b3b)));
+  gazeRayL = prop(new THREE.Mesh(new THREE.CylinderGeometry(0.004 * _modelUnit, 0.004 * _modelUnit, 1, 32), overlay(0x2166ac)));   // left  — blue (matches plots)
+  gazeRayR = prop(new THREE.Mesh(new THREE.CylinderGeometry(0.004 * _modelUnit, 0.004 * _modelUnit, 1, 32), overlay(0xd6604d)));   // right — red  (matches plots)
 
   // ── World dot-cloud (visual surround) ─────────────────────────────────────
   // A low-contrast box of dots around the eye. World-fixed (added to scene, not
@@ -286,7 +290,7 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   // the rendered eye, in the scene so it appears in both views. Sits in FRONT of
   // the eye and is clearly bigger than it (~5 cm diameter). Black but see-through
   // (opacity 0.45) so the eye behind it stays visible.
-  const coverGeo = new THREE.SphereGeometry(0.025 * _modelUnit, 20, 14);
+  const coverGeo = new THREE.SphereGeometry(0.025 * _modelUnit, 48, 32);
   const coverMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true,
     opacity: 0.45, depthWrite: false, toneMapped: false });   // black but see-through
   coverMeshL = new THREE.Mesh(coverGeo, coverMat);
