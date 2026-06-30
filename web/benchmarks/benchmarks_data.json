@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-29 11:03",
-  "version": "08b3c56-dirty",
+  "generated": "2026-06-29 17:46",
+  "version": "5227ed6-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -840,9 +840,9 @@
       "id": "fcp",
       "title": "8. Final Common Pathway",
       "description": "Motoneuron + cranial-nerve output stage. Traces the full command cascade \u2014 Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves \u2014 over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command \u2194 per-muscle recruitment mapping.",
-      "runtime_s": 37.57,
-      "version": "08b3c56-dirty.b0a8d29",
-      "generated": "2026-06-29 11:03",
+      "runtime_s": 35.9,
+      "version": "5227ed6-dirty.d24c7e1",
+      "generated": "2026-06-29 17:46",
       "figures": [
         {
           "rel": "figures/fcp_cascade.png",
@@ -862,17 +862,17 @@
             },
             {
               "name": "fcp_gaze_amp",
-              "value": 30.802215576171875,
+              "value": 30.80461311340332,
               "golden": null
             },
             {
               "name": "fcp_verg_near",
-              "value": 14.532541275024414,
+              "value": 14.532761573791504,
               "golden": null
             },
             {
               "name": "fcp_verg_far",
-              "value": 1.0692898035049438,
+              "value": 1.069357991218567,
               "golden": null
             }
           ]

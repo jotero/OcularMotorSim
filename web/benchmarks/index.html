@@ -105,15 +105,15 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-06-29 11:03</strong> &nbsp;|&nbsp;
-      Version: <strong>08b3c56-dirty.b0a8d29</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-06-29 17:46</strong> &nbsp;|&nbsp;
+      Version: <strong>5227ed6-dirty.d24c7e1</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
     <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 10 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span> 4 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 66</p>
-    <div class="warn-banner">&#9888; <b>7 of 8</b> sections were run on an older version (current build <b>08b3c56-dirty.b0a8d29</b>). Versions present: 08b3c56-dirty.b0a8d29, fbff34f-dirty.dc96548. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law.</div>
+    <div class="warn-banner">&#9888; <b>7 of 8</b> sections were run on an older version (current build <b>5227ed6-dirty.d24c7e1</b>). Versions present: 5227ed6-dirty.d24c7e1, fbff34f-dirty.dc96548. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 200.5s · fbff34f-dirty.dc96548 · 2026-06-26 10:12</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>1. Saccades <span class="rt">· 200.5s · fbff34f-dirty.dc96548 · 2026-06-26 10:12</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
@@ -260,7 +260,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 1335.8s · fbff34f-dirty.dc96548 · 2026-06-26 10:34</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 1335.8s · fbff34f-dirty.dc96548 · 2026-06-26 10:34</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -412,7 +412,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 993.9s · fbff34f-dirty.dc96548 · 2026-06-26 10:51</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 993.9s · fbff34f-dirty.dc96548 · 2026-06-26 10:51</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path — gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -691,7 +691,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 286.0s · fbff34f-dirty.dc96548 · 2026-06-26 10:55</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 286.0s · fbff34f-dirty.dc96548 · 2026-06-26 10:55</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -780,7 +780,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 424.6s · fbff34f-dirty.dc96548 · 2026-06-26 11:03</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 424.6s · fbff34f-dirty.dc96548 · 2026-06-26 11:03</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -1072,7 +1072,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 75.5s · fbff34f-dirty.dc96548 · 2026-06-26 11:04</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>6. Fixation <span class="rt">· 75.5s · fbff34f-dirty.dc96548 · 2026-06-26 11:04</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1118,7 +1118,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 103.0s · fbff34f-dirty.dc96548 · 2026-06-26 11:06</span> <span class="stale">&#9888; out of date — code now 08b3c56-dirty.b0a8d29</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 103.0s · fbff34f-dirty.dc96548 · 2026-06-26 11:06</span> <span class="stale">&#9888; out of date — code now 5227ed6-dirty.d24c7e1</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
@@ -1202,7 +1202,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fcp">
-    <h2>8. Final Common Pathway <span class="rt">· 37.6s · 08b3c56-dirty.b0a8d29 · 2026-06-29 11:03</span></h2>
+    <h2>8. Final Common Pathway <span class="rt">· 35.9s · 5227ed6-dirty.d24c7e1 · 2026-06-29 17:46</span></h2>
     <p>Motoneuron + cranial-nerve output stage. Traces the full command cascade — Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves — over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command ↔ per-muscle recruitment mapping.</p>
     <div class="fig-grid">
       

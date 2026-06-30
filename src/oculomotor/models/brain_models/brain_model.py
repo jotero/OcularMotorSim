@@ -216,7 +216,7 @@ def read_activations(brain_state, brain_params):
         pu  = pu.read_activations(brain_state.pu),
         va  = va.read_activations(brain_state.va),
         ni  = ni.read_activations(brain_state.ni),
-        fcp = fcp.read_activations(brain_state.fcp),
+        fcp = fcp.read_activations(brain_state.fcp, brain_params),
         cb  = cb.read_activations(brain_state, brain_params),
     )
 
@@ -1097,11 +1097,11 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         brain_params     = brain_params,
     )
 
-    # ── Final common pathway: nucleus encode → MN low-pass → nerve activations ─
-    # MN firing rates come from the brain-wide activations registry (`acts.fcp`),
-    # which applies the cell-body f-I curve clip via fcp.read_activations.
-    # FCP step is fully activation-driven — it does NOT need raw brain_state.fcp.
-    dfcp, nerves = fcp.step(acts.fcp,
+    # ── Final common pathway: nucleus encode → MN low-pass → nerve transmission ─
+    # step is STATE-driven: it derives the signed leak/nerve rate from
+    # brain_state.fcp.mn internally.  (acts.fcp is the ≥0 nucleus firing rate, for
+    # the registry/figure only — exposing it ≥0 must not feed back into the leak.)
+    dfcp, nerves = fcp.step(brain_state.fcp,
                              jnp.concatenate([motor_cmd_ni, u_verg]),
                              brain_params)
 

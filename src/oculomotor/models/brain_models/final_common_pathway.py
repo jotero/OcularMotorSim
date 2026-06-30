@@ -56,9 +56,9 @@ import jax.numpy as jnp
 from oculomotor.models.plant_models.muscle_geometry import (
     M_NUCLEUS, M_NERVE_PROJ,
     G_NUCLEUS_DEFAULT, G_NERVE_DEFAULT,
-    AIN_L, AIN_R, CN3_MR_L, CN3_MR_R,
-    LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,
-    LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
+    AIN_L, AIN_R, ABN_L, ABN_R, CN4_L, CN4_R,
+    CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R, CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R,
+    MR_L, MR_R,   # nerve-order rows used only to strip the AIN→MR entries from the route
 )
 
 __all__ = ['G_NUCLEUS_DEFAULT', 'G_NERVE_DEFAULT', 'N_STATES', 'step', 'rest_state',
@@ -129,64 +129,56 @@ def _smooth_clip_sym(z, g_max):
     return z - jax.nn.softplus(z - g_max) + jax.nn.softplus(-z - g_max)
 
 
-# ── Pull-only (co-contraction) output ─────────────────────────────────────────
-# Make the output nerves pull-only by lifting each reciprocal antagonist pair
-# (_RECIP_PAIRS) by a COMMON-MODE amount c=relu(-min) so both stay >=0.  Each
-# pair's rotation axes are exact negatives, so their sum is a plant null direction
-# → c cancels in the (LR-MR)/2 decode → EXACTLY transparent to the eye and the
-# linear pulse-step controller (verified bit-identical for horizontal/vertical/
-# oblique saccades AND for g_nerve / g_nucleus lesions), while the firing now
-# matches physiology: the antagonist keeps pulling, dropping out only near its
-# off-extreme.  This supersedes the signed-drive abstraction (antagonist fires
-# negative) — which was only ever a workaround for the OLD floor's real mistake:
-# rectifying each muscle INDEPENDENTLY (a differential op that corrupts the decode
-# → velocity loss + glissade).  Modes (A/B + rollback):
-#   'shift'  (default) — co-contraction lift: pull-only, transparent.
-#   'signed'           — antagonist fires negative (legacy abstraction).
-#   'indep'            — independent relu (the old floor): velocity loss + glissade.
-_FLOOR_MODE = 'shift'
-
-# Reciprocal antagonist pairs whose rotation axes are exact negatives (sum = a
-# plant null direction): LR↔MR (yaw), SR↔IR (vertical recti), SO↔IO (obliques).
-# Lifting a pair together does not move the eye.
-_RECIP_PAIRS = ((LR_L, MR_L), (SR_L, IR_L), (SO_L, IO_L),
-                (LR_R, MR_R), (SR_R, IR_R), (SO_R, IO_R))
+# ── Pull-only (co-contraction): the nucleus fires ≥0 ──────────────────────────
+# Lift each reciprocal antagonist MN pair by a COMMON-MODE amount c = relu(-min)
+# so neither motoneuron fires negative.  The pair drives muscles whose rotation
+# axes are exact negatives (LR↔MR yaw, SR↔IR vertical, SO↔IO torsion), so the lift
+# is a plant-null direction → it cancels in the (LR-MR)/2 decode → EXACTLY
+# transparent to the eye, while the antagonist keeps physiologically pulling and
+# drops out only near its off-extreme.  Lifting the pair TOGETHER (not rectifying
+# each MN independently) preserves the differential — independent rectification
+# loses velocity and adds a glissade.  Pairs are in NUCLEUS order; SO is driven by
+# the contralateral trochlear MN, hence the crossed CN4↔CN3_IO entries.
+_RECIP_PAIRS = ((ABN_L, CN3_MR_L), (CN3_SR_L, CN3_IR_L), (CN4_R, CN3_IO_L),
+                (ABN_R, CN3_MR_R), (CN3_SR_R, CN3_IR_R), (CN4_L, CN3_IO_R))
 
 
-def _pullonly(nerves):
-    """Re-express each reciprocal nerve pair as pull-only output (see _FLOOR_MODE)."""
-    if _FLOOR_MODE == 'signed':
-        return nerves
+def _pullonly(firing):
+    """Lift each reciprocal MN pair by a common-mode amount so neither fires negative."""
     for ia, ib in _RECIP_PAIRS:
-        if _FLOOR_MODE == 'shift':
-            c = jax.nn.relu(-jnp.minimum(nerves[ia], nerves[ib]))     # common-mode lift
-            nerves = nerves.at[ia].add(c).at[ib].add(c)
-        else:                                                          # 'indep'
-            nerves = nerves.at[ia].set(jax.nn.relu(nerves[ia])) \
-                           .at[ib].set(jax.nn.relu(nerves[ib]))
-    return nerves
+        c = jax.nn.relu(-jnp.minimum(firing[ia], firing[ib]))   # common-mode lift (plant-null)
+        firing = firing.at[ia].add(c).at[ib].add(c)
+    return firing
+
+
+# Nucleus → nerve routing (12×14).  The AIN→MR entries are stripped: the AIN
+# reaches MR through the MLF (a membrane current in step), not this direct route,
+# so the stripped matrix is a pure selection — each nerve ← exactly one MN.
+_ROUTE = M_NERVE_PROJ.at[MR_L, AIN_R].set(0.0).at[MR_R, AIN_L].set(0.0)
 
 
 # ── State + registries ────────────────────────────────────────────────────────
 
 class State(NamedTuple):
-    """FCP state — 14 motor neuron membrane states.
+    """FCP state — 14 motor neuron membrane potentials.
 
-    Each entry is a membrane-potential-like accumulator integrated by the LP
-    dynamics in step().  `mn` is NOT a firing rate — the cell-body f-I curve
-    that rectifies it to [0, NERVE_MAX] lives in `read_activations`.
+    `mn` is a MEMBRANE POTENTIAL (signed), integrated by the LP dynamics in
+    step(); it sits below threshold for the off-direction muscle.  It is NOT the
+    firing rate — `read_activations` turns it into the ≥0 firing rate.
 
-    AIN_L and AIN_R are abducens internuclear neurons whose axons enter the
-    MLF and synapse on contralateral CN3_MR motoneurons (no extraocular
-    muscle output).  Their firing rates show up in the Activations registry
-    alongside the 12 muscle MNs.
+    AIN_L and AIN_R are abducens internuclear neurons whose axons enter the MLF
+    and synapse on contralateral CN3_MR motoneurons (no extraocular muscle output).
     """
     mn: jnp.ndarray   # (14,) [LR_L,LR_R,CN4_L,CN4_R,MR_L,MR_R,SR_L,SR_R,IR_L,IR_R,IO_L,IO_R,AIN_L,AIN_R]
 
 
 class Activations(NamedTuple):
-    """FCP firing rates — cell-body f-I curve applied."""
-    mn: jnp.ndarray   # (14,) firing rates (clipped to [0, NERVE_MAX])
+    """Nucleus firing rate (≥0) — 14 motoneurons in nucleus order.
+
+    Muscle MNs are ≥0 (pull-only co-contraction); the 2 AIN are internuclear (no
+    muscle) so they stay signed — the MLF relays their sub-threshold drive.
+    """
+    mn: jnp.ndarray   # (14,) firing rates, nucleus order; muscle MNs ≥0, AIN_L/R signed
 
 
 def zero_state():
@@ -194,44 +186,50 @@ def zero_state():
     return State(mn=jnp.zeros(14))
 
 
-def read_activations(state):
-    """Project MN membrane state → firing rates via the cell-body f-I curve.
+def read_activations(state, brain_params):
+    """Nucleus firing rate (≥0) — what each motoneuron fires.
 
-    `state.mn` is a membrane-potential-like accumulator integrated by the LP
-    dynamics in step().  The cell-body f-I curve maps it to firing rate by
-    rectifying (≥0) and capping at NERVE_MAX.  Downstream axonal effects
-    (MLF cap, nerve cap) are additional and applied in step().
+    state.mn is the nucleus MEMBRANE POTENTIAL (signed; sub-threshold for the
+    off-direction muscle).  The firing rate is the cell-body output, per motoneuron:
+    add the tonic baseline, cap at the f-I ceiling NERVE_MAX (the cell-body max
+    rate), then pull-only on the reciprocal MN pairs → ≥0.  (The active drive is
+    already in `v`, g_nucleus-scaled by step's premotor; the tonic is scaled here.)
+
+    Lesion at THIS stage: g_nucleus — nuclear cell loss, scales the firing.  The two
+    AIN are internuclear (no muscle) → their signed drive is kept; the MLF relays it
+    in step.  Projection to nerve and the conduction lesion (g_nerve) act on the
+    OUTPUT in step(), NOT here.
+
+    The leak in step() reads the signed membrane directly, so this ≥0 readout never
+    feeds back into the dynamics.
     """
-    return Activations(mn=_smooth_clip(state.mn, _NERVE_MAX))
+    v       = state.mn
+    g_nuc14 = jnp.concatenate([brain_params.g_nucleus, brain_params.g_nucleus[:2]])
+    tonic14 = jnp.concatenate([brain_params.r_baseline, jnp.zeros(2)])
+    firing  = _smooth_clip_sym(v + g_nuc14 * tonic14, _NERVE_MAX)   # signed drive, f-I capped
+    return Activations(mn=_pullonly(firing))                        # muscle MNs → ≥0; AIN stays signed
 
 
-def step(activations, premotor_activity, brain_params):
-    """Single ODE step: premotor activity → motor neurons → output nerves.
+def step(state, premotor_activity, brain_params):
+    """Single ODE step: premotor activity → motor neurons → output nerve.
 
-        dx_mn  =  (premotor_in + mlf  −  rates) / tau_mn
+        dx_mn  =  (premotor + mlf  −  v) / tau_mn
 
-    Activation-driven architecture:
-      • The cell-body f-I curve clip lives in `read_activations` — applied
-        once at the brain level via `brain_model.read_activations`.  The
-        caller passes the resulting `activations.mn` (firing rates) here.
-      • Premotor synaptic input is clipped at NERVE_MAX (cell-body f-I curve
-        at the synapse) so the membrane integrator stays bounded — under
-        normal operation `state.mn` ≈ `activations.mn`.
-      • Cross-projections (MLF: AIN → contralateral CN3_MR) and the nerve
-        output are both driven by ACTIVATIONS (firing rates), not raw state.
-        Axons carry spike rates, not membrane potential.
-
-    Two-stage clip:
-        1. Cell body  (in read_activations)         → cap at NERVE_MAX
-        2. Axonal     (in step, on MLF / nerves)    → cap at g_mlf · NERVE_MAX
-                                                       or g_nerve · NERVE_MAX
-    Healthy gains (g=1) make the axonal cap = NERVE_MAX (no extra effect);
-    lesion (g<1) brings the cap below NERVE_MAX and starts limiting.
+    Three clean stages — state → activation → nerve:
+      • state.mn = the nucleus MEMBRANE potential (SIGNED — below threshold for the
+        off-direction muscle).  The leak relaxes it toward the synaptic input
+        (premotor + MLF).  Signed so the L−R differential can reach NERVE_MAX, not
+        NERVE_MAX/2 — which is why step takes the state, not the ≥0 activations:
+        those couldn't drive the leak.
+      • activation = read_activations(state) — the ≥0 nucleus FIRING rate (f-I
+        ceiling NERVE_MAX + g_nucleus nuclear lesion, both cell-body properties).
+      • nerve (here) = route @ activation, then the g_nerve conduction cap — the
+        NERVE output and the AXON lesion.  Healthy the nerve == the routed firing;
+        g_nerve / g_mlf < 1 are the only things that change it.
 
     Args:
-        activations:        fcp.Activations  cell-body firing rates (14,) —
-                             supplied by the brain-wide activations registry
-        premotor_activity:  (6,)             [version (3,) | vergence (3,)] — NI +
+        state:              fcp.State  MN membrane states (14,)
+        premotor_activity:  (6,)       [version (3,) | vergence (3,)] — NI +
                              saccade burst + pursuit + vergence integrator output
         brain_params:       BrainParams (g_nucleus, g_nerve, g_mlf_L/R, tau_mn)
 
@@ -241,65 +239,59 @@ def step(activations, premotor_activity, brain_params):
                             [LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,
                              LR_R, MR_R, SR_R, IR_R, SO_R, IO_R]
     """
-    rates = activations.mn   # cell-body firing rates from brain registry
+    v = state.mn                             # membrane potential (signed); f-I ceiling lives in read_activations
 
     # Premotor synaptic input: linear projection of the upstream brain command
     # via M_NUCLEUS, scaled by g_nucleus (cell-loss gain; AIN_L/R inherit
     # ABN_L/R gain — intermingled populations).  No ×2 here: the antagonist
-    # is now allowed to fire negatively (push-pull symmetric), so both sides
-    # carry the command and `M_PLANT_EYE @ nerves` round-trips to motor_cmd
-    # without a reciprocal-compensation factor.  Ceiling-clipped at NERVE_MAX.
+    # MEMBRANE goes negative (push-pull symmetric in the signed membrane), so the
+    # L−R differential carries the command and `M_PLANT_EYE @ nerves` round-trips
+    # to motor_cmd without a reciprocal-compensation factor (the pull-only lift
+    # moves the differential onto the agonist in read_activations).  No ceiling
+    # here — the synaptic drive (~motor_cmd) stays well under NERVE_MAX; the f-I
+    # ceiling is applied once, in read_activations (the firing rate).
     g_nuc12  = brain_params.g_nucleus
     g_nuc14  = jnp.concatenate([g_nuc12, g_nuc12[:2]])
-    premotor = _smooth_clip(g_nuc14 * (M_NUCLEUS @ premotor_activity),
-                             _NERVE_MAX)                                          # (14,)
+    premotor = g_nuc14 * (M_NUCLEUS @ premotor_activity)                          # (14,) synaptic input
 
-    # MLF: AIN firing rates feed contralateral CN3_MR through the MLF tract.
-    # MLF axon conduction cap (g_mlf_L/R · NERVE_MAX) is frequency-selective.
-    # Driven by AIN ACTIVATIONS.
+    # MLF: AIN firing feeds contralateral CN3_MR through the MLF tract; g_mlf_L/R is
+    # the axon conduction cap (frequency-selective — the INO lesion).
     #
-    # Per-eye (monocular) lead compensation: the adducting MR rides a 2-stage
-    # path (AIN tau_mn → MLF → CN3_MR tau_mn) vs the abducting LR's 1-stage, so a
-    # conjugate command lands the eyes disconjugately (post-saccadic vergence
-    # transient). Since rates[AIN] + tau_mn·d(rates[AIN])/dt = premotor[AIN],
-    # blending the lagged AIN output toward its premotor input cancels up to one
-    # tau_mn of AIN lag → the MR behaves like the 1-stage LR. mlf_lead ∈ [0,1]:
-    # 0 = pure version (no compensation); 1 = full monocular compensation.
+    # mlf_lead — a LOCAL phase-lead at the abducens internuclear neuron.  The
+    # adducting MR rides a 2-stage path (AIN tau_mn → MLF → CN3_MR tau_mn) vs the
+    # abducting LR's 1-stage, so a conjugate command lands disconjugately (post-
+    # saccadic vergence transient).  Since premotor[AIN] = v[AIN] + tau_mn·d(v[AIN])/dt,
+    # the blend below is a PHASIC-TONIC mix — tonic membrane v plus a phasic
+    # derivative — that pre-pays one tau_mn of the AIN's own lag → the MR tracks the
+    # 1-stage LR.  Biologically: the AIN fires with a phase lead vs the ABN (both get
+    # the same input, the AIN is more phasic); mlf_lead ∈ [0,1] sets how phasic.  Both
+    # terms are local to the abducens — which is why this lives in the FCP.
+    # (Falsifiable: AINs should lead ABNs by ~mlf_lead·tau_mn during saccades.)
+    #
+    # FUTURE: this is plant-lag compensation done locally.  When the plant becomes
+    # 2nd-order (biomechanical), the brain's plant compensation moves to a dedicated
+    # forward-model / plant-inverse stage (cf. cerebellum.py EC) — and this AIN lead
+    # may migrate there with it.
     a = brain_params.mlf_lead
-    ain_R_mlf = (1.0 - a) * rates[AIN_R] + a * premotor[AIN_R]
-    ain_L_mlf = (1.0 - a) * rates[AIN_L] + a * premotor[AIN_L]
+    ain_R_mlf = (1.0 - a) * v[AIN_R] + a * premotor[AIN_R]
+    ain_L_mlf = (1.0 - a) * v[AIN_L] + a * premotor[AIN_L]
     mlf = jnp.zeros(N_STATES) \
         .at[CN3_MR_L].set(_smooth_clip(ain_R_mlf, brain_params.g_mlf_L * _NERVE_MAX)) \
         .at[CN3_MR_R].set(_smooth_clip(ain_L_mlf, brain_params.g_mlf_R * _NERVE_MAX))
 
-    # MN dynamics: linear LP integrating premotor + MLF inputs; leak uses
-    # the current firing rate (= membrane state under normal operation since
-    # premotor is clipped at NERVE_MAX → integrator stays bounded).
-    dx_mn = (premotor + mlf - rates) / brain_params.tau_mn
+    # MN dynamics: the membrane relaxes toward its synaptic input (premotor + MLF)
+    # with TC tau_mn.  The leak feedback is the SIGNED membrane v (not the ≥0
+    # firing rate), so the firing can be read out ≥0 without perturbing dynamics.
+    dx_mn = (premotor + mlf - v) / brain_params.tau_mn
 
-    # Nerves: muscle-MN ACTIVATIONS + tonic baseline, projected to nerve order
-    # via M_NERVE_PROJ (AIN→MR stripped — AIN reaches MR through MLF, not
-    # directly).  The per-nucleus tonic baseline is scaled by the same
-    # g_nucleus that scales dynamic firing, so a partial nuclear lesion
-    # (e.g. g_nucleus[ABN_R]=0.5) reduces both tonic AND active drive equally
-    # — half-lesion produces both slowed saccades AND tonic strabismus.
-    # Uniform symmetric baseline (default) is invisible at the plant (zero-sum
-    # decode columns); asymmetry — intrinsic or lesion-induced — drives drift.
-    # Axon conduction cap (g_nerve · NERVE_MAX) acts at the cranial nerve as a
-    # TWO-SIDED clip: a complete block (g_nerve=0) silences the muscle in both
-    # directions (no pull AND no push), so a denervated muscle exerts no force.
-    # No-op for healthy nerves (push stays well inside ±NERVE_MAX); see
-    # _smooth_clip_sym.  g_nerve is the pure CLIP (conduction block); g_nucleus
-    # above is the linear GAIN (cell loss) — two distinct lesion mechanisms.
-    m_proj   = M_NERVE_PROJ \
-        .at[MR_L, AIN_R].set(0.0) \
-        .at[MR_R, AIN_L].set(0.0)
-    r_base12 = brain_params.r_baseline
-    r_base14 = jnp.concatenate([r_base12, jnp.zeros(2)])    # AIN doesn't project to nerves
-    nerves   = _smooth_clip_sym(m_proj @ (rates + g_nuc14 * r_base14),
-                                brain_params.g_nerve * _NERVE_MAX)               # (12,)
-    nerves   = _pullonly(nerves)        # experimental pull-only output (default no-op)
-    return State(mn=dx_mn), nerves
+    # Nerve output: route the nucleus firing to the muscles (_ROUTE is a pure
+    # selection — AIN→MR is delivered via the MLF above, already in the CN3_MR
+    # firing), then apply the cranial-nerve conduction lesion.  g_nerve is the AXON
+    # lesion: g_nerve→0 silences the muscle (denervated, no force); g_nerve<1
+    # frequency-selectively caps the burst → limited-motility ophthalmoplegia.
+    activation = read_activations(state, brain_params).mn                             # ≥0 nucleus firing (14,)
+    nerve      = _smooth_clip(_ROUTE @ activation, brain_params.g_nerve * _NERVE_MAX)  # project + axon lesion
+    return State(mn=dx_mn), nerve
 
 
 # ── Legacy flat-array adapters (deleted once brain_model migrates to BrainState) ─

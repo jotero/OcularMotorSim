@@ -195,7 +195,7 @@ def extract_fcp_cascade(states, theta):
             verg_step  (T,3)  vergence step = verg_fast + verg_tonic
             verg_pulse (T,3)  vergence pulse = τp·(K_phasic·disparity + SVBN)
             aca        (T,)   AC/A cross-link (horizontal only)
-            mn         (T,14) motoneuron firing (signed f-I; CN4/AIN may go negative)
+            mn         (T,14) motoneuron firing (≥0 nucleus output; AIN signed — MLF)
             nerves     (T,12) per-muscle nerve drive (pull-only)
     """
     bp       = theta.brain
@@ -215,18 +215,12 @@ def extract_fcp_cascade(states, theta):
     ni_L = np.array(states.brain.ni.L); ni_R = np.array(states.brain.ni.R)
     v_pulse = tau_p * extract_burst(states, theta)
 
-    # motoneurons (signed f-I rates) → per-muscle nerves (pull-only), as in fcp.step
-    g_nuc14  = jnp.concatenate([bp.g_nucleus, bp.g_nucleus[:2]])
-    r_base14 = jnp.concatenate([bp.r_baseline, jnp.zeros(2)])
-    m_proj   = (fcp_mod.M_NERVE_PROJ
-                .at[fcp_mod.MR_L, fcp_mod.AIN_R].set(0.0)
-                .at[fcp_mod.MR_R, fcp_mod.AIN_L].set(0.0))
+    # nucleus firing rate (14, by-nucleus) + the nerve (route + g_nerve conduction
+    # lesion) — the same stages as fcp.step().
     mn = jnp.asarray(states.brain.fcp.mn)
-    def _nerves(m):
-        z = m_proj @ (fcp_mod._smooth_clip(m, NM) + g_nuc14 * r_base14)
-        return fcp_mod._pullonly(fcp_mod._smooth_clip_sym(z, bp.g_nerve * NM))
-    rates  = np.array(jax.vmap(lambda m: fcp_mod._smooth_clip(m, NM))(mn))   # (T,14)
-    nerves = np.array(jax.vmap(_nerves)(mn))                                  # (T,12)
+    def _act(m): return fcp_mod.read_activations(fcp_mod.State(mn=m), bp).mn
+    rates  = np.array(jax.vmap(_act)(mn))                                                                       # (T,14) ≥0 nucleus firing
+    nerves = np.array(jax.vmap(lambda m: fcp_mod._smooth_clip(fcp_mod._ROUTE @ _act(m), bp.g_nerve * NM))(mn))  # (T,12) nerve
 
     # vergence pulse / step decomposition (H/V/T)
     verg_step = np.array(states.brain.va.verg_fast) + np.array(states.brain.va.verg_tonic)

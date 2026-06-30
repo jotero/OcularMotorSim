@@ -49,15 +49,23 @@ PAIR  = {'LR': '#1f4e79', 'MR': '#7fb3e6', 'SR': '#2e7d32', 'IR': '#9ccc65',
          'SO': '#6a1b9a', 'IO': '#ce93d8', 'CN4': '#6a1b9a', 'AIN': '#9e9e9e'}
 def _mcol(lbl): return PAIR.get(lbl.split('_')[0], '#333')
 
-# MN legend: nucleus → target muscle (target eye). CN4 (trochlear) and AIN
-# (abducens internuclear, via MLF) decussate → contralateral eye.
-_NUC   = {'LR': 'CN6', 'CN4': 'CN4', 'MR': 'CN3', 'SR': 'CN3', 'IR': 'CN3', 'IO': 'CN3', 'AIN': 'AIN'}
-_TGT   = {'LR': 'LR', 'CN4': 'SO', 'MR': 'MR', 'SR': 'SR', 'IR': 'IR', 'IO': 'IO', 'AIN': 'MR'}
-_CROSS = {'CN4', 'AIN'}
+# MN legend: full motor pathway nucleus·side → nerve·side → muscle·side, so the
+# decussations are explicit.  CN4 (trochlear) is the one cranial nerve that
+# decussates — its axons cross between nucleus and nerve (nucleus L → nerve R →
+# SO R).  The abducens internuclear (AIN) is not a cranial nerve: it routes
+# through the MLF to the contralateral MR.  (nuc = nerve roman numeral; LR↔VI,
+# MR/SR/IR/IO↔III, SO↔IV.)
+_PATH = {'LR': ('VI', False, 'LR'), 'MR': ('III', False, 'MR'),
+         'SR': ('III', False, 'SR'), 'IR': ('III', False, 'IR'),
+         'IO': ('III', False, 'IO'), 'CN4': ('IV', True, 'SO')}
+def _opp(s): return 'R' if s == 'L' else 'L'
 def _mn_label(lbl):
     stem, side = lbl.split('_')
-    tgt = ('R' if side == 'L' else 'L') if stem in _CROSS else side
-    return f'{_NUC[stem]}→{_TGT[stem]} ({tgt})'
+    if stem == 'AIN':                          # abducens internuclear → MLF → contralateral MR
+        return f'VI·{side} →MLF→ MR·{_opp(side)}'
+    cn, cross, musc = _PATH[stem]
+    ns = _opp(side) if cross else side         # nerve + muscle side (trochlear decussates)
+    return f'{cn}·{side} → n{cn}·{ns} → {musc}·{ns}'
 
 
 def _sequence():
@@ -124,8 +132,8 @@ def _cascade(show):
               'version PULSE — τp·burst (feed-through)  [deg]',
               'vergence STEP — verg_fast+tonic, H/V/T  (+ AC/A, H)  [deg]',
               'vergence PULSE — direct path, H/V/T  [deg]',
-              'MN firing — LEFT nuclei  (signed; nucleus→muscle in legend)  [spk/s]',
-              'MN firing — RIGHT nuclei  (signed; nucleus→muscle in legend)  [spk/s]',
+              'MN firing — LEFT nuclei  (≥0 nucleus firing; AIN signed; nucleus→muscle in legend)  [spk/s]',
+              'MN firing — RIGHT nuclei  (≥0 nucleus firing; AIN signed; nucleus→muscle in legend)  [spk/s]',
               'nerves/muscles — LEFT eye  (pull-only)  [spk/s]',
               'nerves/muscles — RIGHT eye  (pull-only)  [spk/s]']
     for a, ti in zip(ax, titles):
