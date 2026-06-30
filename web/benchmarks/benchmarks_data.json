@@ -1,14 +1,14 @@
 {
-  "generated": "2026-06-29 17:46",
-  "version": "5227ed6-dirty",
+  "generated": "2026-06-30 13:53",
+  "version": "326e1d5-dirty",
   "sections": [
     {
       "id": "saccades",
       "title": "1. Saccades",
       "description": "Saccade kinematics and internal signal cascade. Tests main sequence (amplitude\u2013velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.",
-      "runtime_s": 200.46,
-      "version": "fbff34f-dirty.dc96548",
-      "generated": "2026-06-26 10:12",
+      "runtime_s": 197.0,
+      "version": "326e1d5-dirty.19fa321",
+      "generated": "2026-06-30 13:20",
       "figures": [
         {
           "rel": "figures/saccade_main_sequence.png",
@@ -17,23 +17,23 @@
           "expected": "Peak velocity within \u00b120% of 700(1\u2212e^{\u2212A/7}) (\u2248660 deg/s at 20\u00b0); duration grows roughly linearly with amplitude; velocity profiles are single-peaked and scale with amplitude.",
           "citation": "Bahill et al. (1975) Science; Robinson (1975) J Neurophysiol",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/saccade_main_sequence.png",
+          "diff_status": "changed",
+          "diff": 0.005677931942045689,
           "metrics": [
             {
               "name": "sac_peak_vel_20deg",
-              "value": 640.1481323242188,
+              "value": 633.0427856445312,
               "golden": 640.1481323242188
             },
             {
               "name": "sac_mainseq_resid_max",
-              "value": 0.15859943761867354,
+              "value": 0.17032013685774622,
               "golden": 0.15859943761867354
             },
             {
               "name": "sac_primary_gain",
-              "value": 0.9864487584431967,
+              "value": 0.9629721196492513,
               "golden": 0.9864487584431967
             }
           ]
@@ -45,13 +45,13 @@
           "expected": "Straight radial trajectories (curvature < ~5% of amplitude). Curvature is the readout of H/V component desynchrony, so it suffices on its own.",
           "citation": "Smit et al. (1990) J Neurophysiol; van Gisbergen et al. (1985)",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/saccade_oblique.png",
+          "diff_status": "changed",
+          "diff": 0.03243790939450264,
           "metrics": [
             {
               "name": "sac_oblique_straightness",
-              "value": 0.014093972742557526,
+              "value": 0.017488902434706688,
               "golden": 0.014093972742557526
             }
           ]
@@ -63,9 +63,9 @@
           "expected": "ISI < ~100 ms: 1 saccade (merged). ISI > ~150 ms: 2 separate saccades. Refractory period roughly constant across amplitudes (~150 ms).",
           "citation": "Becker & J\u00fcrgens (1979) Vision Res",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/saccade_refractoriness.png",
+          "diff_status": "changed",
+          "diff": 0.04773332178592682,
           "metrics": [
             {
               "name": "sac_refractory_isi_ms",
@@ -74,7 +74,7 @@
             },
             {
               "name": "sac_refractory_isi_median_ms",
-              "value": 388.0,
+              "value": 379.0,
               "golden": 388.0
             }
           ]
@@ -86,23 +86,23 @@
           "expected": "e_held freezes at saccade onset; burst proportional to e_res; accumulator floor locks out the next saccade for ~270 ms; the noise column adds fixational drift + occasional microsaccades.",
           "citation": "Robinson (1975) J Neurophysiol; Scudder et al. (2002); Kapoula, Robinson & Hain (1986)",
           "type": "cascade",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/saccade_cascade.png",
+          "diff_status": "match",
+          "diff": 0.002858156803995371,
           "metrics": [
             {
               "name": "sac_postsac_peak_short_noiseless",
-              "value": 1.1138916015625,
+              "value": 3.2558438777923584,
               "golden": 1.1138916015625
             },
             {
               "name": "sac_postsac_peak_long_noiseless",
-              "value": 1.4190672636032104,
+              "value": 1.314163088798523,
               "golden": 1.4190672636032104
             },
             {
               "name": "sac_postsac_verg_peak_noiseless",
-              "value": 5.373000621795654,
+              "value": 5.373119831085205,
               "golden": 5.373000621795654
             },
             {
@@ -118,9 +118,9 @@
       "id": "vor_okr",
       "title": "2. VOR / OKR",
       "description": "Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip \u2192 VS goes through K_vor_direct\u00b7(saccadically-gated slip) + K_cereb_okr\u00b7(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.",
-      "runtime_s": 1335.84,
-      "version": "fbff34f-dirty.dc96548",
-      "generated": "2026-06-26 10:34",
+      "runtime_s": 1388.18,
+      "version": "326e1d5-dirty.4d11f4b",
+      "generated": "2026-06-30 13:48",
       "figures": [
         {
           "rel": "figures/vor_raphan_fig9.png",
@@ -129,28 +129,28 @@
           "expected": "A: post-rot SPV TC 10\u201330 s. C: OKN gain~1, OKAN TC~20 s. E: VVOR gain>0.85 during rotation; post-rot TC similar to A. B/D/F: INT follows SPV; CUP decays at canal TC (~5 s).",
           "citation": "Raphan, Matsuo & Cohen (1979) Exp Brain Res 35:229\u2013248",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/vor_raphan_fig9.png",
+          "diff_status": "changed",
+          "diff": 0.008786359801888466,
           "metrics": [
             {
               "name": "vor_okr_vvor_gain",
-              "value": 0.8813542453647045,
+              "value": 0.8858061700885215,
               "golden": 0.8813542453647045
             },
             {
               "name": "vor_okr_postrot_tc",
-              "value": 34.9654428452286,
+              "value": 35.703060215454826,
               "golden": 34.9654428452286
             },
             {
               "name": "vor_okr_okan_tc",
-              "value": 20.62671066639932,
+              "value": 20.256383027521785,
               "golden": 20.62671066639932
             },
             {
               "name": "vor_okr_okn_ss_gain",
-              "value": 0.8344715685696169,
+              "value": 0.8370740895839511,
               "golden": 0.8344715685696169
             }
           ]
@@ -162,9 +162,9 @@
           "expected": "VOR: canal drives VS/NI, eye counter-rotates. VVOR: canal + OKR slip both feed VS, gaze stays stable. OKR: slip drives VS/NI, eye follows scene.",
           "citation": "Raphan, Matsuo & Cohen (1979); Robinson (1975)",
           "type": "cascade",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/vor_okr_cascade.png",
+          "diff_status": "changed",
+          "diff": 0.009480192326009274,
           "metrics": []
         },
         {
@@ -174,23 +174,23 @@
           "expected": "Light gain \u2248 1 across frequency (VVOR); dark gain rolls off (high-pass) below ~0.01 Hz \u2014 visible only with low_f=True.",
           "citation": "Cohen, Matsuo & Raphan (1977); Raphan et al. (1979)",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/vor_bode.png",
+          "diff_status": "changed",
+          "diff": 0.007155309431254864,
           "metrics": [
             {
               "name": "vor_bode_gain_max_dark",
-              "value": 1.0655162711185782,
+              "value": 1.065200188447406,
               "golden": 1.0655162711185782
             },
             {
               "name": "vor_bode_gain_max_light",
-              "value": 1.084041056621937,
+              "value": 1.0823005475624763,
               "golden": 1.084041056621937
             },
             {
               "name": "vor_bode_gain_max_light_target",
-              "value": 1.1291078671137007,
+              "value": 1.1291079070570682,
               "golden": 1.1291078671137007
             }
           ]
@@ -202,28 +202,28 @@
           "expected": "Gain \u2248 1 at low f, rolls off above ~0.5 Hz.",
           "citation": "Cohen, Matsuo & Raphan (1977) J Neurophysiol",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/okr_bode.png",
+          "diff_status": "match",
+          "diff": 0.0004059371422044933,
           "metrics": [
             {
               "name": "okr_bode_gain_max_scene",
-              "value": 0.5215206035887102,
+              "value": 0.5215205338709759,
               "golden": 0.5215206035887102
             },
             {
               "name": "okr_bode_fc_hi_scene",
-              "value": 7.76749901993308,
+              "value": 7.768175869689621,
               "golden": 7.76749901993308
             },
             {
               "name": "okr_bode_gain_max_scene_target",
-              "value": 1.031676732186263,
+              "value": 1.0316771432785043,
               "golden": 1.031676732186263
             },
             {
               "name": "okr_bode_fc_hi_scene_target",
-              "value": 5.528349950532553,
+              "value": 5.530007069863783,
               "golden": 5.528349950532553
             }
           ]
@@ -442,9 +442,9 @@
       "id": "pursuit",
       "title": "4. Smooth Pursuit",
       "description": "Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct\u00b7(saccadically-gated retinal slip) + K_cereb_pu\u00b7(cerebellar EC correction); the closed-loop pursuit memory \u03c4_eff \u2248 1.45 s (Smith predictor) despite the long pop-leak \u03c4_pursuit = 40 s.",
-      "runtime_s": 285.97,
-      "version": "fbff34f-dirty.dc96548",
-      "generated": "2026-06-26 10:55",
+      "runtime_s": 325.45,
+      "version": "326e1d5-dirty.85f0d2d",
+      "generated": "2026-06-30 13:53",
       "figures": [
         {
           "rel": "figures/pursuit_velocity_range.png",
@@ -453,18 +453,18 @@
           "expected": "At 5\u201310 deg/s: pursuit tracks closely, steady-state gain > 0.8. At higher velocities: catch-up saccades + partial pursuit.",
           "citation": "Lisberger & Westbrook (1985) J Neurosci; Rashbass (1961)",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/pursuit_velocity_range.png",
+          "diff_status": "match",
+          "diff": 0.003027681726962328,
           "metrics": [
             {
               "name": "pursuit_ss_gain_5degs",
-              "value": 0.9937063535266594,
+              "value": 0.9930650905420814,
               "golden": 0.9937063535266594
             },
             {
               "name": "pursuit_ss_gain_10degs",
-              "value": 1.0065894180969686,
+              "value": 1.0065822925783938,
               "golden": 1.0065894180969686
             },
             {
@@ -481,18 +481,18 @@
           "expected": "Gain \u2248 1 at low f, \u22123 dB near ~1 Hz; phase lag grows with frequency.",
           "citation": "Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/pursuit_bode.png",
+          "diff_status": "match",
+          "diff": 0.00038542685797438025,
           "metrics": [
             {
               "name": "pursuit_bode_gain_max",
-              "value": 0.9146719164695349,
+              "value": 0.9146709133257788,
               "golden": 0.9146719164695349
             },
             {
               "name": "pursuit_bode_fc_hi",
-              "value": 1.572063683925892,
+              "value": 1.5720648058241393,
               "golden": 1.572063683925892
             }
           ]
@@ -504,9 +504,9 @@
           "expected": "Phasic drive rises fast at onset, decays to 0 at steady state. After target stops at 2 s: phasic reverses (retinal slip now backward), integrator decays slowly \u2014 eye coasts then corrects with catch-up saccades. Integrator TC visible as slow drift in x_p post-stop.",
           "citation": "Lisberger & Westbrook (1985)",
           "type": "cascade",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
+          "ref_rel": "reference/pursuit_cascade.png",
+          "diff_status": "match",
+          "diff": 9.575577132636681e-05,
           "metrics": []
         }
       ]
@@ -840,9 +840,9 @@
       "id": "fcp",
       "title": "8. Final Common Pathway",
       "description": "Motoneuron + cranial-nerve output stage. Traces the full command cascade \u2014 Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves \u2014 over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command \u2194 per-muscle recruitment mapping.",
-      "runtime_s": 35.9,
-      "version": "5227ed6-dirty.d24c7e1",
-      "generated": "2026-06-29 17:46",
+      "runtime_s": 36.28,
+      "version": "326e1d5-dirty.95b9796",
+      "generated": "2026-06-30 13:24",
       "figures": [
         {
           "rel": "figures/fcp_cascade.png",
@@ -862,17 +862,17 @@
             },
             {
               "name": "fcp_gaze_amp",
-              "value": 30.80461311340332,
+              "value": 30.72054672241211,
               "golden": null
             },
             {
               "name": "fcp_verg_near",
-              "value": 14.532761573791504,
+              "value": 14.531408309936523,
               "golden": null
             },
             {
               "name": "fcp_verg_far",
-              "value": 1.069357991218567,
+              "value": 1.0689771175384521,
               "golden": null
             }
           ]
