@@ -46,7 +46,9 @@ class PlantParams(NamedTuple):
     Determined by orbital anatomy and muscle physiology.  Varies with
     strabismus surgery, orbital inflammation, thyroid eye disease, etc.
     """
-    tau_p:         float = 0.15    # plant TC (s); Robinson 1981, Goldstein 1983 Biol Cybern
+    tau_p:         float = 0.15    # plant TC / orbital slow pole τ₁ (s); Robinson 1981, Goldstein 1983
+    tau_muscle:    float = 0.013   # muscle fast pole τ₂ (s) — force-development LP (2nd-order plant).
+                                   # Ignored by the 1st-order plant; used by plant_model_second_order.
     orbital_limit: float = 50.0   # mechanical half-range of the orbit (deg); anatomical
     k_orbital:     float = 1.0    # sigmoid steepness for orbital gate (1/deg)
 

@@ -194,12 +194,18 @@ def step(activations, weights, u_vel, brain_params, u_tonic=0.0):
     # tau_fast = dt = 0.001 s sets the lead-filter pole — the residual eye lag
     # behind NI_net is ~tau_fast (~1 ms), down from ~tau_mn_eff (~7 ms).
     tau_mn_eff   = brain_params.tau_mn * jnp.array([brain_params.mn_ff_yaw, 1.0, 1.0])
+    # Fast poles to cancel: the MN membrane (tau_mn_eff, per-axis conjugacy factor)
+    # AND the muscle force-development pole (tau_muscle, uniform) of the 2nd-order
+    # plant.  Both are << the orbital tau_p, so lump them into one fast pole (the
+    # residual is only the small cross-term τ_musc·τ_mn).  Effective plant then
+    # ≈ (1+s·tau_p)(1+s·tau_fast_pole), inverted by the pulse + accel terms below.
+    tau_fast_pole = tau_mn_eff + brain_params.tau_muscle
     tau_fast     = 0.001     # lead-filter pole; sets the residual eye lag (~tau_fast)
     u_vel_dot    = (u_vel - weights.u_lp) / tau_fast        # smoothed u_vel'
     du_lp        = u_vel_dot                                # state derivative of u_lp
     u_p = (x_net
-           + (brain_params.tau_p + tau_mn_eff) * u_vel
-           + (brain_params.tau_p * tau_mn_eff) * u_vel_dot)
+           + (brain_params.tau_p + tau_fast_pole) * u_vel
+           + (brain_params.tau_p * tau_fast_pole) * u_vel_dot)
 
     return State(L=dx_L, R=dx_R, null=dx_null, u_lp=du_lp), u_p
 

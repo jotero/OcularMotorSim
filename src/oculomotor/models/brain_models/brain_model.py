@@ -309,7 +309,9 @@ class BrainParams(NamedTuple):
     tau_i:                 float = 25.0   # yaw leak TC (s); healthy >20 s (Cannon & Robinson 1985)
     tau_i_pitch_frac:      float = 1.0    # pitch TC = tau_i × this  → 25 s (vertical NI similar to horizontal)
     tau_i_roll_frac:       float = 0.3    # roll  TC = tau_i × this  → 7.5 s (Crawford & Vilis 1991)
-    tau_p:                 float = 0.15   # plant TC copy — NI feedthrough for lag cancellation
+    tau_p:                 float = 0.15   # plant TC copy (orbital slow pole τ₁) — NI feedthrough
+    tau_muscle:            float = 0.013  # muscle fast-pole TC copy (τ₂, s) — 2nd-order plant inverse
+                                          # (muscle force-development LP); matches PlantParams.tau_muscle
     tau_vis:               float = 0.08   # visual delay copy — EC delay must match retinal delay
                                           # should match PlantParams.tau_p in healthy subjects;
                                           # may differ in pathology (imperfect internal model)

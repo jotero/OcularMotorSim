@@ -74,7 +74,7 @@ from oculomotor.models.plant_models.plant_model_first_order import PlantParams
 from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLANT_EYE_R
 from oculomotor.models.sensory_models import sensory_model
 from oculomotor.models.brain_models   import brain_model
-from oculomotor.models.plant_models   import plant_model_first_order as plant_model
+from oculomotor.models.plant_models   import plant_model_second_order as plant_model
 from oculomotor.models.plant_models   import accommodation_plant     as acc_plant_mod
 
 
@@ -429,9 +429,11 @@ def ODE_ocular_motor(t, state, args):
     dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t))
 
-    # ── Plant ─────────────────────────────────────────────────────────────────
-    dx_p_L, q_eye_L, w_eye_L = plant_model.step(state.plant.left,  nerves[:6], theta.plant, M_PLANT_EYE_L)
-    dx_p_R, q_eye_R, w_eye_R = plant_model.step(state.plant.right, nerves[6:], theta.plant, M_PLANT_EYE_R)
+    # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
+    dx_m_L, dx_p_L, q_eye_L, w_eye_L = plant_model.step(
+        state.plant.left_musc,  state.plant.left,  nerves[:6], theta.plant, M_PLANT_EYE_L)
+    dx_m_R, dx_p_R, q_eye_R, w_eye_R = plant_model.step(
+        state.plant.right_musc, state.plant.right, nerves[6:], theta.plant, M_PLANT_EYE_R)
 
     # ── Accommodation plant ────────────────────────────────────────────────────
     # u_acc = brain neural command + CA/C feedforward (combined inside va.step).
@@ -473,7 +475,7 @@ def ODE_ocular_motor(t, state, args):
     return SimState(
         sensory   = dx_sensory,
         brain     = dbrain,
-        plant     = plant_model.State(left=dx_p_L, right=dx_p_R),
+        plant     = plant_model.State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R),
         acc_plant = dx_acc_plant,
     )
 

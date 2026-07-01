@@ -289,8 +289,11 @@ The final common pathway has THREE distinct lesion types, each with different ph
   AIN motoneurons project across midline through the MLF to contralateral CN3_MR
   motoneurons.  Conduction block in the MLF blocks fast version drive while
   preserving tonic vergence drive (delivered via CN3_MR direct, bypassing MLF).
-  g_mlf_L = 0 → left INO (L eye fails to adduct on rightward gaze; convergence intact).
-  g_mlf_R = 0 → right INO.  Both = 0 → bilateral INO (BIMLF).
+  g_mlf_L = 0.3 → left INO — the ADDUCTION LAG: a slowed left-eye adducting saccade on
+  rightward gaze that still reaches and holds the target (convergence intact).  Use 0.3
+  for a typical INO.  g_mlf_L = 0 → COMPLETE block (no adduction at all + a resting
+  exotropia).  g_mlf_R is the same for the right eye.  Both = 0 → WEBINO (wall-eyed
+  bilateral INO, bilateral exotropia).
 
 **r_baseline** (12-element list, default [50]·12, deg/s) — per-nucleus tonic baseline.
   Default symmetric baselines are invisible at the plant (zero-sum decode); ASYMMETRIC
@@ -300,7 +303,8 @@ The final common pathway has THREE distinct lesion types, each with different ph
 
 **Important:** INO is NOT a vestibular and NOT a cerebellar lesion. Do NOT set b_vs_L/R,
 canal_gains, tau_i, or K_pursuit for INO. The only parameters that change are g_mlf_L
-or g_mlf_R.  Complete patient block for left INO: `"patient": { "g_mlf_L": 0.0 }`
+or g_mlf_R.  Patient block for a typical left INO: `"patient": { "g_mlf_L": 0.3 }`
+(use g_mlf_L = 0.0 only for a COMPLETE left INO; both = 0.0 for WEBINO).
 
 The table below maps all conditions to parameters — use it:
 
@@ -320,10 +324,11 @@ The table below maps all conditions to parameters — use it:
 | Rebound nystagmus | tau_ni_adapt=10.0 |
 | PAN | K_cereb_nu=0.0, tau_vs_adapt=45.0 |
 | Esophoria / cover test | tonic_verg=8.0 |
-| Left INO | g_mlf_L=0.0 |
-| Right INO | g_mlf_R=0.0 |
-| Bilateral INO | g_mlf_L=0.0, g_mlf_R=0.0 |
-| Partial INO (recovering) | g_mlf_L=0.5  (or g_mlf_R=0.5) |
+| Left INO (adduction lag) | g_mlf_L=0.3 |
+| Right INO (adduction lag) | g_mlf_R=0.3 |
+| Bilateral INO | g_mlf_L=0.3, g_mlf_R=0.3 |
+| Mild / recovering INO | g_mlf_L=0.5  (or g_mlf_R=0.5) |
+| Complete INO (block) / WEBINO | g_mlf_L=0.0  (both = 0.0 for WEBINO) |
 | CN VI nerve palsy (R) | g_nerve=[1,1,1,1,1,1,0,1,1,1,1,1] |
 | CN VI nucleus palsy (R) → horizontal gaze palsy R | g_nucleus=[1,0,1,1,1,1,1,1,1,1,1,1] |
 | Partial CN VI nucleus (R) → eso + slow saccades | g_nucleus=[1,0.5,1,1,1,1,1,1,1,1,1,1] |

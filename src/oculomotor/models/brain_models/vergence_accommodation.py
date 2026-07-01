@@ -222,10 +222,16 @@ def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
             - x_verg_v / brain_params.tau_verg)
 
     # Direct (bypass) pathway: Robinson plant-compensation pulse (Schor Kb path).
+    # Plant inverse for the 2nd-order plant + motoneuron LP: the pulse cancels the
+    # orbital slow pole (tau_p) AND the fast poles — the muscle force-development
+    # pole (tau_muscle) plus the MN membrane (tau_mn).  Vergence rides CN3_MR direct
+    # (one MN stage, no MLF), so its fast pole is (tau_muscle + tau_mn), uniform per
+    # axis.  Velocity lead only — the acceleration term (tau_p·fast·verg') is
+    # negligible for vergence's slow dynamics, so no lead-filter state is needed.
     #   plant velocity at onset ≈ direct_path_pos / τ_p
-    #     = K_phasic_verg · disparity   (proportional on the error)
-    #     +              u_svbn          (unity-gain burst velocity)
-    direct_path_pos = brain_params.tau_p * (
+    #     = K_phasic_verg · disparity   (proportional on the error)  +  u_svbn (burst)
+    tau_fast_verg   = brain_params.tau_muscle + brain_params.tau_mn
+    direct_path_pos = (brain_params.tau_p + tau_fast_verg) * (
         brain_params.K_phasic_verg * verg_drive + u_svbn)
 
     # Cross-link: AC/A from accommodation (H-only, deg)
