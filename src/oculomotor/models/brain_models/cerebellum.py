@@ -199,8 +199,8 @@ def read_activations(brain_state, brain_params):
     this function just exists so brain_model.read_activations can populate
     `acts.cb` from state at the top of brain_model.step.
     """
-    ni_net  = brain_state.ni.L - brain_state.ni.R
-    ni_null = brain_state.ni.null
+    ni_net  = CANAL2CARDINAL @ (brain_state.ni.L - brain_state.ni.R)        # canal→cardinal
+    ni_null = CANAL2CARDINAL @ brain_state.ni.null                          # canal→cardinal
     vs_net  = CANAL2CARDINAL @ (brain_state.sm.vs_L - brain_state.sm.vs_R)  # canal→cardinal
     vs_null = CANAL2CARDINAL @ brain_state.sm.vs_null                       # canal→cardinal
     rf      = brain_state.sm.rf

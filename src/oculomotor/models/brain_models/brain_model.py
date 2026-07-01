@@ -1121,8 +1121,8 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
     # at the top of step (which was state-based to break the va↔pc loop).
     ec_vel       = u_burst + u_pursuit + omega_tvor
     ec_verg_cmd  = u_verg
-    ni_net_full  = brain_state.ni.L - brain_state.ni.R
-    ni_null_full = brain_state.ni.null
+    ni_net_full  = sm.CANAL2CARDINAL @ (brain_state.ni.L - brain_state.ni.R)  # canal→cardinal
+    ni_null_full = sm.CANAL2CARDINAL @ brain_state.ni.null                    # canal→cardinal
     vs_net_full  = sm.CANAL2CARDINAL @ (brain_state.sm.vs_L - brain_state.sm.vs_R)  # canal→cardinal
     vs_null_full = sm.CANAL2CARDINAL @ brain_state.sm.vs_null                       # canal→cardinal
     rf_full      = brain_state.sm.rf

@@ -103,6 +103,7 @@ _S_C2C = 2 ** -0.5
 _CANAL2CARDINAL = np.array([[1.,  0.,       0.],
                             [0.,  _S_C2C,   _S_C2C],
                             [0., -_S_C2C,   _S_C2C]])
+_C2C_JAX = jnp.asarray(_CANAL2CARDINAL)   # jnp copy for vmapped per-state reconstructions
 
 
 def vs_net(states):
@@ -112,8 +113,8 @@ def vs_net(states):
 
 
 def ni_net(states):
-    """Net neural integrator signal: x_L − x_R, shape (T, 3), deg."""
-    return np.array(states.brain.ni.L - states.brain.ni.R)
+    """Net neural integrator signal: x_L − x_R, shape (T, 3), deg (cardinal)."""
+    return np.array(states.brain.ni.L - states.brain.ni.R) @ _CANAL2CARDINAL.T
 
 
 def vs_null(states):
@@ -122,8 +123,8 @@ def vs_null(states):
 
 
 def ni_null(states):
-    """NI null-adaptation state, shape (T, 3), deg."""
-    return np.array(states.brain.ni.null)
+    """NI null-adaptation state, shape (T, 3), deg (cardinal)."""
+    return np.array(states.brain.ni.null) @ _CANAL2CARDINAL.T
 
 
 # ── Canal ──────────────────────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ def extract_burst(states, theta):
         x_vis    = pc_mod.to_array(state.brain.pc)
         e_pd     = C_pos @ x_vis
         gate     = (C_target_visible @ x_vis)[0]
-        x_ni_net = state.brain.ni.L - state.brain.ni.R   # (3,)
+        x_ni_net = _C2C_JAX @ (state.brain.ni.L - state.brain.ni.R)   # (3,) canal→cardinal
         sg_acts  = sg_mod.read_activations(state.brain.sg)
         sg_w     = sg_mod.read_weights(state.brain.sg)
         _, u     = sg_mod.step(sg_acts, sg_w, e_pd, gate, x_ni_net,
@@ -221,7 +222,8 @@ def extract_fcp_cascade(states, theta):
     L = np.array(states.plant.left); R = np.array(states.plant.right)
     eye      = 0.5 * (L + R)
     eye_verg = L[:, 0] - R[:, 0]
-    ni_L = np.array(states.brain.ni.L); ni_R = np.array(states.brain.ni.R)
+    ni_L = np.array(states.brain.ni.L) @ _CANAL2CARDINAL.T   # canal→cardinal
+    ni_R = np.array(states.brain.ni.R) @ _CANAL2CARDINAL.T
     v_pulse = tau_p * extract_burst(states, theta)
 
     # nucleus firing rate (14, by-nucleus) + the nerve (route + g_nerve conduction
@@ -278,7 +280,7 @@ def extract_sg(states, theta):
     x_ibn_L = np.array(sg_st.ibn_L)
 
     # Eye-position estimate (NI net) and delayed position error (cyclopean)
-    x_ni  = np.array(states.brain.ni.L - states.brain.ni.R)
+    x_ni  = np.array(states.brain.ni.L - states.brain.ni.R) @ _CANAL2CARDINAL.T
     from oculomotor.models.brain_models import perception_cyclopean as pc_mod
     x_vis = np.array(jax.vmap(pc_mod.to_array)(states.brain.pc))   # (T, 43)
     e_pd  = x_vis @ np.array(C_pos).T   # (T, 3) cyclopean delayed position error

@@ -32,7 +32,8 @@ from oculomotor.sim.simulator import (
 from oculomotor.models.brain_models import saccade_generator as sg_mod
 from oculomotor.models.brain_models.perception_cyclopean import C_slip, C_pos, C_vel, C_target_visible
 from oculomotor.models.brain_models import perception_cyclopean as _pc_mod
-from oculomotor.analysis import read_brain_acts, extract_spv, vs_net
+from oculomotor.analysis import read_brain_acts, extract_spv, vs_net, ni_net
+from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
 
 
 # ── Stimulus builder ──────────────────────────────────────────────────────────
@@ -191,7 +192,7 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
     # VS and NI nets: x_L − x_R.  vs_net() recombines the canal-plane VS pops to
     # cardinal [yaw,pitch,roll]; NI is still cardinal so its net is a direct diff.
     w_est = vs_net(states)                       # VS net  (T, 3) cardinal
-    x_ni  = np.array(ni_st.L - ni_st.R)          # NI net  (T, 3)
+    x_ni  = ni_net(states)                        # NI net  (T, 3) cardinal
 
     # Retinal signals — cyclopean (single cascade, pre-fused)
     e_pos_delayed = x_vis @ np.array(C_pos).T   # (T, 3)
@@ -201,7 +202,7 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         x_vis_   = _pc_mod.to_array(state.brain.pc)
         e_pd     = C_pos @ x_vis_
         gate     = jnp.clip((C_target_visible @ x_vis_)[0], 0.0, 1.0)
-        x_ni_net = state.brain.ni.L - state.brain.ni.R   # (3,)
+        x_ni_net = CANAL2CARDINAL @ (state.brain.ni.L - state.brain.ni.R)   # (3,) canal→cardinal
         sg_acts  = sg_mod.read_activations(state.brain.sg)
         sg_w     = sg_mod.read_weights(state.brain.sg)
         _, u     = sg_mod.step(sg_acts, sg_w, e_pd, gate, x_ni_net,

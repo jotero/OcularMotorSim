@@ -24,6 +24,7 @@ from oculomotor.analysis import (
     read_brain_acts, read_brain_decoded, extract_z_opn,
 )
 from oculomotor.models.brain_models import tvor as tv_mod
+from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
 from oculomotor.models.sensory_models.retina import (
     velocity_saturation, ypr_to_xyz, xyz_to_ypr,
 )
@@ -37,7 +38,7 @@ def _omega_tvor_traj(states, brain_params):
     def _at(bs):
         aca      = brain_params.AC_A * _DEG_PER_PD * bs.va.acc_fast
         verg_yaw = bs.va.verg_fast[0] + bs.va.verg_tonic[0] + aca
-        eye_pos  = bs.ni.L - bs.ni.R
+        eye_pos  = CANAL2CARDINAL @ (bs.ni.L - bs.ni.R)   # canal→cardinal
         omega, _ = tv_mod.step(bs.sm.v_lin, bs.sm.a_lin, verg_yaw, eye_pos, brain_params)
         return omega
     return np.array(jax.vmap(_at)(states.brain))

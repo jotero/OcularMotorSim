@@ -55,6 +55,13 @@ from typing import NamedTuple
 
 import jax.numpy as jnp
 
+from oculomotor import config as _config
+# The NI carries eye position in canal-plane coords [H, LARP, RALP]; cardinal is
+# reconstructed at the sinks (u_p → FCP, decoded net → SG/T-VOR/Listing, anti-windup).
+from oculomotor.models.brain_models.perception_self_motion import (
+    CANAL2CARDINAL, CARDINAL2CANAL,
+)
+
 # ── State + registries ────────────────────────────────────────────────────────
 
 class State(NamedTuple):
@@ -95,8 +102,8 @@ def read_activations(state):
 
 
 def decode_states(acts):
-    """NI net eye position from bilateral pops."""
-    return Decoded(net=acts.L - acts.R)
+    """NI net eye position — canal-plane pops recombined to cardinal [yaw,pitch,roll]."""
+    return Decoded(net=CANAL2CARDINAL @ (acts.L - acts.R))
 
 
 def read_weights(state):
@@ -127,37 +134,54 @@ def step(activations, weights, u_vel, brain_params, u_tonic=0.0):
         dstate: ni.State   state derivative (L, R, null)
         u_p:    (3,)       pulse-step motor command to plant
     """
-    x_L    = activations.L
+    x_L    = activations.L        # canal-plane pops [H, LARP, RALP]
     x_R    = activations.R
     x_null = weights.null
 
-    b_ni   = jnp.asarray(brain_params.b_ni,  dtype=jnp.float32)
+    # u_vel and u_tonic arrive CARDINAL (the brain_model merge is cardinal); rotate
+    # into the canal-plane basis at entry.  u_p and the decoded net are reconstructed
+    # to cardinal at the sinks (u_p → FCP; decode_states → SG/T-VOR/Listing).
+    u_vel_c   = CARDINAL2CANAL @ jnp.asarray(u_vel, dtype=jnp.float32)
+    u_tonic_c = CARDINAL2CANAL @ (jnp.zeros(3, dtype=jnp.float32) + u_tonic)
+
+    b_ni   = jnp.asarray(brain_params.b_ni,  dtype=jnp.float32)   # uniform → basis-free
     L      = brain_params.orbital_limit
-    # Per-axis NI leak TC: yaw uses tau_i directly; pitch/roll scale by their fractions.
-    # Torsional integrator is leakier (~7.5 s vs 25 s) per Crawford & Vilis 1991.
-    tau_i  = brain_params.tau_i * jnp.array([1.0,
-                                              brain_params.tau_i_pitch_frac,
-                                              brain_params.tau_i_roll_frac])
+    # Leak A_leak: the cardinal per-axis tau_i (yaw + pitch/roll fractions) expressed
+    # in the canal-plane basis via the EXACT rotation M·diag·Mᵀ — behaviour-identical
+    # for any frac.  It is NON-diagonal when pitch≠roll (torsional integrator leakier,
+    # Crawford & Vilis 1991 → roll_frac=0.3): roll<pitch is a sum/difference (cardinal)
+    # anisotropy, so in canal coords it lives as LARP↔RALP coupling.  If torsion is
+    # later left to Listing's law (roll_frac→1.0) this auto-diagonalises like the VS.
+    tau_i_card = brain_params.tau_i * jnp.array([1.0,
+                                                 brain_params.tau_i_pitch_frac,
+                                                 brain_params.tau_i_roll_frac])
+    A_leak = CARDINAL2CANAL @ jnp.diag(-1.0 / tau_i_card) @ CANAL2CARDINAL   # (3×3) canal leak
 
     # u_tonic shifts the effective null/leak target without altering the stored
     # x_null state. Without quick-phase resets, x_net only reaches a fraction
     # τ_ni_adapt / (τ_i + τ_ni_adapt) ≈ 0.44 of u_tonic at SS — saccades and
     # quick phases drive the rest of the way (visible in the OCR cascade bench).
-    x_null_eff = x_null + u_tonic
+    x_null_eff = x_null + u_tonic_c
 
     # ── Population equilibria: leak toward b_ni ± half-(shifted)-null ────────
     # b_eff_L = b_ni + x_null_eff/2   (left  pop target rises with rightward null)
     # b_eff_R = b_ni - x_null_eff/2   (right pop target falls with rightward null)
-    dx_L_raw = -(1.0 / tau_i) * (x_L - b_ni - x_null_eff / 2.0) + u_vel / 2.0
-    dx_R_raw = -(1.0 / tau_i) * (x_R - b_ni + x_null_eff / 2.0) - u_vel / 2.0
+    dx_L_raw = A_leak @ (x_L - b_ni - x_null_eff / 2.0) + u_vel_c / 2.0
+    dx_R_raw = A_leak @ (x_R - b_ni + x_null_eff / 2.0) - u_vel_c / 2.0
 
-    # ── Anti-windup on net ────────────────────────────────────────────────────
-    x_net   = x_L - x_R                      # current net position
-    dx_net  = dx_L_raw - dx_R_raw            # net derivative before clipping
-    dx_sum  = dx_L_raw + dx_R_raw            # common-mode: unaffected by windup
+    # ── Anti-windup on net — clipped in CARDINAL (the orbital limit is a physical
+    # eye-position bound; clipping canal-plane components would mis-limit vertical/
+    # torsional gaze).  Reconstruct the cardinal net + net-derivative, clip per
+    # cardinal axis, rotate the clipped derivative back to canal.
+    x_net   = x_L - x_R                       # canal net position
+    dx_net  = dx_L_raw - dx_R_raw             # canal net derivative before clipping
+    dx_sum  = dx_L_raw + dx_R_raw             # common-mode: unaffected by windup
 
-    dx_net  = jnp.where(x_net >= L,  jnp.minimum(dx_net, 0.0), dx_net)
-    dx_net  = jnp.where(x_net <= -L, jnp.maximum(dx_net, 0.0), dx_net)
+    x_net_card  = CANAL2CARDINAL @ x_net
+    dx_net_card = CANAL2CARDINAL @ dx_net
+    dx_net_card = jnp.where(x_net_card >= L,  jnp.minimum(dx_net_card, 0.0), dx_net_card)
+    dx_net_card = jnp.where(x_net_card <= -L, jnp.maximum(dx_net_card, 0.0), dx_net_card)
+    dx_net      = CARDINAL2CANAL @ dx_net_card  # clipped net derivative, back to canal
 
     # Reconstruct individual derivatives from clipped net + unchanged sum
     dx_L = (dx_net + dx_sum) / 2.0
@@ -200,12 +224,18 @@ def step(activations, weights, u_vel, brain_params, u_tonic=0.0):
     # residual is only the small cross-term τ_musc·τ_mn).  Effective plant then
     # ≈ (1+s·tau_p)(1+s·tau_fast_pole), inverted by the pulse + accel terms below.
     tau_fast_pole = tau_mn_eff + brain_params.tau_muscle
-    tau_fast     = 0.001     # lead-filter pole; sets the residual eye lag (~tau_fast)
-    u_vel_dot    = (u_vel - weights.u_lp) / tau_fast        # smoothed u_vel'
+    tau_fast     = _config.DT_SOLVE   # lead-filter pole; tracks solver dt so the
+                                      # filter stays at dt/tau_fast = 1 (Heun-stable)
+                                      # as DT_SOLVE is raised. Residual eye lag ~tau_fast.
+    u_vel_dot    = (u_vel_c - weights.u_lp) / tau_fast     # smoothed u_vel' (canal)
     du_lp        = u_vel_dot                                # state derivative of u_lp
-    u_p = (x_net
-           + (brain_params.tau_p + tau_fast_pole) * u_vel
-           + (brain_params.tau_p * tau_fast_pole) * u_vel_dot)
+    # Pulse-step computed canal-side; its only anisotropy (mn_ff_yaw on H, vertical
+    # isotropic) commutes with the rotation, so reconstructing u_p to cardinal equals
+    # the cardinal pulse-step exactly.  Cardinal u_p → FCP muscle map (the sink).
+    u_p_canal = (x_net
+                 + (brain_params.tau_p + tau_fast_pole) * u_vel_c
+                 + (brain_params.tau_p * tau_fast_pole) * u_vel_dot)
+    u_p = CANAL2CARDINAL @ u_p_canal
 
     return State(L=dx_L, R=dx_R, null=dx_null, u_lp=du_lp), u_p
 
