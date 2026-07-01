@@ -42,15 +42,17 @@ worldCam.layers.enable(1);
 
 function resize() {
   renderer.setSize(W(), H(), false);
-  // Camera aspect ratios are set per-frame in renderViewports() based on _headMoves
+  // Camera aspect ratios are set per-frame in renderViewports() (fixed 70/30 split)
 }
 new ResizeObserver(resize).observe(canvas);
 resize();
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const key = new THREE.DirectionalLight(0xffffff, 1.4);
+// Face lighting (the avatar uses PBR materials; the unlit overlay props ignore these).
+// Bump these intensities to brighten the face.
+scene.add(new THREE.AmbientLight(0xffffff, 1.7));            // flat overall fill
+const key = new THREE.DirectionalLight(0xffffff, 3.1);       // main shaping light
 key.position.set(1, 3, 2); scene.add(key);
-scene.add(new THREE.DirectionalLight(0x8899ff, 0.4)).position.set(-2, 1, 1);
+scene.add(new THREE.DirectionalLight(0x8899ff, 0.8)).position.set(-2, 1, 1);   // cool fill
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 let leftEyeBone  = null;
@@ -585,15 +587,6 @@ window.loadEyeTrajectory = function(traj) {
   _playing = false;
   _needWorldFit = true;   // new trajectory → refit the world camera to head + targets
 
-  // Detect meaningful head movement (any axis > 1 deg peak displacement)
-  _headMoves = false;
-  if (traj.head) {
-    const maxDisp = Math.max(
-      ...traj.head.map(h => Math.sqrt(h[0]*h[0] + h[1]*h[1] + h[2]*h[2]))
-    );
-    _headMoves = maxDisp > 1.0;
-  }
-
   // One-time diagnostic: if a trajectory has any cover_L/R frames > 0,
   // log it so we can see in the console that the data path is intact.
   // (Data flows: stimuli.build_visual_flags → simulate → server _build_traj
@@ -604,21 +597,14 @@ window.loadEyeTrajectory = function(traj) {
     console.log(`Cover data: L=${sumL} frames covered, R=${sumR} frames covered.`);
   }
 
-  // A foveal target — or a moving visual scene (OKN) — makes the world view
-  // meaningful even without head movement.
-  _hasTarget = !!traj.target && (!traj.target_present || traj.target_present.some(v => v));
-  _hasScene  = !!traj.scene_pos && !!traj.scene_present && traj.scene_present.some(v => v)
-    && Math.max(...traj.scene_pos.map(p => Math.hypot(p[0], p[1], p[2]))) > 1.0;
-  _hasLocomotion = !!traj.head_lin_pos
-    && Math.max(...traj.head_lin_pos.map(p => Math.hypot(p[0], p[1], p[2]))) > 0.1;
-  _showWorld = _headMoves || _hasTarget || _hasScene || _hasLocomotion;
-
-  // Show/hide the world-view label + divider (head view is always shown; in
-  // single-view mode it fills the width).
+  // Always show BOTH views (head-fixed close-up + world). No auto-decision about
+  // a single vs dual layout: the world view — the only one that draws gaze rays —
+  // is always rendered, and the head close-up always stays clean (rays hidden).
+  _showWorld = true;
   const labels = document.querySelectorAll('.avatar-labels span');
-  if (labels[1]) labels[1].style.display = _showWorld ? '' : 'none';
+  if (labels[1]) labels[1].style.display = '';
   const wrap = document.querySelector('.avatar-wrap');
-  if (wrap) wrap.classList.toggle('single-view', !_showWorld);
+  if (wrap) wrap.classList.remove('single-view');
 
   document.getElementById('scrubber').max         = traj.n_frames - 1;
   document.getElementById('scrubber').value       = 0;
@@ -655,46 +641,33 @@ function renderViewports() {
 
   renderer.clear();
 
-  if (_showWorld) {
-    // Split: LEFT = head-fixed view (70%), RIGHT = world view (30%).
-    const headW  = Math.round(w * 0.70);
-    const worldW = w - headW;
+  // Always a split: LEFT = head-fixed close-up (70%), RIGHT = world view (30%).
+  const headW  = Math.round(w * 0.70);
+  const worldW = w - headW;
 
-    // Left — head-fixed view: head bone at rest, eyes unchanged. Hide the
-    // world-only props (target + rays) so they don't clutter the eyeball close-up.
-    applyFrame(fi);
-    if (headBone && restHead) headBone.rotation.copy(restHead);
-    anchorCovers();   // re-anchor covers/prisms to the rest-head eyeball
-    anchorPrisms();
-    [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
-    headCam.fov = 15; headCam.aspect = headW / h; headCam.updateProjectionMatrix();
-    renderer.setViewport(0, 0, headW, h);
-    renderer.setScissor(0, 0, headW, h);
-    renderer.setScissorTest(true);
-    renderer.render(scene, headCam);
+  // Left — head-fixed view: head bone at rest, eyes unchanged. Hide the
+  // world-only props (target + rays) so they don't clutter the eyeball close-up.
+  applyFrame(fi);
+  if (headBone && restHead) headBone.rotation.copy(restHead);
+  anchorCovers();   // re-anchor covers/prisms to the rest-head eyeball
+  anchorPrisms();
+  [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
+  headCam.fov = 15; headCam.aspect = headW / h; headCam.updateProjectionMatrix();
+  renderer.setViewport(0, 0, headW, h);
+  renderer.setScissor(0, 0, headW, h);
+  renderer.setScissorTest(true);
+  renderer.render(scene, headCam);
 
-    // Right — world view: re-apply the rotated head (also restores props/rays).
-    applyFrame(fi);
-    worldCam.aspect = worldW / h;
-    if (_needWorldFit && _camRefEye && leftEyeBone) {   // wait for the rig to load
-      fitWorldCamera(); _needWorldFit = false;
-    }
-    setWorldView();                       // place camera (aspect-correct) every frame
-    renderer.setViewport(headW, 0, worldW, h);
-    renderer.setScissor(headW, 0, worldW, h);
-    renderer.render(scene, worldCam);
-  } else {
-    // No head movement — single full-width head-fixed view, zoomed in on eyes
-    headCam.fov = 14; headCam.aspect = w / h; headCam.updateProjectionMatrix();
-    applyFrame(fi);
-    if (headBone && restHead) headBone.rotation.copy(restHead);
-    anchorCovers();   // re-anchor covers to the rest-head eyeball for the head view
-    anchorPrisms();
-    renderer.setViewport(0, 0, w, h);
-    renderer.setScissor(0, 0, w, h);
-    renderer.setScissorTest(true);
-    renderer.render(scene, headCam);
+  // Right — world view: re-apply the rotated head (also restores props/rays).
+  applyFrame(fi);
+  worldCam.aspect = worldW / h;
+  if (_needWorldFit && _camRefEye && leftEyeBone) {   // wait for the rig to load
+    fitWorldCamera(); _needWorldFit = false;
   }
+  setWorldView();                       // place camera (aspect-correct) every frame
+  renderer.setViewport(headW, 0, worldW, h);
+  renderer.setScissor(headW, 0, worldW, h);
+  renderer.render(scene, worldCam);
 }
 
 function animate(ts) {
@@ -708,8 +681,7 @@ function animate(ts) {
     if (_lastRafTs !== null) {
       _frame += (ts - _lastRafTs) / 1000 * _traj.fps;
       if (_frame >= _traj.n_frames) {
-        _frame = _traj.n_frames - 1; _playing = false;
-        document.getElementById('play-btn').textContent = '▶';
+        _frame %= _traj.n_frames;   // loop: wrap back to the start and keep playing
       }
       const fi = Math.min(Math.floor(_frame), _traj.n_frames - 1);
       applyFrame(fi);

@@ -484,21 +484,18 @@ def build_kinematics_from_segments(
                 carry_pos = float(pos[-1]); carry_vel = float(vel[-1])
 
             elif profile == 'impulse':
-                A  = carry_vel
-                rd = getattr(seg, 'ramp_dur_s', 0.02)
-                vel = np.zeros(T); pos = np.zeros(T)
-                rise  = t_s < rd
-                fall  = (t_s >= rd) & (t_s < 2.0 * rd)
-                coast = t_s >= 2.0 * rd
-                vel[rise] = A * t_s[rise] / rd
-                vel[fall] = A * (1.0 - (t_s[fall] - rd) / rd)
-                pos[rise] = carry_pos + A * t_s[rise]**2 / (2.0 * rd)
-                pos_at_rd  = carry_pos + A * rd / 2.0
-                tf = t_s[fall] - rd
-                pos[fall]  = pos_at_rd + A * tf - A * tf**2 / (2.0 * rd)
-                pos_at_end = carry_pos + A * rd
-                pos[coast] = pos_at_end
-                carry_pos = float(pos_at_end); carry_vel = 0.0
+                # vHIT: gaussian (bell-shaped) velocity pulse. Peak = A at t=t_peak;
+                # ramp_dur_s is the onset→peak time, so the pulse spans ≈ 2·ramp_dur_s
+                # (default 0.1 s → ~200 ms total, peak accel ≈ 3600 deg/s² — realistic HIT).
+                A      = carry_vel
+                rd     = getattr(seg, 'ramp_dur_s', 0.1)
+                t_peak = rd
+                sigma  = rd / 3.0        # ±3σ ⇒ full pulse ≈ 2·rd; velocity ≈1% of peak at the edges
+                vel = A * np.exp(-0.5 * ((t_s - t_peak) / sigma) ** 2)
+                # Position = running integral of velocity (trapezoid), from carry_pos.
+                pos = carry_pos + np.concatenate(
+                    ([0.0], np.cumsum(0.5 * (vel[1:] + vel[:-1]) * dt)))
+                carry_pos = float(pos[-1]); carry_vel = float(vel[-1])
 
             else:   # 'constant' / polynomial
                 pos = carry_pos + carry_vel * t_s + 0.5 * acc * t_s**2
@@ -614,26 +611,24 @@ def head_rotation_sinusoid(
 
 def head_impulse(
     amplitude_deg_s: float,
-    ramp_dur: float = 0.02,
+    ramp_dur: float = 0.1,
     total_dur: float = 2.0,
     dt: float = 0.001,
     axis: str = 'yaw',
 ) -> KinematicTrajectory:
-    """Head impulse test (HIT): triangular velocity pulse.
+    """Head impulse test (HIT): gaussian (bell-shaped) velocity pulse.
 
     Args:
         amplitude_deg_s: peak head velocity (deg/s); typical HIT 150–300 deg/s
-        ramp_dur:        rise and fall duration (s); default 20 ms
+        ramp_dur:        onset→peak time (s); the pulse spans ≈ 2·ramp_dur.
+                         default 0.1 s → ~200 ms bell (peak accel ≈ 3600 deg/s²)
         total_dur:       total trial duration (s)
         dt:              time step (s)
         axis:            'yaw', 'pitch', or 'roll'
     """
-    t    = make_time(total_dur, dt)
-    vel  = np.zeros(len(t), dtype=np.float32)
-    rise = t < ramp_dur
-    fall = (t >= ramp_dur) & (t < 2.0 * ramp_dur)
-    vel[rise] = amplitude_deg_s * t[rise] / ramp_dur
-    vel[fall] = amplitude_deg_s * (1.0 - (t[fall] - ramp_dur) / ramp_dur)
+    t     = make_time(total_dur, dt)
+    sigma = ramp_dur / 3.0
+    vel   = (amplitude_deg_s * np.exp(-0.5 * ((t - ramp_dur) / sigma) ** 2)).astype(np.float32)
     return build_kinematics(t, rot_vel=_pad3(vel, axis))
 
 

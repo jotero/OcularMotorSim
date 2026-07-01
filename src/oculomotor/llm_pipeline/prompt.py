@@ -42,7 +42,7 @@ time to settle and provides a clear pre-stimulus reference in the figure.
   Profile shapes:
     'constant' — pos(t)=pos₀+vel₀·t+½acc·t²,  vel(t)=vel₀+acc·t
     'sinusoid' — vel(t)=amplitude·sin(2πf·t);  amplitude=rot_*_vel; starts at zero vel
-    'impulse'  — trapezoid: rises to rot_*_vel in ramp_dur_s, falls, then coasts; ends at zero vel
+    'impulse'  — gaussian bell: peak=rot_*_vel at t=ramp_dur_s, pulse spans ≈2·ramp_dur_s (~200 ms), then coasts
 
 ### target: list of segments   — 3-D world position (metres)
 

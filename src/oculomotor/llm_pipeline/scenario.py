@@ -70,7 +70,8 @@ class BodySegment(BaseModel):
     'sinusoid'  oscillation:     rot_vel(t) = amplitude · sin(2π·freq·t)
                                  rot_pos(t) = pos₀ + amplitude/(2π·f) · (1 − cos(2π·f·t))
                                  amplitude = rot_*_vel field; starts at zero velocity.
-    'impulse'   vHIT trapezoid:  rises to rot_*_vel in ramp_dur_s, then falls, then coasts.
+    'impulse'   vHIT gaussian:   bell-shaped velocity pulse; peak = rot_*_vel at t=ramp_dur_s,
+                                 pulse spans ≈2·ramp_dur_s (~200 ms), then coasts (holds position).
 
     The profile applies to ALL rotational DOF that have a non-zero velocity.
     Translational DOF always use the polynomial profile.
@@ -88,7 +89,7 @@ class BodySegment(BaseModel):
         description=(
             "'constant' — polynomial (vel₀·t + ½acc·t²). "
             "'sinusoid' — vel(t)=A·sin(2πft), amplitude = rot_*_vel. "
-            "'impulse'  — brief trapezoidal pulse; peak = rot_*_vel, rise/fall = ramp_dur_s."
+            "'impulse'  — gaussian (bell) pulse; peak = rot_*_vel at t=ramp_dur_s, spans ≈2·ramp_dur_s."
         )
     )
 
@@ -123,8 +124,9 @@ class BodySegment(BaseModel):
     # ── Profile parameters ─────────────────────────────────────────────────────
     frequency_hz: float = Field(default=1.0, gt=0, le=20,
         description="Sinusoid frequency (Hz). Only used with rot_profile='sinusoid'. Typical 0.1–2 Hz.")
-    ramp_dur_s: float = Field(default=0.02, gt=0,
-        description="Rise and fall time for impulse profile (s). 0.02 s = realistic vHIT.")
+    ramp_dur_s: float = Field(default=0.1, gt=0,
+        description="Impulse onset→peak time (s); the gaussian pulse spans ≈2·ramp_dur_s. "
+                    "0.1 s ⇒ ~200 ms bell = realistic vHIT.")
 
     @field_validator('rot_yaw_vel', 'rot_pitch_vel', 'rot_roll_vel', mode='before')
     @classmethod

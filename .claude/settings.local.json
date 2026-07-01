@@ -123,7 +123,16 @@
       "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.run_benchmarks)",
       "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 d:\\\\OneDrive\\\\UC` Berkeley\\\\OMlab` -` JOM\\\\Code\\\\ClaudeOculomotorJax\\\\scratch\\\\_eval_from_data.py)",
       "PowerShell(& git -C \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\" status --short)",
-      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.gen_parameters)"
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.gen_parameters)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.rerun_featured)",
+      "PowerShell(git -C \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\" stash pop)",
+      "PowerShell(git -C \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\" checkout -- .claude/settings.local.json; git -C \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\" stash pop; Write-Output \"---status---\"; git -C \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\" status --short | Where-Object { $_ -notmatch '\\\\.png$' })",
+      "PowerShell($base = \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\"; Write-Output \"om-stable exists: $\\(Test-Path \"$base\\\\om-stable\"\\)\"; Write-Output \"om-stable\\\\server_data exists: $\\(Test-Path \"$base\\\\om-stable\\\\server_data\"\\)\"; Write-Output \"om-stable\\\\server_data\\\\simulation_log.csv exists: $\\(Test-Path \"$base\\\\om-stable\\\\server_data\\\\simulation_log.csv\"\\)\")",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.copy_featured --dry-run)",
+      "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.copy_featured)",
+      "Bash(find \"C:/Users/jom/.claude/projects\" -name \"*ClaudeOculomotor*\" -type d 2>/dev/null | head -5)",
+      "Bash(xargs -I {} bash -c 'echo \"=== {} ===\"; grep -n \"coordinate\\\\|canal.*muscle\\\\|muscle.*canal\\\\|yaw.*pitch.*roll\\\\|cardinal\\\\|defer.*coord\\\\|future.*coord\\\\|LARP\\\\|RALP\" \"{}\"')",
+      "PowerShell(cd \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\"; Write-Output \"=== vergence bench output ===\"; Get-Content \"C:\\\\Users\\\\jom\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--OneDrive-UC-Berkeley-OMlab---JOM-Code-ClaudeOculomotorJax\\\\7fbe7a36-519e-4dda-a21a-36bbae009e8b\\\\tasks\\\\bzngp3wqv.output\"; Write-Output \"=== any failures in log ===\"; Select-String -Path scratch\\\\_verify_verg.log -Pattern \"FAIL|out of band|below band|above band|✗|Traceback|Error\" | ForEach-Object { $_.Line } | Select-Object -First 20)"
     ],
     "additionalDirectories": [
       "d:\\OneDrive\\UC Berkeley\\OMlab - JOM\\Code\\ClaudeOculomotorJax\\outputs"
