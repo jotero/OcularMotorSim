@@ -66,6 +66,28 @@ GRAV_X0 = jnp.array([0.0, G0, 0.0,  0.0, 0.0, 0.0,  0.0, 0.0, 0.0])
 # VS-internal scaling — population-health normaliser
 _B_NOMINAL = 100.0   # healthy resting bias (deg/s)
 
+# ── Canal-plane coordinate frame (VN native basis) ───────────────────────────
+# The VN populations carry angular velocity in CANAL-PLANE coordinates
+# [ω_H, ω_LARP, ω_RALP] — the three coplanar push-pull pairs — not cardinal
+# [yaw,pitch,roll]. This maps the anatomy: each population is one coplanar pair,
+# ipsilateral excitation minus contralateral commissural inhibition (Shimazu-Precht
+# Type-I).  H = horizontal (LHC/RHC = left/right); LARP = LAC/RPC plane (up-down +
+# CCW); RALP = RAC/LPC plane (up-down + CW).  See project_coordinate_rectification.
+#
+# PINV_CANAL reconstructs the three canal-plane velocities straight from the 6
+# afferents — each row is one clean coplanar-pair push-pull:
+#     ω_H = (RHC−LHC)/2,   ω_LARP = (LAC−RPC)/2,   ω_RALP = (RAC−LPC)/2.
+# CANAL2CARDINAL recombines canal-plane → cardinal (the 45° pitch/roll mix). It is
+# the ONE reconstruction applied at each cardinal SINK — for now the VS output
+# (w_est feeds the still-cardinal NI merge + GE); as the NI/FCP go canal it slides
+# out to the FCP. Everything upstream of a sink stays canal-native.
+_S = 2 ** -0.5
+CANAL2CARDINAL = jnp.array([[1.,  0.,  0.],
+                            [0.,  _S,  _S],
+                            [0., -_S,  _S]])   # v_cardinal = CANAL2CARDINAL @ v_canal
+CARDINAL2CANAL = CANAL2CARDINAL.T              # orthonormal → inverse = transpose
+PINV_CANAL     = CARDINAL2CANAL @ PINV_SENS    # (3×6) afferents → [ω_H, ω_LARP, ω_RALP]
+
 # GE-internal — fast first-order tracking of rf for the VS↔GE algebraic-loop break
 _TAU_RF_STATE = 0.005   # 5 ms
 
@@ -155,11 +177,15 @@ def read_activations(state):
 
 
 def decode_states(acts):
-    return Decoded(vs_net=acts.vs_L - acts.vs_R)
+    # pops are canal-plane; recombine the net to cardinal (the registry SINK) so
+    # every downstream reader sees head-frame [yaw,pitch,roll] as before.
+    return Decoded(vs_net=CANAL2CARDINAL @ (acts.vs_L - acts.vs_R))
 
 
 def read_weights(state):
-    return Weights(vs_null=state.vs_null)
+    # vs_null is stored canal-plane; expose it cardinal so it pairs with the
+    # cardinal vs_net for any consumer (e.g. cerebellum leak cancellation).
+    return Weights(vs_null=CANAL2CARDINAL @ state.vs_null)
 
 N_OUTPUTS = 3   # primary output for SSM convention is w_est; auxiliaries via tuple
 
@@ -194,49 +220,61 @@ def _vs_step(x_vs, canal, slip, fl_vs_drive, nu_drive, brain_params):
         dx_vs: (9,) state derivative
         w_est: (3,) angular velocity estimate [yaw,pitch,roll] (deg/s)
     """
-    x_null = x_vs[_VS_IDX_NULL]
-    x_pop  = x_vs[_VS_IDX_POP]   # (6,) [x_A | x_B]
+    x_null = x_vs[_VS_IDX_NULL]   # canal-plane [ω_H, ω_LARP, ω_RALP]
+    x_pop  = x_vs[_VS_IDX_POP]    # (6,) two canal-plane populations [pop_A | pop_B]
 
-    # Canal saturation now applied at the sensor side (canal.step + sensory_model.read_outputs);
-    # canal afferents arrive here already clipped at canal_v_max.
-    u_lin    = jnp.concatenate([canal, slip])      # (9,) linear inputs
+    # Rotate the CARDINAL inputs into the canal-plane basis.  Canal afferents are
+    # already labyrinth-native (6-vector); slip is retinal (cardinal) and the
+    # cerebellar feedbacks (nu/fl) arrive cardinal for now, so each gets one
+    # CARDINAL2CANAL.  (The optokinetic drive is anatomically organised in canal
+    # planes via NOT/AOS, so rotating slip here is fidelity, not a hack.)
+    # Canal saturation is applied sensor-side, so afferents arrive pre-clipped.
+    slip_c = CARDINAL2CANAL @ slip
+    nu_c   = CARDINAL2CANAL @ nu_drive
+    fl_c   = CARDINAL2CANAL @ fl_vs_drive
+    u_lin  = jnp.concatenate([canal, slip_c])      # (9,) canal afferents + canal-plane slip
 
-    # Set point: per-population resting bias plus a slow null-adapted shift.
+    # Set point: population-uniform resting bias b_vs (a common mode that cancels in
+    # the net A−B, hence basis-free) plus a slow null-adapted push-pull shift.
     SP    = brain_params.b_vs + jnp.concatenate([x_null / 2.0, -x_null / 2.0])
     g_pop = brain_params.b_vs / _B_NOMINAL   # (6,) population health: 1=healthy, 0=silent
 
-    # Per-axis tau_vs (yaw + pitch_frac + roll_frac), shared across both populations.
-    tau3   = jnp.array([brain_params.tau_vs,
-                        brain_params.tau_vs * brain_params.tau_vs_pitch_frac,
-                        brain_params.tau_vs * brain_params.tau_vs_roll_frac])
-    inv_t6 = jnp.concatenate([1.0 / tau3, 1.0 / tau3])
-    A = -jnp.diag(inv_t6)
+    # Leak A: per canal-plane channel — horizontal TC = tau_vs, both vertical
+    # planes share tau_vs·vert_frac (LARP/RALP mirror-symmetric).  Canal-native, so
+    # it is a plain diagonal — no rotation needed.
+    tau3 = jnp.array([brain_params.tau_vs,
+                      brain_params.tau_vs * brain_params.tau_vs_vert_frac,
+                      brain_params.tau_vs * brain_params.tau_vs_vert_frac])
+    A1 = -jnp.diag(1.0 / tau3)      # (3×3) diag([1/τ_H, 1/τ_vert, 1/τ_vert])
+    A  = jnp.block([[A1, jnp.zeros((3, 3))],
+                    [jnp.zeros((3, 3)), A1]])
 
-    # B (6×9): canal + visual, push-pull across populations.
-    B_top = jnp.concatenate([ g_pop[:3, None] * brain_params.K_vs * PINV_SENS,
+    # B (6×9): canal drive via PINV_CANAL (clean coplanar-pair rows), visual push-pull.
+    B_top = jnp.concatenate([ g_pop[:3, None] * brain_params.K_vs * PINV_CANAL,
                              -brain_params.K_vis * jnp.eye(3)], axis=1)
-    B_bot = jnp.concatenate([-g_pop[3:, None] * brain_params.K_vs * PINV_SENS,
+    B_bot = jnp.concatenate([-g_pop[3:, None] * brain_params.K_vs * PINV_CANAL,
                               brain_params.K_vis * jnp.eye(3)], axis=1)
     B = jnp.concatenate([B_top, B_bot], axis=0)
 
-    # C (3×6): net = x_A − x_B
+    # C (3×6): canal-plane net = pop_A − pop_B
     C = jnp.concatenate([jnp.eye(3), -jnp.eye(3)], axis=1)
 
-    # D (3×9): canal + visual feedthrough on the net output
-    D = jnp.concatenate([brain_params.g_vor * PINV_SENS,
+    # D (3×9): canal + visual feedthrough on the (canal-plane) net output
+    D = jnp.concatenate([brain_params.g_vor * PINV_CANAL,
                         -brain_params.g_vis * jnp.eye(3)], axis=1)
 
-    # Cerebellar inputs to VS (push-pull split of the NET-level signals):
-    #   - nu_drive: nodulus gravity-axis dumping (was K_gd · rf inline).
-    #   - fl_vs_drive: floccular leak cancellation (positive feedback that
-    #     extends effective tau_vs by adding back the leak amount).
-    nu6   = jnp.concatenate([ nu_drive,    -nu_drive])     # was rf6
-    fl_vs6 = 0.5 * jnp.concatenate([ fl_vs_drive, -fl_vs_drive])
+    # Cerebellar inputs to VS (canal-plane, push-pull split of the net-level signals):
+    #   - nu_drive: nodulus gravity-axis dumping.
+    #   - fl_vs_drive: floccular leak cancellation (extends effective tau_vs).
+    nu6    = jnp.concatenate([ nu_c, -nu_c])
+    fl_vs6 = 0.5 * jnp.concatenate([ fl_c, -fl_c])
 
-    dx_pop  = A @ (x_pop - SP) + B @ u_lin - nu6 + fl_vs6
-    w_est   = C @ x_pop + D @ u_lin
-    dx_null = (w_est - x_null) / brain_params.tau_vs_adapt
+    dx_pop      = A @ (x_pop - SP) + B @ u_lin - nu6 + fl_vs6
+    w_est_canal = C @ x_pop + D @ u_lin              # canal-plane net [ω_H, ω_LARP, ω_RALP]
+    dx_null     = (w_est_canal - x_null) / brain_params.tau_vs_adapt
 
+    # SINK: recombine canal-plane → cardinal for the (still-cardinal) NI merge + GE.
+    w_est = CANAL2CARDINAL @ w_est_canal
     return jnp.concatenate([dx_pop, dx_null]), w_est
 
 

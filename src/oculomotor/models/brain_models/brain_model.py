@@ -250,15 +250,20 @@ class BrainParams(NamedTuple):
     # Velocity storage — Raphan, Matsuo & Cohen (1979)
     # Bilateral push-pull (L/R VN populations); net = x_L − x_R; OKAN decays with tau_vs.
     #
-    # VS time constants — per-axis via fractions of the main (yaw) TC.
-    #   tau_vs             : yaw   ~15–20 s  (Raphan et al. 1979; Cohen et al. 1981)
-    #   tau_vs * f_pitch   : pitch ~5–10 s   (Hess & Dieringer 1991; Angelaki & Henn 2000)
-    #   tau_vs * f_roll    : roll  ~2–5 s    (Dai et al. 1991; Angelaki et al. 1995)
+    # VS time constants — per canal-plane channel [H, LARP, RALP].
+    #   tau_vs               : horizontal (H) ~15–20 s (Raphan 1979; Cohen 1981)
+    #   tau_vs * vert_frac   : vertical/torsional (LARP, RALP) — one TC for both,
+    #                          since the two vertical canal planes are mirror-
+    #                          symmetric.  Vertical/torsional storage is shorter
+    #                          than horizontal (Dai 1991; Angelaki 1995); set
+    #                          vert_frac < 1 for the literature match.  (The old
+    #                          split pitch≠roll was a cardinal-basis artifact:
+    #                          pitch/roll are the sum/difference of LARP/RALP, so
+    #                          equal LARP/RALP TCs give equal pitch/roll TCs.)
     # Disorders that shorten tau_vs (nodulus lesion, UVH) only need to set tau_vs —
-    # the ratios stay fixed, so all axes scale together and no existing code breaks.
-    tau_vs:                float = 20.0   # yaw (main) VS TC (s); Cohen 1977 monkey ~20 s
-    tau_vs_pitch_frac:     float = 1.0    # pitch TC = tau_vs × this  → 20 s
-    tau_vs_roll_frac:      float = 1.0    # roll  TC = tau_vs × this  → 20 s
+    # vert_frac stays fixed, so all channels scale together and no code breaks.
+    tau_vs:                float = 20.0   # horizontal (main) VS TC (s); Cohen 1977 ~20 s
+    tau_vs_vert_frac:      float = 1.0    # LARP=RALP TC = tau_vs × this  → 20 s
     b_vs:                  float = 100.0  # VN resting bias AND population gain (deg/s).
                                           # Scalar broadcasts to all 6 states; pass a (6,) array for asymmetry.
                                           # velocity_storage scales canal drive by b_vs / B_NOMINAL, so b_vs
@@ -1118,8 +1123,8 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
     ec_verg_cmd  = u_verg
     ni_net_full  = brain_state.ni.L - brain_state.ni.R
     ni_null_full = brain_state.ni.null
-    vs_net_full  = brain_state.sm.vs_L - brain_state.sm.vs_R
-    vs_null_full = brain_state.sm.vs_null
+    vs_net_full  = sm.CANAL2CARDINAL @ (brain_state.sm.vs_L - brain_state.sm.vs_R)  # canal→cardinal
+    vs_null_full = sm.CANAL2CARDINAL @ brain_state.sm.vs_null                       # canal→cardinal
     rf_full      = brain_state.sm.rf
     dcb, _ = cb.step(
         state          = brain_state.cb,

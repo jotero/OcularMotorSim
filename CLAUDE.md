@@ -228,7 +228,7 @@ class PlantParams(NamedTuple):
 
 class BrainParams(NamedTuple):
     # Cortical + brainstem parameters (selected highlights — full list in brain_model.py):
-    tau_vs, tau_vs_pitch_frac, tau_vs_roll_frac, g_vor, b_vs, tau_vs_adapt,   # VS
+    tau_vs, tau_vs_vert_frac, g_vor, b_vs, tau_vs_adapt,   # VS (H + one vertical/torsional frac)
     tau_i, b_ni, tau_ni_adapt,                                    # NI
     tau_vis_sharp, tau_vis_smooth_motion, tau_vis_smooth_target_vel,
     tau_vis_smooth_disparity, tau_vis_smooth_defocus,             # brain-side LP TCs

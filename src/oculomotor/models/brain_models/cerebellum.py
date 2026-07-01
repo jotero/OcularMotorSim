@@ -99,6 +99,9 @@ from oculomotor.models.plant_models.readout import rotation_matrix
 from oculomotor.models.sensory_models.retina import (
     cascade_lp_step, ypr_to_xyz, xyz_to_ypr, velocity_saturation,
 )
+# VS pops are stored in canal-plane coords; recombine to cardinal for the FL
+# leak-cancellation feedback (which works per cardinal axis via tau_vs_axes).
+from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
 
 
 # ── Cascade geometry ──────────────────────────────────────────────────────────
@@ -198,8 +201,8 @@ def read_activations(brain_state, brain_params):
     """
     ni_net  = brain_state.ni.L - brain_state.ni.R
     ni_null = brain_state.ni.null
-    vs_net  = brain_state.sm.vs_L - brain_state.sm.vs_R
-    vs_null = brain_state.sm.vs_null
+    vs_net  = CANAL2CARDINAL @ (brain_state.sm.vs_L - brain_state.sm.vs_R)  # canal→cardinal
+    vs_null = CANAL2CARDINAL @ brain_state.sm.vs_null                       # canal→cardinal
     rf      = brain_state.sm.rf
     # w_est is computed inside sm.step from canal+visual inputs; we don't
     # have it at read_activations time, so pass zeros.  Activations (pred_err,
@@ -282,9 +285,11 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     # tau_vs from the brainstem-only ~5 s (≈ canal TC) to the cerebellum-
     # extended ~20 s.  Lesion (K_cereb_fl = 0) → shortened OKAN, reduced
     # velocity storage TC.
+    # tau_vs_axes here is cardinal (vs_net/vs_null are reconstructed cardinal); with
+    # a single vert_frac the vertical subspace is isotropic so pitch=roll=vert TC.
     tau_vs_axes = jnp.array([bp.tau_vs,
-                              bp.tau_vs * bp.tau_vs_pitch_frac,
-                              bp.tau_vs * bp.tau_vs_roll_frac])
+                              bp.tau_vs * bp.tau_vs_vert_frac,
+                              bp.tau_vs * bp.tau_vs_vert_frac])
     fl_vs_drive = bp.K_cereb_fl_vs * (vs_net - vs_null) / tau_vs_axes
 
     # ── Nodulus + uvula (NU): VS axis dumping toward gravity ─────────────

@@ -184,7 +184,7 @@ def matrices(theta) -> UnifiedMatrices:
     inv_tau_adapt   = 1.0 / theta.tau_ni_adapt
 
     inv_tau_vs = 1.0 / (theta.tau_vs * jnp.array(
-        [1.0, theta.tau_vs_pitch_frac, theta.tau_vs_roll_frac]))
+        [1.0, theta.tau_vs_vert_frac, theta.tau_vs_vert_frac]))
     inv_tau_vs_adapt = 1.0 / theta.tau_vs_adapt
     inv_tau_a_lin    = 1.0 / theta.tau_a_lin
     inv_tau_head     = 1.0 / theta.tau_head
@@ -637,9 +637,9 @@ def f(x_fast, x_slow, u_proc, theta, z_act, act):
     w_est_slip_FT  = -theta.g_vis * scene_slip
     w_est = w_est_state + w_est_canal_FT + w_est_slip_FT
 
-    # ── Inverse VS time constants for population (per-axis) ─────────────────
+    # ── Inverse VS time constants per canal-plane channel [H, LARP, RALP] ────
     inv_tau_vs = 1.0 / (theta.tau_vs * jnp.array(
-        [1.0, theta.tau_vs_pitch_frac, theta.tau_vs_roll_frac]))
+        [1.0, theta.tau_vs_vert_frac, theta.tau_vs_vert_frac]))
 
     # ── Gravity transport: -ω × g_est  ─────────────────────────────────────
     # ω in head-frame xyz (from ypr); cross product; result in head-frame xyz.

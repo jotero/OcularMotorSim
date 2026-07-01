@@ -82,7 +82,7 @@ tr:last-child { border-bottom: none; }
   <nav>
     <h2>Sections</h2>
     <a href="#brainparams">BrainParams</a>
-    <a href="#brainparams-self_motion_estimation" style="padding-left:32px;font-size:11px;color:#aaa">Self Motion Estimation <span style="color:#666">(18)</span></a>
+    <a href="#brainparams-self_motion_estimation" style="padding-left:32px;font-size:11px;color:#aaa">Self Motion Estimation <span style="color:#666">(17)</span></a>
     <a href="#brainparams-neural_integrator" style="padding-left:32px;font-size:11px;color:#aaa">Neural Integrator <span style="color:#666">(7)</span></a>
     <a href="#brainparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(20)</span></a>
     <a href="#brainparams-binocular" style="padding-left:32px;font-size:11px;color:#aaa">Binocular <span style="color:#666">(5)</span></a>
@@ -116,8 +116,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-06-30 21:31</strong> &nbsp;|&nbsp;
-      Version: <strong>3a161a2-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-01 14:48</strong> &nbsp;|&nbsp;
+      Version: <strong>052bfa2-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\src\oculomotor\schema\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -125,11 +125,11 @@ tr:last-child { border-bottom: none; }
     <div class="warning"><b>24 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
     
   <section class="section" id="brainparams">
-    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(125 fields)</small></h2>
+    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(124 fields)</small></h2>
     <p class="desc">Central neural model parameters — VS, NI, SG, gravity, vergence, accommodation, T-VOR, OCR, CN/MLF gains. Read by every brain submodule's <code>step()</code>.</p>
     
     <div class="subsection" id="brainparams-self_motion_estimation">
-      <h3>Self Motion Estimation <small style="font-size:11px;font-weight:400;color:#888">(18 fields)</small></h3>
+      <h3>Self Motion Estimation <small style="font-size:11px;font-weight:400;color:#888">(17 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -152,22 +152,12 @@ tr:last-child { border-bottom: none; }
         </tr>
 
         <tr>
-          <td class="param-name">tau_vs_pitch_frac</td>
+          <td class="param-name">tau_vs_vert_frac</td>
           <td><span class="default">1</span></td>
           <td class="units">—</td>
           <td class="range-cell"></td>
-          <td class="desc-cell"><p>Pitch VS TC = tau_vs × this fraction. Default 1.0 (yaw and pitch held equally well in the model). Literature suggests pitch may be slightly leakier than yaw (Hess & Dieringer 1991: ~5–10 s vs ~15–20 s yaw).</p><div class="refs">Hess & Dieringer (1991) · Angelaki & Henn (2000)</div></td>
-          <td class="anatomy-cell">MVN pitch axis</td>
-          <td></td>
-        </tr>
-
-        <tr>
-          <td class="param-name">tau_vs_roll_frac<span class="review">needs review</span></td>
-          <td><span class="default">1</span></td>
-          <td class="units">—</td>
-          <td class="range-cell"></td>
-          <td class="desc-cell"><p>Roll VS TC = tau_vs × this fraction. Default 1.0; literature suggests roll storage is the leakiest axis (Dai et al. 1991: ~2–5 s). Consider lowering for closer literature match.</p><div class="refs">Dai et al. (1991) · Angelaki et al. (1995)</div></td>
-          <td class="anatomy-cell">MVN roll axis</td>
+          <td class="desc-cell"><p>Vertical/torsional VS TC = tau_vs × this fraction, shared by both vertical canal-plane channels (LARP and RALP) since the two vertical canal planes are mirror-symmetric. Horizontal (yaw) storage uses tau_vs directly. Default 1.0 (isotropic); literature suggests vertical/torsional storage is leakier than horizontal (Dai et al. 1991: ~2–5 s; Hess & Dieringer 1991: ~5–10 s), so set < 1 for the literature match. (Replaces the old cardinal tau_vs_pitch_frac / tau_vs_roll_frac split: cardinal pitch/roll are the sum/difference of the two vertical planes, so a single symmetric vertical TC gives equal pitch/roll TCs.)</p><div class="refs">Dai et al. (1991) · Hess & Dieringer (1991) · Angelaki et al. (1995)</div></td>
+          <td class="anatomy-cell">MVN vertical canal-plane channels (LARP + RALP)</td>
           <td></td>
         </tr>
 

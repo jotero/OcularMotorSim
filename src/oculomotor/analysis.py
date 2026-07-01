@@ -97,9 +97,18 @@ def read_brain_weights(states):
 
 # ── State extractors ──────────────────────────────────────────────────────────
 
+# VS pops/null are stored in canal-plane coords [ω_H, ω_LARP, ω_RALP]; recombine
+# to cardinal [yaw,pitch,roll] for readout (row-vector form: v @ C2Cᵀ).
+_S_C2C = 2 ** -0.5
+_CANAL2CARDINAL = np.array([[1.,  0.,       0.],
+                            [0.,  _S_C2C,   _S_C2C],
+                            [0., -_S_C2C,   _S_C2C]])
+
+
 def vs_net(states):
-    """Net velocity storage signal: x_L − x_R, shape (T, 3), deg/s."""
-    return np.array(states.brain.sm.vs_L - states.brain.sm.vs_R)
+    """Net velocity storage signal: x_L − x_R, shape (T, 3), deg/s (cardinal)."""
+    net_canal = np.array(states.brain.sm.vs_L - states.brain.sm.vs_R)
+    return net_canal @ _CANAL2CARDINAL.T
 
 
 def ni_net(states):
@@ -108,8 +117,8 @@ def ni_net(states):
 
 
 def vs_null(states):
-    """VS null-adaptation state, shape (T, 3), deg/s."""
-    return np.array(states.brain.sm.vs_null)
+    """VS null-adaptation state, shape (T, 3), deg/s (cardinal)."""
+    return np.array(states.brain.sm.vs_null) @ _CANAL2CARDINAL.T
 
 
 def ni_null(states):

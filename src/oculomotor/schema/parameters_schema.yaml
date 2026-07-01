@@ -36,30 +36,23 @@ brain.tau_vs:
     - {name: "Nodulus/uvula lesion", value: 1.5, tag: cerebellar}
     - {name: "Bilateral vestibular loss", value: 5.0, tag: vn}
 
-brain.tau_vs_pitch_frac:
+brain.tau_vs_vert_frac:
   group: self_motion_estimation
   units: "—"
-  anatomy: "MVN pitch axis"
+  anatomy: "MVN vertical canal-plane channels (LARP + RALP)"
   description: |
-    Pitch VS TC = tau_vs × this fraction. Default 1.0 (yaw and pitch held
-    equally well in the model). Literature suggests pitch may be slightly
-    leakier than yaw (Hess & Dieringer 1991: ~5–10 s vs ~15–20 s yaw).
-  references:
-    - "Hess & Dieringer (1991)"
-    - "Angelaki & Henn (2000)"
-
-brain.tau_vs_roll_frac:
-  group: self_motion_estimation
-  units: "—"
-  anatomy: "MVN roll axis"
-  description: |
-    Roll VS TC = tau_vs × this fraction. Default 1.0; literature suggests
-    roll storage is the leakiest axis (Dai et al. 1991: ~2–5 s).
-    Consider lowering for closer literature match.
+    Vertical/torsional VS TC = tau_vs × this fraction, shared by both vertical
+    canal-plane channels (LARP and RALP) since the two vertical canal planes are
+    mirror-symmetric. Horizontal (yaw) storage uses tau_vs directly. Default 1.0
+    (isotropic); literature suggests vertical/torsional storage is leakier than
+    horizontal (Dai et al. 1991: ~2–5 s; Hess & Dieringer 1991: ~5–10 s), so set
+    < 1 for the literature match. (Replaces the old cardinal tau_vs_pitch_frac /
+    tau_vs_roll_frac split: cardinal pitch/roll are the sum/difference of the two
+    vertical planes, so a single symmetric vertical TC gives equal pitch/roll TCs.)
   references:
     - "Dai et al. (1991)"
+    - "Hess & Dieringer (1991)"
     - "Angelaki et al. (1995)"
-  needs_review: true
 
 brain.b_vs:
   group: self_motion_estimation
