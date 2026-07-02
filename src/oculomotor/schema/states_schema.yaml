@@ -147,41 +147,47 @@ sensory.retina_R:
 
 brain.vs_left:
   group: velocity_storage
-  encodes:    "head angular velocity (compensatory drive, left pop)"
-  frame:      "head"
+  encodes:    "head angular velocity (compensatory drive, 'A' pop)"
+  frame:      "canal-plane [H, LARP, RALP]"
   representation: "firing-rate-around-bias"
   activation:     "max(0, state)  (real Type-I VN cells are rectified at 0; bias absorbs the floor in healthy operation)"
   baseline:       "b_vs (default 100 deg/s)"
   shape: [3]
-  axes:  [yaw, pitch, roll]
+  axes:  [H, LARP, RALP]
   units: "deg/s"
   anatomy:
-    - {axes: [yaw],          region: "Left MVN (medial vestibular nucleus)"}
-    - {axes: [pitch, roll],  region: "Left SVN + LVN (superior + lateral VN, vertical/torsional)"}
-  population: "Type-I VN, push-pull with vs_right"
+    - {axes: [H],    region: "Horizontal canals (LHC/RHC) → MVN (medial vestibular nucleus)"}
+    - {axes: [LARP], region: "LARP plane (LAC + RPC) → SVN (superior VN, vertical/torsional)"}
+    - {axes: [RALP], region: "RALP plane (RAC + LPC) → SVN (superior VN, vertical/torsional)"}
+  population: "Type-I VN, push-pull with vs_right; each channel is one coplanar canal pair"
   description: |
-    Left VN firing rate (deg/s equiv).  Net VS velocity = vs_left − vs_right.
-    Drives leftward yaw / pitch / roll on this side.  Horizontal velocity
-    storage primarily in MVN; vertical and torsional in SVN/LVN.
+    VN population 'A' in CANAL-PLANE coordinates [ω_H, ω_LARP, ω_RALP] — one
+    channel per coplanar canal pair (H = horizontal, LARP = LAC/RPC, RALP =
+    RAC/LPC), each an ipsi-excite / contra-inhibit push-pull (Shimazu-Precht
+    Type-I).  Net VS velocity, reconstructed to cardinal [yaw,pitch,roll] at
+    readout, = CANAL2CARDINAL · (vs_left − vs_right).  This maps the anatomy
+    directly — the VN and the optokinetic (NOT/AOS) drive are organised along the
+    canal planes, not cardinal axes.
   state_slice: "brain[_IDX_VS_L]"
   references: ["Raphan, Matsuo & Cohen (1979)", "Angelaki & Hess (1994)"]
   llm_plottable: true
 
 brain.vs_right:
   group: velocity_storage
-  encodes:    "head angular velocity (compensatory drive, right pop)"
-  frame:      "head"
+  encodes:    "head angular velocity (compensatory drive, 'B' pop)"
+  frame:      "canal-plane [H, LARP, RALP]"
   representation: "firing-rate-around-bias"
   activation:     "max(0, state)"
   baseline:       "b_vs (default 100 deg/s)"
   shape: [3]
-  axes:  [yaw, pitch, roll]
+  axes:  [H, LARP, RALP]
   units: "deg/s"
   anatomy:
-    - {axes: [yaw],          region: "Right MVN (medial vestibular nucleus)"}
-    - {axes: [pitch, roll],  region: "Right SVN + LVN (superior + lateral VN)"}
-  population: "Type-I VN, push-pull with vs_left"
-  description:  "Right VN firing rate; net VS = vs_left − vs_right.  MVN for yaw, SVN/LVN for vertical/torsional."
+    - {axes: [H],    region: "Horizontal canals (LHC/RHC) → MVN (medial vestibular nucleus)"}
+    - {axes: [LARP], region: "LARP plane (LAC + RPC) → SVN (superior VN)"}
+    - {axes: [RALP], region: "RALP plane (RAC + LPC) → SVN (superior VN)"}
+  population: "Type-I VN, push-pull with vs_left; canal-plane channels"
+  description:  "VN population 'B', push-pull with vs_left. Canal-plane [H, LARP, RALP]; net VS (→ cardinal at readout) = CANAL2CARDINAL·(vs_left − vs_right)."
   state_slice: "brain[_IDX_VS_R]"
   llm_plottable: true
 
@@ -193,12 +199,13 @@ brain.vs_null:
   activation:     "state  (slow adapter on bilateral imbalance; signed)"
   baseline:       "0"
   shape: [3]
-  axes:  [yaw, pitch, roll]
+  axes:  [H, LARP, RALP]
   units: "deg/s"
-  anatomy:    "Cerebellar slow-time-scale adapter on VS (nodulus / uvula)"
+  anatomy:    "Cerebellar slow-time-scale adapter on VS (nodulus / uvula); canal-plane channels"
   description: |
-    Slow null-adaptation state for VS push-pull.  Drives PAN-like (periodic
-    alternating nystagmus) when tau_vs_adapt is reduced.
+    Slow null-adaptation state for VS push-pull, in canal-plane coordinates
+    [H, LARP, RALP].  Drives PAN-like (periodic alternating nystagmus) when
+    tau_vs_adapt is reduced.
   state_slice: "brain[_IDX_VS_NULL]"
   llm_plottable: true
 
@@ -280,41 +287,44 @@ brain.linear_velocity_estimate:
 
 brain.ni_left:
   group: neural_integrator
-  encodes:    "eye-position equivalent (left pop, integrated velocity)"
-  frame:      "head"
+  encodes:    "eye-position equivalent ('A' pop, integrated velocity)"
+  frame:      "canal-plane [H, LARP, RALP]"
   representation: "firing-rate-around-bias"
   activation:     "max(0, state)  (NPH/INC neurons rectified; bias b_ni absorbs floor)"
   baseline:       "b_ni (default 0)"
   shape: [3]
-  axes:  [yaw, pitch, roll]
+  axes:  [H, LARP, RALP]
   units: "deg"
   anatomy:
-    - {axes: [yaw],          region: "Left NPH (nucleus prepositus hypoglossi)"}
-    - {axes: [pitch, roll],  region: "INC (interstitial nucleus of Cajal)"}
-  population: "Bilateral leaky integrator (Robinson 1975)"
+    - {axes: [H],           region: "Horizontal integrator → NPH (nucleus prepositus hypoglossi) + MVN"}
+    - {axes: [LARP, RALP],  region: "Vertical/torsional integrator → INC (interstitial nucleus of Cajal)"}
+  population: "Bilateral leaky integrator (Robinson 1975); canal-plane channels"
   description: |
-    Left NI population — eye-position equivalent.  Net eye position =
-    ni_left − ni_right.  Tau_i ~25 s; short tau_i → centripetal drift
-    (gaze-evoked nystagmus).  Horizontal integration in NPH; vertical
-    and torsional integration in INC (Crawford & Vilis 1991).
+    NI population 'A' — eye-position equivalent, in CANAL-PLANE coordinates
+    [H, LARP, RALP].  Net eye position, reconstructed to cardinal at the FCP
+    sink, = CANAL2CARDINAL · (ni_left − ni_right).  Horizontal (H) integrator is
+    NPH; the vertical/torsional planes (LARP, RALP) are INC.  The INC is leakier
+    in torsion (Crawford & Vilis 1991) — a roll<pitch (sum/difference) anisotropy
+    that appears here as LARP↔RALP coupling in the leak.  Tau_i ~25 s; short
+    tau_i → centripetal drift (gaze-evoked nystagmus).
   state_slice: "brain[_IDX_NI_L]"
   references: ["Cannon & Robinson (1985)", "Crawford & Vilis (1991)"]
   llm_plottable: true
 
 brain.ni_right:
   group: neural_integrator
-  encodes:    "eye-position equivalent (right pop, integrated velocity)"
-  frame:      "head"
+  encodes:    "eye-position equivalent ('B' pop, integrated velocity)"
+  frame:      "canal-plane [H, LARP, RALP]"
   representation: "firing-rate-around-bias"
   activation:     "max(0, state)"
   baseline:       "b_ni"
   shape: [3]
-  axes:  [yaw, pitch, roll]
+  axes:  [H, LARP, RALP]
   units: "deg"
   anatomy:
-    - {axes: [yaw],          region: "Right NPH (nucleus prepositus hypoglossi)"}
-    - {axes: [pitch, roll],  region: "INC (interstitial nucleus of Cajal)"}
-  description: "Right NI population, push-pull with ni_left.  NPH for yaw, INC for pitch/roll."
+    - {axes: [H],           region: "Horizontal integrator → NPH (nucleus prepositus hypoglossi) + MVN"}
+    - {axes: [LARP, RALP],  region: "Vertical/torsional integrator → INC (interstitial nucleus of Cajal)"}
+  description: "NI population 'B', push-pull with ni_left. Canal-plane [H, LARP, RALP]; H → NPH, LARP/RALP → INC. Net (→ cardinal at FCP) = CANAL2CARDINAL·(ni_left − ni_right)."
   state_slice: "brain[_IDX_NI_R]"
   llm_plottable: true
 
@@ -326,15 +336,16 @@ brain.ni_null:
   activation:     "state  (signed adapter on bilateral imbalance)"
   baseline:       "0"
   shape: [3]
-  axes:  [yaw, pitch, roll]
+  axes:  [H, LARP, RALP]
   units: "deg"
   anatomy:
-    - {axes: [yaw],          region: "Cerebellar floc/paraflocculus → NPH (yaw adapter)"}
-    - {axes: [pitch, roll],  region: "Cerebellar projection → INC (vertical/torsional adapter)"}
+    - {axes: [H],           region: "Cerebellar floc/paraflocculus → NPH (horizontal adapter)"}
+    - {axes: [LARP, RALP],  region: "Cerebellar projection → INC (vertical/torsional adapter)"}
   description: |
-    Slow adapter on NI bilateral imbalance.  Drives rebound nystagmus after
-    sustained eccentric gaze (tau_ni_adapt ~20 s).  Cerebellar tone
-    rebalances the integrator; lesions here abolish or extend rebound.
+    Slow adapter on NI bilateral imbalance, in canal-plane coordinates
+    [H, LARP, RALP].  Drives rebound nystagmus after sustained eccentric gaze
+    (tau_ni_adapt ~20 s).  Cerebellar tone rebalances the integrator; lesions
+    here abolish or extend rebound.
   state_slice: "brain[_IDX_NI_NULL]"
   references: ["Zee, Yamazaki, Butler, Gücer (1981)"]
   llm_plottable: true

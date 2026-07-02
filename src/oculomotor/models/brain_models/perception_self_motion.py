@@ -122,9 +122,9 @@ _GE_IDX_RF = slice(6, 9)   # rf     — rotational feedback state
 
 class State(NamedTuple):
     """Self-motion state: VS pops + null + GE observer + heading."""
-    vs_L:    jnp.ndarray   # (3,)  left  VN pop  [≡ internal pop A]
-    vs_R:    jnp.ndarray   # (3,)  right VN pop  [≡ internal pop B]
-    vs_null: jnp.ndarray   # (3,)  VS adaptation register (slow null drift)
+    vs_L:    jnp.ndarray   # (3,)  VN pop A, canal-plane [H, LARP, RALP]
+    vs_R:    jnp.ndarray   # (3,)  VN pop B, canal-plane [H, LARP, RALP]
+    vs_null: jnp.ndarray   # (3,)  VS adaptation register (slow null drift), canal-plane
     g_est:   jnp.ndarray   # (3,)  gravity estimate (head frame)  [VN/cb gravity cells]
     a_lin:   jnp.ndarray   # (3,)  linear-accel estimate          [VN linear-accel cells]
     rf:      jnp.ndarray   # (3,)  rotational feedback            [Laurens observer]

@@ -65,10 +65,15 @@ from oculomotor.models.brain_models.perception_self_motion import (
 # ── State + registries ────────────────────────────────────────────────────────
 
 class State(NamedTuple):
-    """NI state — bilateral push-pull pops + null adaptation + lead filter."""
-    L:    jnp.ndarray   # (3,) left  NPH/INC pop  (rectified ≥ 0 by construction)
-    R:    jnp.ndarray   # (3,) right NPH/INC pop  (rectified ≥ 0 by construction)
-    null: jnp.ndarray   # (3,) signed adaptation register (drifts toward x_net)
+    """NI state — bilateral push-pull pops + null adaptation + lead filter.
+
+    Pops are in CANAL-PLANE coordinates [H, LARP, RALP]: H (horizontal) = NPH
+    (nucleus prepositus hypoglossi) + MVN; LARP/RALP (vertical/torsional) = INC
+    (interstitial nucleus of Cajal).  Cardinal eye position is reconstructed at
+    the FCP sink, CANAL2CARDINAL·(L − R)."""
+    L:    jnp.ndarray   # (3,) pop A, canal-plane [H, LARP, RALP]  (rectified ≥ 0)
+    R:    jnp.ndarray   # (3,) pop B, canal-plane [H, LARP, RALP]  (rectified ≥ 0)
+    null: jnp.ndarray   # (3,) signed adaptation register, canal-plane (drifts toward x_net)
     u_lp: jnp.ndarray   # (3,) fast-LP of u_vel — supplies smoothed u_vel'
                         # for the 2nd-order pulse-step (MN-LP cancellation)
 

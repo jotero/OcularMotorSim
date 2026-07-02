@@ -349,39 +349,39 @@ tr:last-child { border-bottom: none; }
         <tr>
           <td class="signal-name">ni_left <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
           <td class="shape-cell">(3)</td>
-          <td class="axes-cell">yaw, pitch, roll</td>
+          <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg</td>
-          <td><div class="encodes-cell">eye-position equivalent (left pop, integrated velocity)</div><div class="frame-cell">frame: head</div></td>
+          <td><div class="encodes-cell">eye-position equivalent ('A' pop, integrated velocity)</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
           <td><span class="repr-tag repr-firing-rate-bias">firing-rate-around-bias</span><div class="activation-cell">activation: max(0, state)  (NPH/INC neurons rectified; bias b_ni absorbs floor)</div><div class="baseline-cell">baseline: b_ni (default 0)</div></td>
-          <td class="desc-cell"><p>Left NI population — eye-position equivalent.  Net eye position = ni_left − ni_right.  Tau_i ~25 s; short tau_i → centripetal drift (gaze-evoked nystagmus).  Horizontal integration in NPH; vertical and torsional integration in INC (Crawford & Vilis 1991).</p><div class="population">Bilateral leaky integrator (Robinson 1975)</div><div class="refs">Cannon & Robinson (1985) · Crawford & Vilis (1991)</div></td>
-          <td class="anatomy-cell"><div><span class="ax-tag">yaw</span> Left NPH (nucleus prepositus hypoglossi)</div>
-<div><span class="ax-tag">pitch · roll</span> INC (interstitial nucleus of Cajal)</div></td>
+          <td class="desc-cell"><p>NI population 'A' — eye-position equivalent, in CANAL-PLANE coordinates [H, LARP, RALP].  Net eye position, reconstructed to cardinal at the FCP sink, = CANAL2CARDINAL · (ni_left − ni_right).  Horizontal (H) integrator is NPH; the vertical/torsional planes (LARP, RALP) are INC.  The INC is leakier in torsion (Crawford & Vilis 1991) — a roll<pitch (sum/difference) anisotropy that appears here as LARP↔RALP coupling in the leak.  Tau_i ~25 s; short tau_i → centripetal drift (gaze-evoked nystagmus).</p><div class="population">Bilateral leaky integrator (Robinson 1975); canal-plane channels</div><div class="refs">Cannon & Robinson (1985) · Crawford & Vilis (1991)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H</span> Horizontal integrator → NPH (nucleus prepositus hypoglossi) + MVN</div>
+<div><span class="ax-tag">LARP · RALP</span> Vertical/torsional integrator → INC (interstitial nucleus of Cajal)</div></td>
           <td><span class="computation">brain[_IDX_NI_L]</span></td>
         </tr>
 
         <tr>
           <td class="signal-name">ni_right <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
           <td class="shape-cell">(3)</td>
-          <td class="axes-cell">yaw, pitch, roll</td>
+          <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg</td>
-          <td><div class="encodes-cell">eye-position equivalent (right pop, integrated velocity)</div><div class="frame-cell">frame: head</div></td>
+          <td><div class="encodes-cell">eye-position equivalent ('B' pop, integrated velocity)</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
           <td><span class="repr-tag repr-firing-rate-bias">firing-rate-around-bias</span><div class="activation-cell">activation: max(0, state)</div><div class="baseline-cell">baseline: b_ni</div></td>
-          <td class="desc-cell"><p>Right NI population, push-pull with ni_left.  NPH for yaw, INC for pitch/roll.</p></td>
-          <td class="anatomy-cell"><div><span class="ax-tag">yaw</span> Right NPH (nucleus prepositus hypoglossi)</div>
-<div><span class="ax-tag">pitch · roll</span> INC (interstitial nucleus of Cajal)</div></td>
+          <td class="desc-cell"><p>NI population 'B', push-pull with ni_left. Canal-plane [H, LARP, RALP]; H → NPH, LARP/RALP → INC. Net (→ cardinal at FCP) = CANAL2CARDINAL·(ni_left − ni_right).</p></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H</span> Horizontal integrator → NPH (nucleus prepositus hypoglossi) + MVN</div>
+<div><span class="ax-tag">LARP · RALP</span> Vertical/torsional integrator → INC (interstitial nucleus of Cajal)</div></td>
           <td><span class="computation">brain[_IDX_NI_R]</span></td>
         </tr>
 
         <tr>
           <td class="signal-name">ni_null <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
           <td class="shape-cell">(3)</td>
-          <td class="axes-cell">yaw, pitch, roll</td>
+          <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg</td>
           <td><div class="encodes-cell">slow NI bilateral-imbalance adapter (rebound nystagmus substrate)</div><div class="frame-cell">frame: head</div></td>
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (signed adapter on bilateral imbalance)</div><div class="baseline-cell">baseline: 0</div></td>
-          <td class="desc-cell"><p>Slow adapter on NI bilateral imbalance.  Drives rebound nystagmus after sustained eccentric gaze (tau_ni_adapt ~20 s).  Cerebellar tone rebalances the integrator; lesions here abolish or extend rebound.</p><div class="refs">Zee, Yamazaki, Butler, Gücer (1981)</div></td>
-          <td class="anatomy-cell"><div><span class="ax-tag">yaw</span> Cerebellar floc/paraflocculus → NPH (yaw adapter)</div>
-<div><span class="ax-tag">pitch · roll</span> Cerebellar projection → INC (vertical/torsional adapter)</div></td>
+          <td class="desc-cell"><p>Slow adapter on NI bilateral imbalance, in canal-plane coordinates [H, LARP, RALP].  Drives rebound nystagmus after sustained eccentric gaze (tau_ni_adapt ~20 s).  Cerebellar tone rebalances the integrator; lesions here abolish or extend rebound.</p><div class="refs">Zee, Yamazaki, Butler, Gücer (1981)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H</span> Cerebellar floc/paraflocculus → NPH (horizontal adapter)</div>
+<div><span class="ax-tag">LARP · RALP</span> Cerebellar projection → INC (vertical/torsional adapter)</div></td>
           <td><span class="computation">brain[_IDX_NI_NULL]</span></td>
         </tr>
         </tbody>
@@ -690,38 +690,40 @@ tr:last-child { border-bottom: none; }
         <tr>
           <td class="signal-name">vs_left <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
           <td class="shape-cell">(3)</td>
-          <td class="axes-cell">yaw, pitch, roll</td>
+          <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg/s</td>
-          <td><div class="encodes-cell">head angular velocity (compensatory drive, left pop)</div><div class="frame-cell">frame: head</div></td>
+          <td><div class="encodes-cell">head angular velocity (compensatory drive, 'A' pop)</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
           <td><span class="repr-tag repr-firing-rate-bias">firing-rate-around-bias</span><div class="activation-cell">activation: max(0, state)  (real Type-I VN cells are rectified at 0; bias absorbs the floor in healthy operation)</div><div class="baseline-cell">baseline: b_vs (default 100 deg/s)</div></td>
-          <td class="desc-cell"><p>Left VN firing rate (deg/s equiv).  Net VS velocity = vs_left − vs_right. Drives leftward yaw / pitch / roll on this side.  Horizontal velocity storage primarily in MVN; vertical and torsional in SVN/LVN.</p><div class="population">Type-I VN, push-pull with vs_right</div><div class="refs">Raphan, Matsuo & Cohen (1979) · Angelaki & Hess (1994)</div></td>
-          <td class="anatomy-cell"><div><span class="ax-tag">yaw</span> Left MVN (medial vestibular nucleus)</div>
-<div><span class="ax-tag">pitch · roll</span> Left SVN + LVN (superior + lateral VN, vertical/torsional)</div></td>
+          <td class="desc-cell"><p>VN population 'A' in CANAL-PLANE coordinates [ω_H, ω_LARP, ω_RALP] — one channel per coplanar canal pair (H = horizontal, LARP = LAC/RPC, RALP = RAC/LPC), each an ipsi-excite / contra-inhibit push-pull (Shimazu-Precht Type-I).  Net VS velocity, reconstructed to cardinal [yaw,pitch,roll] at readout, = CANAL2CARDINAL · (vs_left − vs_right).  This maps the anatomy directly — the VN and the optokinetic (NOT/AOS) drive are organised along the canal planes, not cardinal axes.</p><div class="population">Type-I VN, push-pull with vs_right; each channel is one coplanar canal pair</div><div class="refs">Raphan, Matsuo & Cohen (1979) · Angelaki & Hess (1994)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H</span> Horizontal canals (LHC/RHC) → MVN (medial vestibular nucleus)</div>
+<div><span class="ax-tag">LARP</span> LARP plane (LAC + RPC) → SVN (superior VN, vertical/torsional)</div>
+<div><span class="ax-tag">RALP</span> RALP plane (RAC + LPC) → SVN (superior VN, vertical/torsional)</div></td>
           <td><span class="computation">brain[_IDX_VS_L]</span></td>
         </tr>
 
         <tr>
           <td class="signal-name">vs_right <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
           <td class="shape-cell">(3)</td>
-          <td class="axes-cell">yaw, pitch, roll</td>
+          <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg/s</td>
-          <td><div class="encodes-cell">head angular velocity (compensatory drive, right pop)</div><div class="frame-cell">frame: head</div></td>
+          <td><div class="encodes-cell">head angular velocity (compensatory drive, 'B' pop)</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
           <td><span class="repr-tag repr-firing-rate-bias">firing-rate-around-bias</span><div class="activation-cell">activation: max(0, state)</div><div class="baseline-cell">baseline: b_vs (default 100 deg/s)</div></td>
-          <td class="desc-cell"><p>Right VN firing rate; net VS = vs_left − vs_right.  MVN for yaw, SVN/LVN for vertical/torsional.</p><div class="population">Type-I VN, push-pull with vs_left</div></td>
-          <td class="anatomy-cell"><div><span class="ax-tag">yaw</span> Right MVN (medial vestibular nucleus)</div>
-<div><span class="ax-tag">pitch · roll</span> Right SVN + LVN (superior + lateral VN)</div></td>
+          <td class="desc-cell"><p>VN population 'B', push-pull with vs_left. Canal-plane [H, LARP, RALP]; net VS (→ cardinal at readout) = CANAL2CARDINAL·(vs_left − vs_right).</p><div class="population">Type-I VN, push-pull with vs_left; canal-plane channels</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H</span> Horizontal canals (LHC/RHC) → MVN (medial vestibular nucleus)</div>
+<div><span class="ax-tag">LARP</span> LARP plane (LAC + RPC) → SVN (superior VN)</div>
+<div><span class="ax-tag">RALP</span> RALP plane (RAC + LPC) → SVN (superior VN)</div></td>
           <td><span class="computation">brain[_IDX_VS_R]</span></td>
         </tr>
 
         <tr>
           <td class="signal-name">vs_null <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
           <td class="shape-cell">(3)</td>
-          <td class="axes-cell">yaw, pitch, roll</td>
+          <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg/s</td>
           <td><div class="encodes-cell">slow VS bilateral-imbalance adapter (PAN substrate)</div><div class="frame-cell">frame: head</div></td>
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (slow adapter on bilateral imbalance; signed)</div><div class="baseline-cell">baseline: 0</div></td>
-          <td class="desc-cell"><p>Slow null-adaptation state for VS push-pull.  Drives PAN-like (periodic alternating nystagmus) when tau_vs_adapt is reduced.</p></td>
-          <td class="anatomy-cell">Cerebellar slow-time-scale adapter on VS (nodulus / uvula)</td>
+          <td class="desc-cell"><p>Slow null-adaptation state for VS push-pull, in canal-plane coordinates [H, LARP, RALP].  Drives PAN-like (periodic alternating nystagmus) when tau_vs_adapt is reduced.</p></td>
+          <td class="anatomy-cell">Cerebellar slow-time-scale adapter on VS (nodulus / uvula); canal-plane channels</td>
           <td><span class="computation">brain[_IDX_VS_NULL]</span></td>
         </tr>
         </tbody>

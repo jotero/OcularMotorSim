@@ -181,12 +181,14 @@ sensory: [x_c (12) | x_oto (6) | x_retina_L (90) | x_retina_R (90)]
 ```python
 BrainState(
     pc:   pc.State    # 43  perception_cyclopean (binocular fusion + brain LP)
-    sm:   sm.State    # 21  self-motion observer (VS bilateral + GE + HE)
+    sm:   sm.State    # 21  self-motion observer (VS bilateral + GE + HE).
+                      #     VS pops are CANAL-PLANE [H, LARP, RALP] (H→MVN, LARP/RALP→SVN)
     pt:   pt.State    #  4  target working memory  (x_mem(3) + trust(1))
     sg:   sg.State    # 20  saccade generator (see saccade_generator.py)
     pu:   pu.State    #  6  bilateral pursuit pops
     va:   va.State    # 11  vergence (9) + accommodation (2)
-    ni:   ni.State    # 12  bilateral NI (x_L + x_R + x_null + u_lp)
+    ni:   ni.State    # 12  bilateral NI (x_L + x_R + x_null + u_lp), CANAL-PLANE
+                      #     [H, LARP, RALP]: H→NPH, LARP/RALP→INC
     fcp:  fcp.State   # 14  12 MN dynamic states + MLF AIN→CN3_MR
     cb:   cb.State    # ≈56 EC scene + target delay cascades + sat-flag delays +
                       #     near-response accom + verg-H EC cascades (Smith forward models)
