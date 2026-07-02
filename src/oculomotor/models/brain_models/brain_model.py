@@ -354,8 +354,14 @@ class BrainParams(NamedTuple):
     vert_max:                   float = 5.0    # maximum vertical vergence ±(deg); ~3–5° clinical range
     tors_max:                   float = 8.0    # maximum cyclovergence ±(deg); ~5–8° max
     eye_dominant:               float = 1.0    # 1.0 = right dominant, 0.0 = left dominant
-    b_ni:                  float = 0.0    # NPH intrinsic resting bias (deg); 0 = no net bias at centre gaze
-                                          # future: set >0 for unilateral NPH lesion modelling
+    b_ni:                  float = 30.0   # NPH/INC resting firing baseline (deg-equiv). Cancels in the
+                                          # net (L−R), so it does NOT bias eye position — but it sets the
+                                          # RECTIFICATION floor: each pop rests at b_ni and deviates ±(gaze/2),
+                                          # so with b_ni ≥ orbital_limit/2 the pops stay above the max(0,·) floor
+                                          # across the whole range → rectification is inert/transparent. It
+                                          # engages only when a pop is driven below 0 (extreme gaze or a
+                                          # unilateral lesion that lowers one side's baseline/gain) → off-pop
+                                          # cutoff → direction-asymmetric holding.
     tau_ni_adapt:          float = 20.0   # NI null adaptation TC (s); controls rebound nystagmus amplitude
                                           # τ_ni_adapt → ∞: no rebound; τ_ni_adapt ~10–30 s: visible rebound
 
@@ -884,6 +890,14 @@ def make_x0(brain_params=None):
     else:
         fcp_state = fcp.zero_state()
 
+    # NI: both pops rest at the b_ni firing baseline (net L−R = 0 at centre), so the
+    # rectified activations start above the max(0,·) floor — no start-up transient.
+    if brain_params is not None:
+        b_ni_vec = jnp.full(3, jnp.float32(brain_params.b_ni))
+        ni_state = ni.State(L=b_ni_vec, R=b_ni_vec, null=jnp.zeros(3), u_lp=jnp.zeros(3))
+    else:
+        ni_state = ni.rest_state()
+
     return BrainState(
         pc   = pc.rest_state(),
         sm   = sm_state,
@@ -891,7 +905,7 @@ def make_x0(brain_params=None):
         sg   = sg_state,
         pu   = pu.rest_state(),
         va   = va_state,
-        ni   = ni.rest_state(),
+        ni   = ni_state,
         fcp  = fcp_state,
         cb   = cb.rest_state(),
     )

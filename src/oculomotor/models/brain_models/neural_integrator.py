@@ -102,8 +102,17 @@ def rest_state():
 
 
 def read_activations(state):
-    """NI bilateral pops are firing rates by construction — direct projection."""
-    return Activations(L=state.L, R=state.R)
+    """NI bilateral pops are firing rates — RECTIFIED (max 0).
+
+    step() is driven by these activations, so the rectification sits INSIDE the
+    recurrent loop (the recurrence is fed the rectified rate, not the raw state).
+    With the b_ni resting baseline the pops sit above threshold across the whole
+    oculomotor range, so relu(x)=x and this is inert / transparent in normal
+    operation.  It engages only when a pop is driven below floor — extreme
+    eccentric gaze, or a lesion — where the off-direction pop cuts off; that
+    cutoff is what lets the two-population structure express direction-dependent
+    (asymmetric) holding, and it also prevents the off-pop from feeding the loop."""
+    return Activations(L=jnp.maximum(state.L, 0.0), R=jnp.maximum(state.R, 0.0))
 
 
 def decode_states(acts):
