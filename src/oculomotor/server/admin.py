@@ -156,6 +156,10 @@ tbody tr.selected.active {{ background: #dbe6ff; }}
 }}
 .bulk-btn:hover {{ border-color: #9ca3af; }}
 .bulk-btn.danger:hover {{ border-color: #f87171; color: #fecaca; background: #3f2222; }}
+.bulk-btn.warn {{ border-color: #b45309; color: #fcd34d; }}
+.bulk-btn.warn:hover {{ border-color: #f59e0b; color: #fde68a; background: #3a2c10; }}
+.bulk-btn:disabled {{ opacity: 0.5; cursor: not-allowed; }}
+.bulk-sep {{ width: 1px; height: 18px; background: #4b5563; margin: 0 4px; }}
 
 /* ── Figure panel ── */
 .figure-panel {{
@@ -236,6 +240,7 @@ header .token-input {{
   <button id="favFilterBtn" class="wide-btn" onclick="toggleFavFilter()" title="Show only favorites">★ Favorites</button>
   <button id="featFilterBtn" class="wide-btn" onclick="toggleFeatFilter()" title="Show only featured">◆ Featured</button>
   <button id="wideBtn" class="wide-btn" onclick="toggleWide()" title="Hide the list to give plots full width">⤢ Wide plots</button>
+  <a class="wide-btn" href="/collections.html" style="text-decoration:none" title="Curated lists of simulations (lectures, disease sets)">▤ Collections</a>
   <input id="adminToken" class="token-input" placeholder="admin token (if set)"
          oninput="localStorage.setItem('oculomotor_admin_token', this.value)">
   <span class="count" id="count"></span>
@@ -243,6 +248,13 @@ header .token-input {{
 
 <div id="bulkbar">
   <span class="bulk-count" id="bulkCount">0 selected</span>
+  <button class="bulk-btn" onclick="bulkRerun('sim')"
+          title="Re-simulate from each stored scenario — no LLM, free/local">↻ Rerun sim</button>
+  <button class="bulk-btn warn" onclick="bulkRerun('prompt')"
+          title="Re-run each prompt through the LLM, then simulate — costs API tokens">↻ Rerun prompt+sim</button>
+  <button class="bulk-btn" onclick="bulkAddToCollection()"
+          title="Add the selected runs to a curated collection / list">➕ Add to collection</button>
+  <span class="bulk-sep"></span>
   <button class="bulk-btn" onclick="bulkFavorite(true)">★ Favorite</button>
   <button class="bulk-btn" onclick="bulkFavorite(false)">☆ Unfavorite</button>
   <button class="bulk-btn" onclick="bulkFeatured(true)">◆ Feature</button>
@@ -685,6 +697,88 @@ async function bulkDelete() {{
   applyFilter();
   document.getElementById('panel').innerHTML =
     `<div class="no-selection">Deleted ${{ok}} run(s). ← select another</div>`;
+}}
+
+// ── Bulk rerun (sequential — the server runs one sim at a time) ───────────────
+// kind='sim'    : re-simulate from each stored scenario (POST /rerun/{{id}}), no LLM, free.
+// kind='prompt' : re-run each prompt through the LLM then simulate (POST /run), costs tokens.
+let _rerunning = false;
+async function bulkRerun(kind) {{
+  if (_rerunning) return;
+  const ids = [...selected];
+  if (!ids.length) return;
+
+  if (kind === 'prompt' && ids.length > 1) {{
+    const okGo = confirm(
+      `Re-run the PROMPT through the LLM for ${{ids.length}} runs?\\n\\n` +
+      `That makes ${{ids.length}} LLM API calls — this COSTS TOKENS and the results ` +
+      `may differ from the originals.\\n\\n"Rerun sim" re-simulates for free without the LLM.\\n\\nProceed?`);
+    if (!okGo) return;
+  }}
+
+  _rerunning = true;
+  document.querySelectorAll('#bulkbar .bulk-btn').forEach(b => b.disabled = true);
+  const label = kind === 'prompt' ? 'prompt+sim' : 'sim';
+  const token = adminToken();
+  let ok = 0, fail = 0;
+  for (let i = 0; i < ids.length; i++) {{
+    bulkMsg(`Re-running ${{label}} ${{i + 1}}/${{ids.length}}…` + (fail ? ` (${{fail}} failed)` : ''));
+    try {{
+      let resp;
+      if (kind === 'prompt') {{
+        const r = rows.find(x => x.run_id === ids[i]) || ALL_ROWS.find(x => x.run_id === ids[i]);
+        const prompt = r && r.prompt;
+        if (!prompt) throw new Error('no stored prompt');
+        resp = await fetch('/run', {{
+          method: 'POST', headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ description: prompt }}),
+        }});
+      }} else {{
+        resp = await fetch('/rerun/' + ids[i], {{ method: 'POST', headers: {{ 'X-Admin-Token': token }} }});
+      }}
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const body = await resp.json().catch(() => ({{}}));
+      if (body && body.error) throw new Error(body.error);
+      ok++;
+    }} catch (e) {{ fail++; }}
+  }}
+  bulkMsg(`Done: ${{ok}} ok${{fail ? ', ' + fail + ' failed' : ''}} — reloading to show new runs…`);
+  setTimeout(() => window.location.reload(), 1000);
+}}
+
+// ── Add selected runs to a curated collection ─────────────────────────────────
+async function bulkAddToCollection() {{
+  const ids = [...selected]; if (!ids.length) return;
+  let cols = [];
+  try {{ cols = ((await (await fetch('/collections')).json()).collections) || []; }}
+  catch (e) {{ bulkMsg('Could not load collections: ' + e.message); return; }}
+  const menu = cols.map((c, i) => `${{i + 1}}. ${{c.title}}`).join('\\n');
+  const pick = prompt(
+    `Add ${{ids.length}} run(s) to which collection?\\n\\n${{menu || '(no collections yet)'}}\\n\\n0 = create a new collection`,
+    cols.length ? '1' : '0');
+  if (pick === null) return;
+  const n = parseInt(pick, 10);
+  let cid;
+  if (!cols.length || n === 0) {{
+    const title = prompt('New collection name:', ''); if (!title) return;
+    try {{
+      const resp = await fetch('/collections', {{ method: 'POST',
+        headers: {{ 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() }},
+        body: JSON.stringify({{ title }}) }});
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      cid = (await resp.json()).id;
+    }} catch (e) {{ bulkMsg('Create failed: ' + e.message); return; }}
+  }} else if (n >= 1 && n <= cols.length) {{
+    cid = cols[n - 1].id;
+  }} else {{ return; }}
+  const section = (prompt('Section name (leave blank for top level):', '') || '').trim() || null;
+  try {{
+    const resp = await fetch('/collections/' + cid + '/add', {{ method: 'POST',
+      headers: {{ 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() }},
+      body: JSON.stringify({{ run_ids: ids, section }}) }});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    bulkMsg(`Added ${{ids.length}} run(s) to the collection — open ▤ Collections to arrange them`);
+  }} catch (e) {{ bulkMsg('Add failed: ' + e.message); }}
 }}
 
 // ── Init ──────────────────────────────────────────────────────────────────────

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViSiOMlab — Collections</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f4f5f7; color: #1c2230; height: 100vh; display: flex;
+  flex-direction: column; overflow: hidden; }
+header { background: #fff; border-bottom: 1px solid #e3e6ec; padding: 0 18px;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0; height: 46px; }
+header .title { font-size: 0.82rem; font-weight: 600; color: #475569;
+  letter-spacing: 0.06em; text-transform: uppercase; }
+header select, header input { background: #fff; border: 1px solid #d3d7e0;
+  border-radius: 6px; color: #333; font-size: 0.8rem; padding: 5px 9px; outline: none; }
+header select { max-width: 280px; }
+header select:focus, header input:focus { border-color: #4a6cf7; }
+header .token-input { font-size: 0.72rem; width: 150px; margin-left: auto; }
+.wide-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #475569;
+  font-size: 0.74rem; padding: 5px 11px; border-radius: 6px; cursor: pointer; }
+.wide-btn:hover { border-color: #2563eb; color: #1c2230; }
+.wide-btn.danger:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+a.nav-link { font-size: 0.74rem; color: #2563eb; text-decoration: none; }
+
+.layout { display: flex; flex: 1; overflow: hidden; }
+.list-panel { width: 34%; min-width: 280px; border-right: 1px solid #e3e6ec;
+  overflow-y: auto; flex-shrink: 0; padding: 12px 14px; }
+.coll-desc { width: 100%; background: #fff; border: 1px solid #e3e6ec; border-radius: 6px;
+  color: #475569; font-size: 0.78rem; padding: 7px 9px; resize: vertical; min-height: 38px;
+  outline: none; font-family: inherit; margin-bottom: 10px; }
+.coll-desc:focus { border-color: #2563eb; }
+.coll-empty { color: #94a3b8; font-size: 0.82rem; text-align: center; padding: 30px 10px; line-height: 1.7; }
+
+.section { margin-bottom: 12px; border: 1px solid #e3e6ec; border-radius: 8px; background: #fff; overflow: hidden; }
+.section > .sec-head, .loose-wrap > .sec-head { display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; background: #eef0f4; border-bottom: 1px solid #e3e6ec; }
+.sec-head input.sec-title { flex: 1; border: none; background: transparent; font-weight: 600;
+  font-size: 0.78rem; color: #334155; outline: none; padding: 2px 3px; }
+.sec-head input.sec-title:focus { background: #fff; border-radius: 4px; }
+.loose-wrap { margin-bottom: 12px; border: 1px solid #e3e6ec; border-radius: 8px; background: #fff; overflow: hidden; }
+
+.run-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  border-bottom: 1px solid #f0f2f5; cursor: pointer; font-size: 0.78rem; }
+.run-row:last-child { border-bottom: none; }
+.run-row:hover { background: #eef3ff; }
+.run-row.active { background: #e4ecff; border-left: 3px solid #4a6cf7; padding-left: 5px; }
+.run-row.missing { color: #b91c1c; font-style: italic; cursor: default; }
+.run-row .num { color: #94a3b8; font-size: 0.7rem; width: 16px; text-align: right; flex-shrink: 0; }
+.run-row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937; }
+.mini-btns { display: flex; gap: 2px; flex-shrink: 0; }
+.mini-btn { background: #f1f3f7; border: 1px solid #dfe3ea; color: #64748b; font-size: 0.66rem;
+  width: 20px; height: 20px; border-radius: 4px; cursor: pointer; padding: 0; line-height: 1; }
+.mini-btn:hover { border-color: #2563eb; color: #1c2230; }
+.mini-btn.x:hover { border-color: #dc2626; color: #dc2626; }
+.move-sel { font-size: 0.66rem; border: 1px solid #dfe3ea; border-radius: 4px; color: #64748b;
+  background: #f1f3f7; height: 20px; max-width: 96px; padding: 0 2px; cursor: pointer; outline: none; }
+.move-sel:hover, .move-sel:focus { border-color: #2563eb; color: #1c2230; }
+
+.figure-panel { flex: 1; min-width: 0; overflow-y: auto; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 12px; }
+.no-selection { flex: 1; display: flex; align-items: center; justify-content: center;
+  color: #aab; font-size: 0.85rem; text-align: center; line-height: 1.8; }
+.viewer-nav { display: flex; align-items: center; gap: 8px; }
+.fig-title { font-size: 0.92rem; font-weight: 600; color: #1c2230; flex: 1; }
+.fig-prompt { font-size: 0.78rem; color: #475569; line-height: 1.5; }
+.figure-panel img { width: 100%; border-radius: 6px; border: 1px solid #e3e6ec; display: block; background: #fff; }
+.fig-toolbar { display: flex; gap: 6px; align-items: center; }
+.fig-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #475569;
+  font-size: 0.68rem; padding: 3px 10px; border-radius: 5px; cursor: pointer; }
+.fig-btn.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+.fig-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.plot-host { width: 100%; background: #fff; border: 1px solid #e3e6ec; border-radius: 6px; padding: 6px 4px; }
+.plot-host .u-legend { color: #475569; }
+.saved-msg { font-size: 0.72rem; color: #16a34a; margin-left: 6px; }
+
+/* ── Shared 3D avatar + playback (same block as the simulator / gallery page) ── */
+#avatar-section { display: none; border: 1px solid #e3e6ec; border-radius: 10px; overflow: hidden; background: #eef0f4; }
+#avatar-canvas { width: 100%; height: 380px; display: block; }
+#playback-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f6f8fa; border-top: 1px solid #e3e6ec; }
+#play-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #334155; border-radius: 6px; width: 36px; height: 32px; padding: 0; font-size: 1rem; flex-shrink: 0; cursor: pointer; }
+#play-btn:hover { border-color: #2563eb; color: #1c2230; background: #e4ecff; }
+#scrubber { flex: 1; accent-color: #2563eb; height: 4px; cursor: pointer; }
+#time-display { font-size: 0.75rem; color: #64748b; font-family: monospace; white-space: nowrap; flex-shrink: 0; }
+#lift-lids-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #334155; border-radius: 6px; height: 32px; padding: 0 10px; font-size: 0.78rem; flex-shrink: 0; cursor: pointer; white-space: nowrap; }
+#lift-lids-btn:hover { border-color: #2563eb; color: #1c2230; background: #e4ecff; }
+#lift-lids-btn.active { background: #e4ecff; border-color: #2563eb; color: #1c2230; }
+#avatar-loading { position: absolute; font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
+.avatar-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+.avatar-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #d3d7e0; pointer-events: none; }
+.avatar-wrap.single-view::after { display: none; }
+#avatar-tabs { display: none; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; background: #eef0f4; }
+.avatar-tab { padding: 4px 12px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; border: 1px solid #d3d7e0; background: #fff; color: #475569; }
+.avatar-tab:hover { background: #e4ecff; color: #1c2230; }
+.avatar-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.avatar-labels { position: absolute; top: 8px; left: 0; right: 0; display: flex; pointer-events: none; z-index: 1; }
+.avatar-labels span { flex: 1; text-align: center; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+</style>
+<link rel="stylesheet" href="/vendor/uPlot.min.css">
+<script src="/vendor/uPlot.iife.min.js"></script>
+<script src="/plotspec.js"></script>
+<script type="importmap">
+{ "imports": {
+    "three":         "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/" } }
+</script>
+<script type="module" src="/avatar.js"></script>
+</head>
+<body>
+
+<header>
+  <span class="title">Collections</span>
+  <select id="collSelect" onchange="selectCollection(this.value)"></select>
+  <button class="wide-btn" onclick="newCollection()">+ New</button>
+  <button class="wide-btn" onclick="addSection()">＋ Section</button>
+  <button class="wide-btn danger" onclick="deleteCollection()">🗑 Delete list</button>
+  <button class="wide-btn" onclick="if(curId) window.open('/?list='+encodeURIComponent(curId), '_blank')"
+          title="Open this collection on the public site (read-only, side-panel list)">▶ View</button>
+  <span class="saved-msg" id="savedMsg"></span>
+  <a class="nav-link" href="/outputs/admin.html" style="margin-left:12px">← Admin log</a>
+  <input id="adminToken" class="token-input" placeholder="admin token (if set)"
+         oninput="localStorage.setItem('oculomotor_admin_token', this.value)">
+</header>
+
+<div class="layout">
+  <div class="list-panel" id="listPanel"><div class="coll-empty">Loading…</div></div>
+
+  <div class="figure-panel" id="panel">
+    <div class="no-selection" id="emptyMsg">← pick a simulation from the list to view its animation and plots</div>
+    <div id="viewer" style="display:none; flex-direction:column; gap:12px;">
+      <div class="viewer-nav">
+        <button class="fig-btn" onclick="stepRun(-1)" title="Previous in list">‹ Prev</button>
+        <div class="fig-title" id="figTitle"></div>
+        <button class="fig-btn" onclick="stepRun(1)" title="Next in list">Next ›</button>
+      </div>
+      <div class="fig-prompt" id="figPrompt"></div>
+
+      <div id="avatar-section">
+        <div id="avatar-tabs"></div>
+        <div class="avatar-wrap">
+          <canvas id="avatar-canvas"></canvas>
+          <span id="avatar-loading">Loading avatar…</span>
+          <div class="avatar-labels"><span>World view</span><span>Head-fixed</span></div>
+        </div>
+        <div id="playback-bar">
+          <button id="play-btn" onclick="togglePlay()" title="Play / Pause">▶</button>
+          <input type="range" id="scrubber" min="0" max="100" value="0" oninput="onScrub(this.value)">
+          <span id="time-display">0.0 / 0.0 s</span>
+          <button id="lift-lids-btn" onclick="window._avatarToggleLids && window._avatarToggleLids()"
+                  style="display:none" title="Hold eyelids open (ignore lid data to see the eye)">👁 Lift lids</button>
+        </div>
+      </div>
+
+      <div id="figHost"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let COLLECTIONS = [], RUNS = {}, curId = null, activeRun = null, figHandle = null;
+
+function adminToken() { return localStorage.getItem('oculomotor_admin_token') || ''; }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function curColl() { return COLLECTIONS.find(c => c.id === curId) || null; }
+function savedMsg(t, ok=true) { const e=document.getElementById('savedMsg'); if(e){ e.textContent=t; e.style.color=ok?'#16a34a':'#dc2626'; if(t) setTimeout(()=>{ if(e.textContent===t) e.textContent=''; }, 2500); } }
+
+// ── Load collections + run index ──────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [cRes, rRes] = await Promise.all([fetch('/collections'), fetch('/runs')]);
+    COLLECTIONS = (await cRes.json()).collections || [];
+    (await rRes.json()).forEach(r => { RUNS[r.run_id] = r; });
+  } catch (e) { COLLECTIONS = []; }
+  renderSelect();
+  if (COLLECTIONS.length) selectCollection(curColl() ? curId : COLLECTIONS[0].id);
+  else renderList();
+}
+function renderSelect() {
+  const sel = document.getElementById('collSelect');
+  sel.innerHTML = COLLECTIONS.map(c => `<option value="${esc(c.id)}"${c.id===curId?' selected':''}>${esc(c.title)} (${countRuns(c)})</option>`).join('')
+    || '<option disabled>— no collections yet —</option>';
+}
+function countRuns(c) { let n=0; (c.items||[]).forEach(it => { if(it.type==='run') n++; else if(it.type==='section') n+=(it.runs||[]).length; }); return n; }
+function selectCollection(cid) { curId = cid; const sel=document.getElementById('collSelect'); if(sel) sel.value=cid; renderList(); }
+
+// Flat ordered list of run_ids in this collection (for prev/next navigation).
+function orderedRuns() {
+  const c = curColl(); if (!c) return [];
+  const out = [];
+  (c.items||[]).forEach(it => { if (it.type==='run') out.push(it.run_id); else if (it.type==='section') (it.runs||[]).forEach(r => out.push(r)); });
+  return out;
+}
+
+// ── Left: render items ─────────────────────────────────────────────────────────
+function renderList() {
+  const panel = document.getElementById('listPanel');
+  const c = curColl();
+  if (!c) { panel.innerHTML = '<div class="coll-empty">No collections yet.<br>Click <b>+ New</b>, then add runs from the Admin log (select rows → “Add to collection”).</div>'; return; }
+  let html = `<textarea class="coll-desc" placeholder="Description (optional)…" onblur="saveDesc(this.value)">${esc(c.description||'')}</textarea>`;
+  const items = c.items || [];
+  const loose = items.map((it,i)=>({it,i})).filter(x=>x.it.type==='run');
+  const secs  = items.map((it,i)=>({it,i})).filter(x=>x.it.type==='section');
+  if (loose.length) {
+    html += `<div class="loose-wrap"><div class="sec-head"><input class="sec-title" value="(ungrouped)" disabled></div>`;
+    loose.forEach(({it,i}) => { html += runRowHtml(it.run_id, `top:${i}`); });
+    html += `</div>`;
+  }
+  secs.forEach(({it,i}) => {
+    html += `<div class="section"><div class="sec-head">
+      <input class="sec-title" value="${esc(it.title||'')}" onchange="renameSection(${i}, this.value)">
+      <div class="mini-btns">
+        <button class="mini-btn" title="Move section up" onclick="moveTop(${i},-1)">▲</button>
+        <button class="mini-btn" title="Move section down" onclick="moveTop(${i},1)">▼</button>
+        <button class="mini-btn x" title="Remove section" onclick="removeSection(${i})">✕</button>
+      </div></div>`;
+    (it.runs||[]).forEach((rid, r) => { html += runRowHtml(rid, `sec:${i}:${r}`); });
+    if (!(it.runs||[]).length) html += `<div style="padding:8px;color:#aab;font-size:0.74rem">empty — add runs from the Admin log</div>`;
+    html += `</div>`;
+  });
+  if (!items.length) html += `<div class="coll-empty">Empty list.<br>Add a section, or add runs from the Admin log (select rows → “Add to collection”).</div>`;
+  panel.innerHTML = html;
+  if (activeRun) { const el = panel.querySelector(`.run-row[data-run="${activeRun}"]`); if (el) el.classList.add('active'); }
+}
+function runRowHtml(runId, loc) {
+  const r = RUNS[runId];
+  if (!r) return `<div class="run-row missing" title="${esc(runId)}"><span class="num"></span><span class="label">⚠ run not available (deleted / no data)</span>
+    <div class="mini-btns"><button class="mini-btn x" title="Remove" onclick="removeAt('${loc}')">✕</button></div></div>`;
+  const label = r.title || r.prompt || runId;
+  return `<div class="run-row" data-run="${esc(runId)}" onclick="selectRun('${esc(runId)}')">
+    <span class="num">▸</span><span class="label" title="${esc(r.prompt||'')}">${esc(label)}</span>
+    <div class="mini-btns" onclick="event.stopPropagation()">
+      ${moveSelectHtml(loc)}
+      <button class="mini-btn" title="Up" onclick="moveRun('${loc}',-1)">▲</button>
+      <button class="mini-btn" title="Down" onclick="moveRun('${loc}',1)">▼</button>
+      <button class="mini-btn x" title="Remove from list" onclick="removeAt('${loc}')">✕</button>
+    </div></div>`;
+}
+
+// A per-row "move to…" dropdown: pick (ungrouped) or any section to relocate the run.
+// Only rendered when the collection has at least one section (otherwise nowhere to move).
+function moveSelectHtml(loc) {
+  const items = (curColl() || {}).items || [];
+  const secs = items.map((it, i) => ({ it, i })).filter(x => x.it.type === 'section');
+  if (!secs.length) return '';
+  const p = loc.split(':');
+  const curVal = p[0] === 'top' ? 'top' : ('s:' + p[1]);
+  let opts = `<option value="top"${curVal === 'top' ? ' selected' : ''}>(ungrouped)</option>`;
+  secs.forEach(({ it, i }) => { const v = 's:' + i;
+    opts += `<option value="${v}"${curVal === v ? ' selected' : ''}>${esc(it.title || 'Section')}</option>`; });
+  return `<select class="move-sel" title="Move to section…" onchange="moveTo('${loc}', this.value)">${opts}</select>`;
+}
+
+// Relocate a run between containers. `dest` is 'top' (ungrouped) or 's:<sectionIndex>'.
+// The destination section's runs array is captured by reference BEFORE we splice the
+// source out, so it stays valid even when the splice shifts section indices.
+function moveTo(loc, dest) {
+  const p = loc.split(':');
+  const curVal = p[0] === 'top' ? 'top' : ('s:' + p[1]);
+  if (dest === curVal) { renderList(); return; }          // same container → no-op
+  const items = curColl().items;
+  const destRuns = dest === 'top' ? null : items[+dest.slice(2)].runs;
+  let rid;
+  if (p[0] === 'top') { rid = items[+p[1]].run_id; items.splice(+p[1], 1); }
+  else { rid = items[+p[1]].runs[+p[2]]; items[+p[1]].runs.splice(+p[2], 1); }
+  if (dest === 'top') items.push({ type: 'run', run_id: rid });
+  else destRuns.push(rid);
+  save(); renderList();
+}
+
+// ── Edits ──────────────────────────────────────────────────────────────────────
+function _swap(a,i,j){ if(j<0||j>=a.length) return false; const t=a[i]; a[i]=a[j]; a[j]=t; return true; }
+function moveTop(i,d){ if(_swap(curColl().items,i,i+d)){ save(); renderList(); } }
+function moveRun(loc,d){ const items=curColl().items; const p=loc.split(':');
+  if(p[0]==='top'){ if(_swap(items,+p[1],+p[1]+d)){ save(); renderList(); } }
+  else { if(_swap(items[+p[1]].runs,+p[2],+p[2]+d)){ save(); renderList(); } } }
+function removeAt(loc){ const items=curColl().items; const p=loc.split(':');
+  if(p[0]==='top') items.splice(+p[1],1); else items[+p[1]].runs.splice(+p[2],1); save(); renderList(); }
+function removeSection(i){ const s=curColl().items[i];
+  if((s.runs||[]).length && !confirm(`Remove section “${s.title||''}” and its ${s.runs.length} run(s)? (Runs are not deleted.)`)) return;
+  curColl().items.splice(i,1); save(); renderList(); }
+function renameSection(i,t){ curColl().items[i].title=t; save(); }
+function addSection(){ const c=curColl(); if(!c){ alert('Create a collection first.'); return; }
+  const t=prompt('Section name:','New section'); if(t===null) return; c.items.push({type:'section',title:t||'Section',runs:[]}); save(); renderList(); }
+function saveDesc(v){ const c=curColl(); if(c){ c.description=v; save(); } }
+
+async function newCollection(){ const t=prompt('New collection name (e.g. “Vestibular lecture”):',''); if(!t) return;
+  try{ const resp=await fetch('/collections',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},body:JSON.stringify({title:t})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status); const col=await resp.json(); COLLECTIONS.push(col); curId=col.id; renderSelect(); renderList(); savedMsg('Created'); }
+  catch(e){ savedMsg('Error: '+e.message,false); } }
+async function deleteCollection(){ const c=curColl(); if(!c) return;
+  if(!confirm(`Delete the collection “${c.title}”? (The simulations are not deleted.)`)) return;
+  try{ const resp=await fetch('/collections/'+c.id,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}});
+    if(!resp.ok) throw new Error('HTTP '+resp.status); COLLECTIONS=COLLECTIONS.filter(x=>x.id!==c.id); curId=COLLECTIONS.length?COLLECTIONS[0].id:null; renderSelect(); renderList(); savedMsg('Deleted'); }
+  catch(e){ savedMsg('Error: '+e.message,false); } }
+
+let _saveTimer=null;
+function save(){ const c=curColl(); if(!c) return; renderSelect();
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{ try{
+    const resp=await fetch('/collections/'+c.id,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},
+      body:JSON.stringify({title:c.title,description:c.description,items:c.items})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status); savedMsg('Saved');
+  }catch(e){ savedMsg('Save failed: '+e.message,false); } }, 300); }
+
+// ── Right: full simulation view (avatar animation + plots) ────────────────────
+async function selectRun(runId) {
+  activeRun = runId;
+  document.querySelectorAll('.run-row').forEach(el => el.classList.toggle('active', el.dataset.run === runId));
+  const r = RUNS[runId] || { title: runId, prompt: '' };
+  document.getElementById('emptyMsg').style.display = 'none';
+  document.getElementById('viewer').style.display = 'flex';
+  document.getElementById('figTitle').textContent = r.title || runId;
+  document.getElementById('figPrompt').textContent = r.prompt || '';
+  let payload = null;
+  try { const resp = await fetch('/run/' + runId + '/data'); if (resp.ok) payload = await resp.json(); } catch (e) {}
+  loadAvatar(payload || {});
+  renderFigure(runId, payload);
+}
+function stepRun(dir) {
+  const list = orderedRuns(); if (!list.length) return;
+  let i = list.indexOf(activeRun); i = (i < 0 ? 0 : i + dir);
+  if (i < 0 || i >= list.length) return;
+  selectRun(list[i]);
+}
+
+// Drive the shared 3D avatar (comparison → tabs), same as the gallery.
+function loadAvatar(data) {
+  const section = document.getElementById('avatar-section');
+  const tabs = document.getElementById('avatar-tabs');
+  if (!window.loadEyeTrajectory) { section.style.display = 'none'; return; }
+  if (data.eye_trajectories && data.eye_trajectories.length) {
+    section.style.display = 'block'; tabs.style.display = 'flex'; tabs.innerHTML = '';
+    data.eye_trajectories.forEach((traj, i) => {
+      const b = document.createElement('button');
+      b.className = 'avatar-tab' + (i === 0 ? ' active' : '');
+      b.textContent = traj.label || ('Scenario ' + (i + 1));
+      b.onclick = () => { tabs.querySelectorAll('.avatar-tab').forEach(x => x.classList.remove('active')); b.classList.add('active'); window.loadEyeTrajectory(traj); };
+      tabs.appendChild(b);
+    });
+    window.loadEyeTrajectory(data.eye_trajectories[0]);
+  } else if (data.eye_trajectory) {
+    section.style.display = 'block'; tabs.style.display = 'none'; tabs.innerHTML = '';
+    window.loadEyeTrajectory(data.eye_trajectory);
+  } else {
+    section.style.display = 'none';   // older run without a stored trajectory
+  }
+}
+
+function renderFigure(runId, payload) {
+  const figHost = document.getElementById('figHost');
+  figHost.innerHTML = '';
+  if (figHandle) { try { figHandle.destroy(); } catch (e) {} figHandle = null; }
+  const bar = document.createElement('div'); bar.className = 'fig-toolbar';
+  const host = document.createElement('div'); host.className = 'plot-host';
+  const img = document.createElement('img'); img.src = '/outputs/server_figures/' + runId + '.png'; img.alt = 'figure';
+  const bInter = document.createElement('button'); bInter.className='fig-btn'; bInter.textContent='Interactive plots';
+  const bImg   = document.createElement('button'); bImg.className='fig-btn';   bImg.textContent='Image';
+  const showImg   = () => { host.style.display='none'; img.style.display='block'; bImg.classList.add('on'); bInter.classList.remove('on'); };
+  const showInter = () => { img.style.display='none'; host.style.display='block'; bInter.classList.add('on'); bImg.classList.remove('on'); };
+  bImg.onclick = showImg; bInter.onclick = () => { if (!bInter.disabled) showInter(); };
+  bar.appendChild(bInter); bar.appendChild(bImg);
+  figHost.appendChild(bar); figHost.appendChild(host); figHost.appendChild(img);
+  showImg();
+  const canInter = (typeof uPlot !== 'undefined') && window.PlotSpec && payload && payload.plot_spec;
+  if (!canInter) { bInter.disabled = true; return; }
+  try { showInter(); figHandle = window.PlotSpec.render(host, payload.plot_spec); }
+  catch (e) { bInter.disabled = true; showImg(); }
+}
+
+// ── Playback delegates (avatar.js exposes the implementations on window) ───────
+function togglePlay() { if (window._avatarTogglePlay) window._avatarTogglePlay(); }
+function onScrub(v)   { if (window._avatarOnScrub)    window._avatarOnScrub(parseInt(v)); }
+window.setPlotTime = function (t) { if (figHandle && figHandle.setTime) { try { figHandle.setTime(t); } catch (e) {} } };
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.getElementById('adminToken').value = localStorage.getItem('oculomotor_admin_token') || '';
+loadAll();
+</script>
+</body>
+</html>

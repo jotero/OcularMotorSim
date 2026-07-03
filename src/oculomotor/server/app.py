@@ -93,6 +93,30 @@ _LOG_COLUMNS = [
 # matching X-Admin-Token header; if unset, they are open (local-dev convenience).
 _ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', '').strip()
 
+# Curated collections — ordered lists of runs with one level of named sections.
+# Independent of the run log (a run can appear in many collections, in any order).
+#   {"collections": [{"id","title","description",
+#     "items": [{"type":"section","title","runs":[run_id,...]} |
+#               {"type":"run","run_id":run_id}]}]}
+_COLLECTIONS_FILE = _DATA_ROOT / 'collections.json'
+
+
+def _load_collections() -> list[dict]:
+    if _COLLECTIONS_FILE.exists():
+        try:
+            with open(_COLLECTIONS_FILE, encoding='utf-8') as f:
+                return json.load(f).get('collections', [])
+        except Exception:
+            return []
+    return []
+
+
+def _save_collections(cols: list[dict]) -> None:
+    tmp = _COLLECTIONS_FILE.with_name(_COLLECTIONS_FILE.name + '.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump({'collections': cols}, f, ensure_ascii=False, indent=2)
+    tmp.replace(_COLLECTIONS_FILE)
+
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 
@@ -223,6 +247,22 @@ class FeedbackRequest(BaseModel):
     run_id:        str
     looks_correct: str | None = None   # 'correct', 'incorrect', or None (not rated)
     comment:       str = ''
+
+
+class CollectionCreate(BaseModel):
+    title:       str
+    description: str = ''
+
+
+class CollectionUpdate(BaseModel):
+    title:       str | None = None
+    description: str | None = None
+    items:       list | None = None   # ordered [{type:'section',title,runs:[]} | {type:'run',run_id}]
+
+
+class CollectionAdd(BaseModel):
+    run_ids: list[str]
+    section: str | None = None   # append into this named section (created if missing); else top-level
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -409,6 +449,111 @@ async def version_endpoint():
     return JSONResponse({'version': _SIM_VERSION})
 
 
+def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0) -> RunResponse:
+    """Run an already-interpreted scenario/comparison, persist it as a run, and
+    return the RunResponse. Shared by /run (LLM -> result) and /rerun (stored result).
+    """
+    _t1 = time.perf_counter()
+
+    if isinstance(result, SimulationComparison):
+        _, cmp_sim_data_list, plot_spec = run_comparison(
+            result, return_data=True, return_spec=True, make_figure=False)
+        title  = result.title
+        mode   = 'comparison'
+        detail = result.model_dump()
+        sim_data = None    # comparison CSV download not supported yet
+        # Build per-scenario trajectories with short labels for avatar tabs
+        eye_trajectories = []
+        for scenario, sd in zip(result.scenarios, cmp_sim_data_list):
+            traj = _build_eye_trajectory(sd)
+            if traj is not None:
+                traj['label'] = scenario.description
+                traj['patient_changes'] = _build_patient_changes(scenario.patient)
+                eye_trajectories.append(traj)
+        patient_changes = None   # per-scenario, attached on each entry
+    else:
+        _, sim_data, plot_spec = run_scenario(
+            result, return_data=True, return_spec=True, make_figure=False)
+        title            = result.description
+        mode             = 'single'
+        detail           = result.model_dump()
+        eye_trajectories = []
+        patient_changes  = _build_patient_changes(result.patient)
+
+    ms_sim = (time.perf_counter() - _t1) * 1000.0   # sim + spec (no figure)
+
+    # No server-side figure: the client renders the interactive plot and
+    # uploads a snapshot to POST /runs/{id}/figure, which lands here.
+    fig_name = f'{run_id}.png'
+    fig_path = _FIGURES_DIR / fig_name
+
+    # Cache sim data for download
+    if sim_data is not None:
+        _sim_cache[run_id] = sim_data
+
+    timing = {'total_ms': round(ms_llm + ms_sim), 'llm_ms': round(ms_llm),
+              'sim_ms': round(ms_sim)}
+    timestamp = datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+    eye_traj  = _build_eye_trajectory(sim_data) if mode == 'single' else None
+
+    # Persist the full record (metadata + plot spec) FIRST, so the data sidecar
+    # exists on disk BEFORE _append_log regenerates admin.html (gen_admin flags
+    # runs whose sidecar is missing).
+    _write_run_json(run_id, {
+        'run_id':          run_id,
+        'timestamp':       timestamp,
+        'version':         _SIM_VERSION,
+        'prompt':          prompt,
+        'mode':            mode,
+        'title':           title,
+        'narrative':       detail.get('narrative', ''),
+        'figure_rel':      f'server_figures/{fig_name}',
+        'looks_correct':   '',
+        'feedback':        '',
+        'favorite':        False,
+        'featured':        False,
+        'note':            '',
+        'timing':          timing,
+        'patient_changes': patient_changes,
+        'eye_trajectory':  eye_traj,
+        'eye_trajectories': eye_trajectories if mode == 'comparison' else None,
+        'plot_spec':       plot_spec,
+        # Full structured scenario/comparison — the source for a "rerun sim".
+        'detail':          detail,
+    })
+
+    # Append the log row (regenerates admin.html) AFTER the sidecar exists.
+    _append_log({
+        'timestamp':   timestamp,
+        'run_id':      run_id,
+        'version':     _SIM_VERSION,
+        'prompt':      prompt,
+        'mode':        mode,
+        'title':       title,
+        'figure_file': str(fig_path),
+        'looks_correct': '',
+        'feedback':    '',
+        'favorite':    '',
+        'featured':    '',
+        'note':        '',
+        'ms_total':    timing['total_ms'],
+        'ms_llm':      timing['llm_ms'],
+        'ms_sim':      timing['sim_ms'],
+    })
+
+    return RunResponse(
+        mode             = mode,
+        title            = title,
+        detail_json      = detail,
+        run_id           = run_id,
+        version          = _SIM_VERSION,
+        eye_trajectory   = eye_traj,
+        eye_trajectories = eye_trajectories if mode == 'comparison' else None,
+        patient_changes  = patient_changes,
+        plot_spec        = plot_spec,
+    )
+
+
 @app.post('/run', response_model=RunResponse)
 async def run_endpoint(req: RunRequest):
     """LLM decides single simulation or comparison; runs and returns the figure."""
@@ -417,111 +562,31 @@ async def run_endpoint(req: RunRequest):
         _t0 = time.perf_counter()
         result = call_llm(req.description, model=req.model)
         ms_llm = (time.perf_counter() - _t0) * 1000.0
-        _t1 = time.perf_counter()
+        return _run_and_persist(run_id, req.description, result, ms_llm)
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={'error': str(e)})
 
-        if isinstance(result, SimulationComparison):
-            _, cmp_sim_data_list, plot_spec = run_comparison(
-                result, return_data=True, return_spec=True, make_figure=False)
-            title = result.title
-            mode  = 'comparison'
-            detail = result.model_dump()
-            sim_data = None    # comparison CSV download not supported yet
-            # Build per-scenario trajectories with short labels for avatar tabs
-            eye_trajectories = []
-            for scenario, sd in zip(result.scenarios, cmp_sim_data_list):
-                traj = _build_eye_trajectory(sd)
-                if traj is not None:
-                    traj['label'] = scenario.description
-                    traj['patient_changes'] = _build_patient_changes(scenario.patient)
-                    eye_trajectories.append(traj)
-            patient_changes = None   # per-scenario, attached on each entry
+
+@app.post('/rerun/{run_id}', response_model=RunResponse)
+async def rerun_endpoint(run_id: str, x_admin_token: str | None = Header(default=None)):
+    """Re-run the SIMULATION ONLY (no LLM) from an existing run's stored scenario.
+
+    Creates a NEW run — free/local, and deterministic given the same code + params.
+    Use this to re-simulate after a code/model change without paying for the LLM.
+    (To re-interpret the prompt too, POST the stored prompt to /run instead.)
+    """
+    _check_admin(x_admin_token)
+    payload = _read_run_json(run_id)
+    if payload is None or not payload.get('detail'):
+        raise HTTPException(status_code=404, detail='No stored scenario to re-run.')
+    try:
+        detail = payload['detail']
+        if payload.get('mode') == 'comparison':
+            result = SimulationComparison(**detail)
         else:
-            _, sim_data, plot_spec = run_scenario(
-                result, return_data=True, return_spec=True, make_figure=False)
-            title            = result.description
-            mode             = 'single'
-            detail           = result.model_dump()
-            eye_trajectories = []
-            patient_changes  = _build_patient_changes(result.patient)
-
-        ms_sim = (time.perf_counter() - _t1) * 1000.0   # sim + spec (no figure)
-
-        # No server-side figure: the client renders the interactive plot and
-        # uploads a snapshot to POST /runs/{id}/figure, which lands here.
-        fig_name = f'{run_id}.png'
-        fig_path = _FIGURES_DIR / fig_name
-
-        # Cache sim data for download
-        if sim_data is not None:
-            _sim_cache[run_id] = sim_data
-
-        ms_total = (time.perf_counter() - _t0) * 1000.0
-        timing = {'total_ms': round(ms_total), 'llm_ms': round(ms_llm),
-                  'sim_ms': round(ms_sim)}
-
-        timestamp = datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z'
-        eye_traj  = _build_eye_trajectory(sim_data) if mode == 'single' else None
-
-        # Persist the full record (metadata + plot spec) FIRST, so the data
-        # sidecar exists on disk BEFORE _append_log regenerates admin.html
-        # (gen_admin flags runs whose sidecar is missing). Writing the log first
-        # made every fresh run show as "no data" until the next mutation.
-        _write_run_json(run_id, {
-            'run_id':          run_id,
-            'timestamp':       timestamp,
-            'version':         _SIM_VERSION,
-            'prompt':          req.description,
-            'mode':            mode,
-            'title':           title,
-            'narrative':       detail.get('narrative', ''),
-            'figure_rel':      f'server_figures/{fig_name}',
-            'looks_correct':   '',
-            'feedback':        '',
-            'favorite':        False,
-            'featured':        False,
-            'note':            '',
-            'timing':          timing,
-            'patient_changes': patient_changes,
-            'eye_trajectory':  eye_traj,
-            'eye_trajectories': eye_trajectories if mode == 'comparison' else None,
-            'plot_spec':       plot_spec,
-            # Full LLM output (the structured scenario/comparison the model
-            # produced, incl. narrative + every stimulus/patient/plot field).
-            'detail':          detail,
-        })
-
-        # Append the log row (this regenerates admin.html) AFTER the sidecar
-        # exists, so the new run is correctly shown as having data.
-        _append_log({
-            'timestamp':   timestamp,
-            'run_id':      run_id,
-            'version':     _SIM_VERSION,
-            'prompt':      req.description,
-            'mode':        mode,
-            'title':       title,
-            'figure_file': str(fig_path),
-            'looks_correct': '',
-            'feedback':    '',
-            'favorite':    '',
-            'featured':    '',
-            'note':        '',
-            'ms_total':    timing['total_ms'],
-            'ms_llm':      timing['llm_ms'],
-            'ms_sim':      timing['sim_ms'],
-        })
-
-        return RunResponse(
-            mode             = mode,
-            title            = title,
-            detail_json      = detail,
-            run_id           = run_id,
-            version          = _SIM_VERSION,
-            eye_trajectory   = eye_traj,
-            eye_trajectories = eye_trajectories if mode == 'comparison' else None,
-            patient_changes  = patient_changes,
-            plot_spec        = plot_spec,
-        )
-
+            result = SimulationScenario(**detail)
+        return _run_and_persist(str(uuid.uuid4()), payload.get('prompt', ''), result, ms_llm=0.0)
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(status_code=500, content={'error': str(e)})
@@ -661,6 +726,85 @@ async def admin_delete(run_id: str,
     return {'status': 'deleted', 'run_id': run_id}
 
 
+# ── Collections (curated ordered lists, one level of named sections) ──────────
+
+@app.get('/collections')
+async def collections_list():
+    """All curated collections (read-only; the collections page is admin-guarded for edits)."""
+    return {'collections': _load_collections()}
+
+
+@app.post('/collections')
+async def collections_create(req: CollectionCreate,
+                             x_admin_token: str | None = Header(default=None)):
+    _check_admin(x_admin_token)
+    cols = _load_collections()
+    col = {'id': uuid.uuid4().hex[:12], 'title': (req.title or '').strip() or 'Untitled',
+           'description': req.description, 'items': []}
+    cols.append(col)
+    _save_collections(cols)
+    return col
+
+
+@app.put('/collections/{cid}')
+async def collections_update(cid: str, req: CollectionUpdate,
+                             x_admin_token: str | None = Header(default=None)):
+    """Replace a collection's title / description / ordered items (the editor sends
+    the whole items array, so reordering + sectioning is one call)."""
+    _check_admin(x_admin_token)
+    cols = _load_collections()
+    for col in cols:
+        if col.get('id') == cid:
+            if req.title is not None:       col['title'] = req.title
+            if req.description is not None: col['description'] = req.description
+            if req.items is not None:       col['items'] = req.items
+            _save_collections(cols)
+            return col
+    raise HTTPException(status_code=404, detail='collection not found')
+
+
+@app.delete('/collections/{cid}')
+async def collections_delete(cid: str,
+                             x_admin_token: str | None = Header(default=None)):
+    _check_admin(x_admin_token)
+    cols = _load_collections()
+    new = [c for c in cols if c.get('id') != cid]
+    if len(new) == len(cols):
+        raise HTTPException(status_code=404, detail='collection not found')
+    _save_collections(new)
+    return {'status': 'deleted', 'id': cid}
+
+
+@app.post('/collections/{cid}/add')
+async def collections_add(cid: str, req: CollectionAdd,
+                          x_admin_token: str | None = Header(default=None)):
+    """Append run_ids to a collection — into a named section (created if missing),
+    else as top-level run items. De-dupes against runs already in the target."""
+    _check_admin(x_admin_token)
+    cols = _load_collections()
+    for col in cols:
+        if col.get('id') == cid:
+            items = col.setdefault('items', [])
+            if req.section:
+                sec = next((it for it in items if it.get('type') == 'section'
+                            and it.get('title') == req.section), None)
+                if sec is None:
+                    sec = {'type': 'section', 'title': req.section, 'runs': []}
+                    items.append(sec)
+                existing = set(sec.get('runs', []))
+                for rid in req.run_ids:
+                    if rid not in existing:
+                        sec.setdefault('runs', []).append(rid); existing.add(rid)
+            else:
+                existing = {it.get('run_id') for it in items if it.get('type') == 'run'}
+                for rid in req.run_ids:
+                    if rid not in existing:
+                        items.append({'type': 'run', 'run_id': rid}); existing.add(rid)
+            _save_collections(cols)
+            return col
+    raise HTTPException(status_code=404, detail='collection not found')
+
+
 @app.get('/runs')
 async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool = False,
                               featured_only: bool = False):
@@ -790,6 +934,12 @@ from fastapi.responses import RedirectResponse as _Redirect
 async def admin_redirect():
     """Redirect /admin → /outputs/admin.html (served via HTTP, no file:// issues)."""
     return _Redirect('/outputs/admin.html')
+
+
+@app.get('/lists')
+async def lists_redirect():
+    """Redirect /lists → the curated-collections page (web/collections.html)."""
+    return _Redirect('/collections.html')
 
 
 # ── Static file mounts (specific paths before the catch-all /) ────────────────
