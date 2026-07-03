@@ -80,6 +80,7 @@ MODULES = [
     'bench_fixation',
     'bench_listing',
     'bench_fcp',
+    'bench_pupil',
 ]
 
 # Section ids never rendered into the report (data may still exist in

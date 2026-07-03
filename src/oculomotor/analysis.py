@@ -16,6 +16,12 @@ vs_null(states)
 ni_null(states)
     NI null-adaptation state, shape (T, 3).
 
+pupil_size(states)
+    Per-eye pupil diameter, shape (T, 2) = [left, right], mm.
+
+luminance(states)
+    Per-eye afferent retinal luminance, shape (T, 2) = [left, right], ~[0, 1].
+
 extract_canal(states)
     Canal head-velocity estimate (yaw) from SimState trajectory.
 
@@ -125,6 +131,27 @@ def vs_null(states):
 def ni_null(states):
     """NI null-adaptation state, shape (T, 3), deg (cardinal)."""
     return np.array(states.brain.ni.null) @ _CANAL2CARDINAL.T
+
+
+# ── Pupil / luminance ────────────────────────────────────────────────────────
+
+def pupil_size(states):
+    """Per-eye pupil diameter, shape (T, 2) = [left, right], mm.
+
+    Actual iris-plant output (physiological ~3–8 mm). The two pupils differ only
+    under an efferent / iris lesion (anisocoria). For the avatar morph target,
+    convert with d = (mm/2 − 1.54) / 4.35 (see web/avatar.js setPupilDiameter).
+    """
+    return np.array(states.pupil_plant)
+
+
+def luminance(states):
+    """Per-eye afferent retinal luminance, shape (T, 2) = [left, right], ~[0, 1].
+
+    The low-passed light signal driving the pupillary light reflex (from the
+    luminance sensory afferent), NOT the physical scene/target presence.
+    """
+    return np.array(states.sensory.lum.x_lum)
 
 
 # ── Canal ──────────────────────────────────────────────────────────────────────

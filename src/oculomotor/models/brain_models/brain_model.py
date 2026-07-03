@@ -87,6 +87,7 @@ from oculomotor.models.brain_models  import neural_integrator      as ni
 from oculomotor.models.brain_models  import saccade_generator      as sg
 from oculomotor.models.brain_models  import pursuit                as pu
 from oculomotor.models.brain_models  import tvor                   as tv
+from oculomotor.models.brain_models  import pupil                  as pupil
 from oculomotor.models.brain_models  import final_common_pathway   as fcp
 from oculomotor.models.brain_models  import cerebellum               as cb
 from oculomotor.models.brain_models  import listing
@@ -317,6 +318,18 @@ class BrainParams(NamedTuple):
     tau_p:                 float = 0.15   # plant TC copy (orbital slow pole τ₁) — NI feedthrough
     tau_muscle:            float = 0.013  # muscle fast-pole TC copy (τ₂, s) — 2nd-order plant inverse
                                           # (muscle force-development LP); matches PlantParams.tau_muscle
+    tau_slide:             float = 0.010  # SLIDE time constant Ts (s) of the pulse-slide-step motor
+                                          # command (Optican & Miles 1985). The slide is a low-pass of the
+                                          # pulse, so the pulse-step's 2nd-order (accel) compensation is a
+                                          # SMOOTH branch (no burst-offset spike → no ring).  Tuned RELATIVE
+                                          # to the plant's series-elastic zero (PlantParams.tau_see = Tz):
+                                          #   Ts = Tz  → slide pole cancels the zero → full peak, but a small
+                                          #             residual overshoot glissade (FCP pole-lumping);
+                                          #   Ts > Tz  → damps that overshoot for a clean landing, at a small
+                                          #             peak-velocity cost (worst on small saccades);
+                                          #   Ts < Tz  → undershoot glissade.
+                                          # Default Ts=10 vs Tz=8: the balance point. This lead/slide mismatch
+                                          # IS the clinical glissade knob.  See manuscripts/pulse_slide_step.md
     tau_vis:               float = 0.08   # visual delay copy — EC delay must match retinal delay
                                           # should match PlantParams.tau_p in healthy subjects;
                                           # may differ in pathology (imperfect internal model)
@@ -382,6 +395,15 @@ class BrainParams(NamedTuple):
     tau_bn:                float = 0.003  # EBN/IBN state TC (s); BN states track error drive with lag.
                                            # Heun stability limit: (1+g_opn_bn·100)·dt/tau_bn < 2
                                            #   → tau_bn > (1+4)*0.001/2 = 0.0025 s. Current 3 ms is safely above.
+    k_bn_lead:             float = 1.0    # burst-drive LEAD gain (× tau_bn). BNs are driven off
+                                           # relu(e_held − k_bn_lead·tau_bn·u_burst), not relu(e_held): the
+                                           # −tau_bn·u_burst term is a derivative/lead that cancels the BN
+                                           # membrane lag, so the resettable integrator e_held lands on 0
+                                           # instead of overshooting negative — damps the underdamped
+                                           # e_held↔BN local-feedback loop that otherwise rings (a post-
+                                           # saccadic glissade, worst on small saccades). 0 = off (old ringy
+                                           # behaviour); 1 = full lag cancellation. Keeps peak velocity (the
+                                           # lead is ~constant mid-burst, only biting at the stop).
     g_opn_bn:              float = 0.04   # OPN→BN multiplicative suppression (per unit, act_opn∈[0,100]).
                                            # Heun stability: (1+g_opn_bn·100)·dt/tau_bn < 2 → g_opn_bn < 0.09.
     g_opn_bn_hold:         float = 0.4    # OPN→BN additive offset (per unit, act_opn∈[0,100]).
@@ -633,6 +655,32 @@ class BrainParams(NamedTuple):
                                           # Added to 1/z before defocus = 1/z + RE − x_plant.
                                           # Hyperope needs more accommodation at every distance;
                                           # myope needs less (natural far point = 1/|RE| m for myopia).
+
+    # Pupil — light reflex + near-response constriction (pupil.py → pupil_plant.py).
+    # Commanded diameter = pupil_baseline − K_pupil_light·lum − K_pupil_near·accom,
+    # clipped to [pupil_min, pupil_max], then low-passed by the iris plant (tau_pupil).
+    pupil_baseline:        float = 7.5    # dark (fully dilated) pupil diameter (mm); dilator/sympathetic tone folded in
+    K_pupil_light:         float = 4.5    # light-reflex constriction gain (mm per unit afferent luminance);
+                                          #   full-field light (lum≈1) → ~4.5 mm miosis: 7.5 → ~3 mm
+    K_pupil_near:          float = 0.4    # near-response constriction gain (mm per D of accommodation) [Myers & Stark 1990]
+    pupil_min:             float = 2.0    # minimum physiological pupil diameter (mm)
+    pupil_max:             float = 8.0    # maximum physiological pupil diameter (mm)
+    tau_pupil:             float = 0.4    # iris sphincter/dilator plant TC (s); PLR settling ~0.3–0.8 s [Loewenfeld 1993]
+    # Pupil lesion knobs (all [0,1], 1 = intact). PER EYE where the lesion is
+    # lateralised. See pupil.py + with_cn3_palsy / with_horner.
+    g_pupil_cn3_L:         float = 1.0    # LEFT efferent parasympathetic integrity (sphincter via CN III → ciliary
+                                          #   ganglion). 0 = ipsilateral blown pupil; gates BOTH light + near of the
+                                          #   left pupil. Shared with the left CN III eye-muscle palsy (with_cn3_palsy);
+                                          #   isolated 0 = left tonic (Adie) pupil / ciliary-ganglion lesion.
+    g_pupil_cn3_R:         float = 1.0    # RIGHT efferent parasympathetic integrity (symmetric to g_pupil_cn3_L).
+    g_pupil_afferent_L:    float = 1.0    # LEFT afferent-limb integrity (retina / optic nerve); <1 = left RAPD. Scales
+                                          #   the left eye's contribution to the CONSENSUAL light drive (no anisocoria).
+    g_pupil_afferent_R:    float = 1.0    # RIGHT afferent-limb integrity (symmetric to g_pupil_afferent_L).
+    g_pupil_symp_L:        float = 1.0    # LEFT sympathetic dilator tone; <1 = ipsilateral Horner miosis (smaller
+                                          #   resting/dark left pupil). rest_L = pupil_min + g·(pupil_baseline − pupil_min).
+    g_pupil_symp_R:        float = 1.0    # RIGHT sympathetic dilator tone (symmetric to g_pupil_symp_L).
+    g_pupil_light_reflex:  float = 1.0    # bilateral pretectal / central light-reflex integrity; 0 = light-near
+                                          #   dissociation (Argyll Robertson / Parinaud) — light reflex lost, near preserved.
 
     # Motor nucleus and nerve gains — two-stage encode (see muscle_geometry.py)
     # Stage 1 — g_nucleus (12,): per-nucleus gain [0,1]. Zero = nucleus lesion.
@@ -933,6 +981,8 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         ec_pos:       (3,)   eye position efference
         ec_verg:      (3,)   vergence efference
         u_acc:        scalar total lens-plant input (D) — neural + CA/C, drives acc_plant
+        u_pupil:      (2,)   commanded per-eye pupil diameter (mm) [L, R] — light
+                             reflex + near response, drives the iris plants
     """
     # ── Activation / Decoded / Weights registries ────────────────────────────
     # Built once per step.  Subsystems read these instead of raw state.
@@ -1118,6 +1168,17 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         brain_params     = brain_params,
     )
 
+    # ── Pupil: light reflex + near response → commanded per-eye iris diameter ──
+    # Stateless (pupil.py); dynamics live in the two iris plants (pupil_plant).
+    # Consensual light reflex reads the (2,) per-eye afferent luminance; the near
+    # response reads total accommodation. Returns (2,) [L, R] — separate pupils so
+    # an efferent (CN III / iris) lesion produces anisocoria.
+    u_pupil = pupil.command(
+        sensory_out.luminance,
+        acts.va.acc_fast + acts.va.acc_slow,
+        brain_params,
+    )
+
     # ── Final common pathway: nucleus encode → MN low-pass → nerve transmission ─
     # step is STATE-driven: it derives the signed leak/nerve rate from
     # brain_state.fcp.mn internally.  (acts.fcp is the ≥0 nucleus firing rate, for
@@ -1176,4 +1237,4 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         cb   = dcb,
     )
 
-    return dbrain, nerves, ec_vel, ec_pos, ec_verg_cmd, u_acc
+    return dbrain, nerves, ec_vel, ec_pos, ec_verg_cmd, u_acc, u_pupil

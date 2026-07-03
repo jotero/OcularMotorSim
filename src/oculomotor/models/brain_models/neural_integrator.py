@@ -211,44 +211,42 @@ def step(activations, weights, u_vel, brain_params, u_tonic=0.0):
     # least directionally consistent with reported post-tilt-removal drift.
     dx_null = (x_net - x_null_eff) / brain_params.tau_ni_adapt
 
-    # ── Pulse-step motor command: full MN_LP × plant_LP lag cancellation ──────
-    # Effective plant from the NI's perspective is `MN_LP × plant_LP` — the FCP
-    # motoneurons add a per-axis LP between motor_cmd_ni and the muscle nerves.
-    # In Laplace:
-    #     plant_inverse(s) = (1 + s·tau_p)(1 + s·tau_mn_eff)
-    #                      = 1 + (tau_p + tau_mn_eff)·s + tau_p·tau_mn_eff·s²
-    # → in time, motor_cmd = x_net + (tau_p + tau_mn_eff)·u_vel + tau_p·tau_mn_eff·u_vel'.
-    # The first two terms are algebraic.  The second-derivative term needs u_vel';
-    # implement via a fast lead-filter state `u_lp` (LP of u_vel at tau_fast ~ dt):
-    #   du_lp/dt = (u_vel − u_lp) / tau_fast       state — fast 1st-order LP
-    #   u_vel'   ≈ du_lp/dt = (u_vel − u_lp)/tau_fast    smoothed derivative
-    # tau_mn_eff per axis: yaw uses mn_ff_yaw·tau_mn; pitch/roll use tau_mn.
-    # mn_ff_yaw is the conjugate-yaw MN-LP feedforward factor. The version-
-    # averaged value is 1.5 (half ABN→LR direct 1-stage + half AIN→MLF→CN3_MR
-    # 2-stage). That averaging over- and under-compensates the two eyes equally;
-    # the EXACT per-eye split is mn_ff_yaw=1.0 (the common 1st stage, here) +
-    # fcp.mlf_lead (the adducting MR's extra stage, in the FCP). 1.5 + mlf_lead=0
-    # = the legacy compromise.
-    # tau_fast = dt = 0.001 s sets the lead-filter pole — the residual eye lag
-    # behind NI_net is ~tau_fast (~1 ms), down from ~tau_mn_eff (~7 ms).
-    tau_mn_eff   = brain_params.tau_mn * jnp.array([brain_params.mn_ff_yaw, 1.0, 1.0])
-    # Fast poles to cancel: the MN membrane (tau_mn_eff, per-axis conjugacy factor)
-    # AND the muscle force-development pole (tau_muscle, uniform) of the 2nd-order
-    # plant.  Both are << the orbital tau_p, so lump them into one fast pole (the
-    # residual is only the small cross-term τ_musc·τ_mn).  Effective plant then
-    # ≈ (1+s·tau_p)(1+s·tau_fast_pole), inverted by the pulse + accel terms below.
-    tau_fast_pole = tau_mn_eff + brain_params.tau_muscle
-    tau_fast     = _config.DT_SOLVE   # lead-filter pole; tracks solver dt so the
-                                      # filter stays at dt/tau_fast = 1 (Heun-stable)
-                                      # as DT_SOLVE is raised. Residual eye lag ~tau_fast.
-    u_vel_dot    = (u_vel_c - weights.u_lp) / tau_fast     # smoothed u_vel' (canal)
-    du_lp        = u_vel_dot                                # state derivative of u_lp
-    # Pulse-step computed canal-side; its only anisotropy (mn_ff_yaw on H, vertical
-    # isotropic) commutes with the rotation, so reconstructing u_p to cardinal equals
-    # the cardinal pulse-step exactly.  Cardinal u_p → FCP muscle map (the sink).
+    # ── Pulse-slide-step motor command (Optican & Miles 1985) ─────────────────
+    # Effective plant (NI → eye) = orbital LP (tau_p) × lumped fast pole
+    # (tau_fast_pole = MN membrane tau_mn_eff + muscle force-development tau_muscle).
+    # The exact inverse (1+s·tau_p)(1+s·tau_fast_pole)·x_net has a second-derivative
+    # (acceleration) term; realised as a raw derivative it spikes at the OPN-clamp
+    # burst offset and the eye RINGS (a glissade, in Optican & Miles' terms — a
+    # slide/step mismatch).
+    #
+    # Their fix: the SLIDE — a low-pass of the pulse, with time constant Ts, summed
+    # with pulse and step.  It realises the 2nd-order compensation as a SMOOTH branch
+    # (two zeros cancel the two plant poles; the slide pole 1/Ts makes it proper), so
+    #     eye = LP(NI_net, Ts)   — a clean 1st-order lag, NO overshoot, NO ring.
+    # Numerically-stable pulse-slide-step form (bounded coeffs; slide = LP(u_vel, Ts),
+    # slide' = (u_vel − slide)/Ts is the smooth derivative):
+    #     u_p = x_net + (tau_p + tau_fast_pole − Ts)·slide + (tau_p·tau_fast_pole)·slide'
+    # The velocity term uses the SMOOTHED velocity (slide), not raw u_vel — that
+    # consistency is what removes the ring (a raw-velocity term + smoothed accel
+    # under-compensates the slide → glissade).  Ts→dt recovers the sharp inverse;
+    # larger Ts rounds the pulse (small peak-vel cost, sets the eye lag).  Ts=brain
+    # tau_slide.  Full derivation: manuscripts/pulse_slide_step.md
+    #
+    # mn_ff_yaw: conjugate-yaw MN-LP feedforward factor (× tau_mn) on the H axis; the
+    # exact per-eye split is mn_ff_yaw=1.0 (common 1st stage) + fcp.mlf_lead (in FCP).
+    tau_mn_eff    = brain_params.tau_mn * jnp.array([brain_params.mn_ff_yaw, 1.0, 1.0])
+    tau_fast_pole = tau_mn_eff + brain_params.tau_muscle               # lumped fast pole
+    Ts            = jnp.maximum(brain_params.tau_slide, _config.DT_SOLVE)   # slide TC (≥ dt)
+
+    slide     = weights.u_lp                       # slide = LP(u_vel, Ts)  [state]
+    slide_dot = (u_vel_c - slide) / Ts             # smooth (LP derivative), no spike
+    du_lp     = slide_dot                          # state derivative of the slide LP
+    # Pulse-slide-step computed canal-side; its only anisotropy (mn_ff_yaw on H,
+    # vertical isotropic) commutes with the rotation, so reconstructing u_p to cardinal
+    # equals the cardinal command exactly.  Cardinal u_p → FCP muscle map (the sink).
     u_p_canal = (x_net
-                 + (brain_params.tau_p + tau_fast_pole) * u_vel_c
-                 + (brain_params.tau_p * tau_fast_pole) * u_vel_dot)
+                 + (brain_params.tau_p + tau_fast_pole - Ts) * slide
+                 + (brain_params.tau_p * tau_fast_pole) * slide_dot)
     u_p = CANAL2CARDINAL @ u_p_canal
 
     return State(L=dx_L, R=dx_R, null=dx_null, u_lp=du_lp), u_p

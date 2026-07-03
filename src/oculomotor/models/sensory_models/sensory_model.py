@@ -33,6 +33,7 @@ import jax.numpy as jnp
 from oculomotor.models.sensory_models import canal            as _canal
 from oculomotor.models.sensory_models import otolith          as _otolith
 from oculomotor.models.sensory_models import retina           as _retina
+from oculomotor.models.sensory_models import luminance        as _luminance
 from oculomotor.models.sensory_models.retina import RetinaOut  # noqa: F401  (re-export)
 from oculomotor.models.plant_models.readout import rotation_matrix as _rotation_matrix
 
@@ -88,6 +89,13 @@ class SensoryParams(NamedTuple):
     # Binocular geometry
     ipd:                float       = 0.064  # inter-pupillary distance (m); ~64 mm adult
 
+    # Luminance afferent — pupillary light reflex (PLR) input. Physical retinal
+    # luminance is assembled from scene / target presence in step() (consensual:
+    # both eyes averaged), then low-passed by the luminance sub-SSM.
+    tau_lum:            float       = 0.3    # luminance afferent + PLR-latency TC (s) [Ellis 1981; McDougal 2015]
+    lum_scene:          float       = 1.0    # luminance weight of a lit full-field scene (scene_present → L)
+    lum_target:         float       = 0.15   # luminance weight of a lone foveal target (dim point source)
+
     # Sensor-side velocity saturation (applied per-eye in retina.step before sharp cascade).
     # Mirrors the speed tuning of MT/MST (target) and NOT/AOS (scene) neurons. Must match
     # the v_max_pursuit / v_max_okr values in BrainParams so that the EC correction (clipped
@@ -122,17 +130,19 @@ _N_CANAL_STATES  = _canal.N_STATES                # 12
 _N_OTO_STATES    = _otolith.N_STATES              #  6
 _N_RETINA_PER_EYE= _retina.N_STATES_PER_EYE       # 90
 _N_VIS_STATES    = 2 * _N_RETINA_PER_EYE          # 90+90 = 180
-N_STATES         = _N_CANAL_STATES + _N_OTO_STATES + _N_VIS_STATES  # 12+6+180 = 198
+_N_LUM_STATES    = _luminance.N_STATES            #  2 (per-eye afferent)
+N_STATES         = _N_CANAL_STATES + _N_OTO_STATES + _N_VIS_STATES + _N_LUM_STATES  # 12+6+180+2 = 200
 
 
 # ── State NamedTuple ──────────────────────────────────────────────────────────
 
 class State(NamedTuple):
-    """Top-level sensory state — canal + otolith + per-eye retina."""
-    canal:    _canal.State    # (12,)  bandpass two-stage SSM
-    otolith:  _otolith.State  #  (6,)  bilateral LP adaptation
-    retina_L: _retina.State   # (90,)  per-eye sharp cascade — left eye
-    retina_R: _retina.State   # (90,)  per-eye sharp cascade — right eye
+    """Top-level sensory state — canal + otolith + per-eye retina + luminance."""
+    canal:    _canal.State      # (12,)  bandpass two-stage SSM
+    otolith:  _otolith.State    #  (6,)  bilateral LP adaptation
+    retina_L: _retina.State     # (90,)  per-eye sharp cascade — left eye
+    retina_R: _retina.State     # (90,)  per-eye sharp cascade — right eye
+    lum:      _luminance.State  #  (2,)  per-eye luminance afferent (pupillary light reflex)
 
 
 def rest_state():
@@ -142,18 +152,20 @@ def rest_state():
         otolith  = _otolith.rest_state(),
         retina_L = _retina.rest_state(),
         retina_R = _retina.rest_state(),
+        lum      = _luminance.rest_state(),
     )
 
 
 # Legacy flat-array adapters retained for any external callers that still hold
 # (T,) trajectory arrays predating the SimState NT migration.
 def to_array(state):
-    """sensory_model.State → (198,) flat array."""
+    """sensory_model.State → (199,) flat array."""
     return jnp.concatenate([
         _canal.to_array(state.canal),
         _otolith.to_array(state.otolith),
         _retina.to_array(state.retina_L),
         _retina.to_array(state.retina_R),
+        _luminance.to_array(state.lum),
     ])
 
 
@@ -179,11 +191,15 @@ class SensoryOutput(NamedTuple):
         defocus:          float  delayed cyclopean defocus (D) = delay(acc_demand + RE − x_plant)
                                  Positive = near target closer than current accommodation.
                                  Gated by defocus_visible = OR(scene_vis, target_vis).
+        luminance:        (2,)   per-eye afferent retinal luminance [L, R]
+                                 (normalised, ~[0, 1]), low-passed from per-eye
+                                 scene/target presence → pupil light reflex.
     """
-    canal:    jnp.ndarray            # (6,)  canal afferent rates
-    otolith:  jnp.ndarray            # (3,)  instantaneous GIA (m/s², head frame)
-    retina_L: RetinaOut              # delayed per-eye signals — left eye
-    retina_R: RetinaOut              # delayed per-eye signals — right eye
+    canal:     jnp.ndarray           # (6,)  canal afferent rates
+    otolith:   jnp.ndarray           # (3,)  instantaneous GIA (m/s², head frame)
+    retina_L:  RetinaOut             # delayed per-eye signals — left eye
+    retina_R:  RetinaOut             # delayed per-eye signals — right eye
+    luminance: jnp.ndarray           # (2,) per-eye afferent luminance [L, R] → pupil light reflex
 
 
 def read_outputs(state, sensory_params, q_head, a_head):
@@ -211,10 +227,11 @@ def read_outputs(state, sensory_params, q_head, a_head):
     f_gia = R.T @ _otolith.G_WORLD + R.T @ a_head   # GIA in head frame (m/s²)
 
     return SensoryOutput(
-        canal    = canal_out,
-        otolith  = f_gia,
-        retina_L = _retina.read_outputs(state.retina_L),
-        retina_R = _retina.read_outputs(state.retina_R),
+        canal     = canal_out,
+        otolith   = f_gia,
+        retina_L  = _retina.read_outputs(state.retina_L),
+        retina_R  = _retina.read_outputs(state.retina_R),
+        luminance = state.lum.x_lum,   # (2,) per-eye afferent luminance (delayed) → pupil light reflex
     )
 
 
@@ -269,5 +286,19 @@ def step(state,
         defocus_R, scene_present_R, target_present_R, target_strobed,
         sensory_params)
 
+    # Luminance afferent (pupillary light reflex), per eye. Physical retinal
+    # luminance is assembled from each eye's own scene / target presence, then
+    # low-passed by the per-eye luminance sub-SSM. A lit full-field scene
+    # dominates; a lone foveal target contributes a dim point source. The
+    # consensual combination of the two eyes happens downstream in the pupil
+    # controller (bilateral pretectum), so a monocular afferent defect (RAPD)
+    # stays per-eye here.
+    lum_s, lum_t = sensory_params.lum_scene, sensory_params.lum_target
+    L_phys = jnp.clip(jnp.array([
+        lum_s * scene_present_L + lum_t * target_present_L,   # left eye
+        lum_s * scene_present_R + lum_t * target_present_R,   # right eye
+    ]), 0.0, 1.0)
+    dlum, _ = _luminance.step(state.lum, L_phys, sensory_params.tau_lum)
+
     return State(canal=dcanal, otolith=dotolith,
-                  retina_L=dretina_L, retina_R=dretina_R)
+                  retina_L=dretina_L, retina_R=dretina_R, lum=dlum)

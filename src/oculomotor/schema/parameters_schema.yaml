@@ -1045,6 +1045,102 @@ brain.refractive_error:
     - {name: "−2 D myope (uncorrected)", value: -2.0, tag: other}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# BrainParams — Pupil (light reflex + near response)
+# ─────────────────────────────────────────────────────────────────────────────
+
+brain.pupil_baseline:
+  group: pupil
+  units: "mm"
+  anatomy: "Iris — resting (dark) aperture; sympathetic dilator tone"
+  description: |
+    Dark, fully-dilated pupil diameter. Light- and near-reflex constriction
+    subtract from this baseline. Lowering it models Horner's syndrome (loss of
+    sympathetic dilator tone → resting miosis; see with_horner).
+  references:
+    - "Loewenfeld (1993)"
+  disorders:
+    - {name: "Horner (−2.5 mm)", value: 5.0, tag: other}
+
+brain.K_pupil_light:
+  group: pupil
+  units: "mm"
+  anatomy: "Pretectal olivary nucleus → Edinger-Westphal → iris sphincter"
+  description: |
+    Light-reflex constriction gain (mm per unit afferent luminance). Full-field
+    light (lum≈1) constricts the pupil by ~this many mm (miosis).
+  references:
+    - "McDougal & Gamlin (2015)"
+
+brain.K_pupil_near:
+  group: pupil
+  units: "mm/D"
+  anatomy: "Near-triad — Edinger-Westphal (accommodation-linked)"
+  description: |
+    Near-response constriction gain (mm per diopter of accommodation). The
+    pupil miosis of the near triad, driven by the accommodation level.
+  references:
+    - "Myers & Stark (1990)"
+
+brain.pupil_min:
+  group: pupil
+  units: "mm"
+  anatomy: "Iris — maximal sphincter constriction"
+  description: "Minimum physiological pupil diameter (constriction clip)."
+
+brain.pupil_max:
+  group: pupil
+  units: "mm"
+  anatomy: "Iris — maximal dilation"
+  description: "Maximum physiological pupil diameter (dilation clip)."
+
+brain.tau_pupil:
+  group: pupil
+  units: "s"
+  anatomy: "Iris sphincter / dilator muscle mechanics"
+  description: |
+    Iris plant TC — first-order low-pass from commanded to actual pupil
+    diameter. PLR settling ~0.3–0.8 s.
+  references:
+    - "Loewenfeld (1993)"
+
+brain.g_pupil_cn3:
+  range: [0, 1]
+  group: pupil
+  units: "—"
+  anatomy: "Parasympathetic efferent — CN III → ciliary ganglion → sphincter"
+  description: |
+    Efferent parasympathetic sphincter integrity. Gates BOTH light and near
+    constriction (common final path). 0 = internal ophthalmoplegia / fixed
+    dilated ('blown') pupil. Shared with the CN III eye-muscle palsy via
+    with_cn3_palsy; an isolated 0 is a tonic (Adie) pupil / ciliary-ganglion lesion.
+  references:
+    - "Loewenfeld (1993)"
+  disorders:
+    - {name: "CN III palsy / blown pupil", value: 0.0, tag: cn}
+
+brain.g_pupil_afferent:
+  range: [0, 1]
+  group: pupil
+  units: "—"
+  anatomy: "Afferent limb — retina / optic nerve"
+  description: |
+    Afferent light-reflex integrity. Scales the LIGHT drive only (near response
+    preserved). <1 = relative afferent pupillary defect (RAPD / Marcus Gunn).
+  disorders:
+    - {name: "RAPD (severe)", value: 0.3, tag: other}
+
+brain.g_pupil_light_reflex:
+  range: [0, 1]
+  group: pupil
+  units: "—"
+  anatomy: "Pretectal / central light-reflex relay"
+  description: |
+    Central (pretectal) light-reflex integrity. 0 = light-near dissociation
+    (Argyll Robertson / Parinaud) — light reflex lost, near response preserved.
+  disorders:
+    - {name: "Argyll Robertson (light-near dissoc.)", value: 0.0, tag: other}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # BrainParams — Final Common Pathway (cranial nerves, MLF)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1391,6 +1487,38 @@ sensory.v_max_scene_vel:
   description: |
     NOT/AOS speed ceiling — clips scene velocity before the visual cascade.
     Must match brain.v_max_okr.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SensoryParams — Luminance afferent (pupillary light reflex)
+# ─────────────────────────────────────────────────────────────────────────────
+
+sensory.tau_lum:
+  group: luminance
+  units: "s"
+  anatomy: "Retina photoreceptor + pretectal olivary nucleus afferent"
+  description: |
+    Luminance afferent low-pass TC — the afferent limb of the pupillary light
+    reflex (retinal light adaptation + pretectal transport). Sets the PLR latency
+    (~0.3 s); the slower iris lag lives in brain.tau_pupil.
+  references:
+    - "Ellis (1981)"
+    - "McDougal & Gamlin (2015)"
+
+sensory.lum_scene:
+  group: luminance
+  units: "—"
+  anatomy: "Full-field scene illumination"
+  description: |
+    Weight of the scene-present flag in physical retinal luminance. A lit
+    full-field scene dominates the light reaching the retina.
+
+sensory.lum_target:
+  group: luminance
+  units: "—"
+  anatomy: "Foveal target luminance"
+  description: |
+    Weight of the target-present flag in physical retinal luminance. A lone
+    foveal target in the dark is a dim point source (small contribution).
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PlantParams — Extraocular plant

@@ -11,7 +11,13 @@ force-development low-passes, NOT a mass:
     τ₁  orbital slow pole (~150 ms):  the dominant orbital-tissue viscoelasticity
         (= the old first-order τ_p).
 
-Transfer function:   q_eye / motor_cmd  =  1 / [(τ₁·s + 1)(τ₂·s + 1)].
+Transfer function:   q_eye / motor_cmd  =  (Tz·s + 1) / [(τ₁·s + 1)(τ₂·s + 1)].
+
+    Tz  muscle series-elastic ZERO (~8 ms): the SEE transmits force *changes* to
+        position with a lead (numerator), so the eye responds fast without an
+        aggressive neural command.  Robinson; Optican & Miles 1985 (4th-order plant).
+        The NI slide (brain.tau_slide) is set = Tz so its pole cancels this zero and
+        the pulse-slide-step lands NI_net cleanly (no glissade).
 
 Why this exists (vs first-order): a step in the differential command now gives a
 velocity *ramp* (the muscle force develops over τ₂) instead of an instant jump.
@@ -91,8 +97,9 @@ def step(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
         q_eye:   (3,)  eye rotation vector   (= x_pos)
         w_true:  (3,)  instantaneous eye angular velocity (= dx_pos)
     """
-    tau_1 = plant_params.tau_p          # orbital slow pole
-    tau_2 = plant_params.tau_muscle     # muscle fast pole
+    tau_1 = plant_params.tau_p          # orbital slow pole τ₁
+    tau_2 = plant_params.tau_muscle     # muscle fast pole  τ₂
+    tau_z = plant_params.tau_see        # muscle series-elastic ZERO Tz (numerator lead)
     L     = plant_params.orbital_limit
 
     # Decode 6-D muscle activations → 3-D effective motor command
@@ -103,8 +110,15 @@ def step(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
     # that turns a command step into a velocity ramp (no inertia; force lag).
     dx_musc = (motor_cmd - x_musc) / tau_2
 
-    # Stage 2 (slow): orbital position follows the developed muscle force.
-    w_raw = (x_musc - x_pos) / tau_1
+    # Stage 2 (slow): orbital position follows the developed muscle force, PLUS the
+    # series-elastic lead — the SEE transmits force *changes* (dx_musc) straight to
+    # position velocity.  This adds the numerator zero:
+    #     x_pos/x_musc = (1 + Tz·s)/(1 + τ₁·s)   →   q_eye/motor_cmd = (1+Tz s)/[(1+τ₁ s)(1+τ₂ s)]
+    # so the eye responds fast to force changes without an aggressive neural command;
+    # the NI's slide (tau_slide = Tz) cancels this zero so the pulse-slide-step lands
+    # NI_net with no post-saccadic glissade.  (Tz mismatch ↔ slide ⇒ glissade — the
+    # clinical picture.)  Robinson; Optican & Miles 1985.
+    w_raw = (x_musc - x_pos) / tau_1 + (tau_z / tau_1) * dx_musc
 
     # Orbital walls on the POSITION velocity: zero it when at ±L and pushing out.
     w_true = jnp.where(x_pos >= L,  jnp.minimum(w_raw,  0.0), w_raw)

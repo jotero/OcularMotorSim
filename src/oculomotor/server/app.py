@@ -316,6 +316,21 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
             if pr.ndim == 2 and np.any(np.abs(pr) > 1e-6):
                 out[key] = [[round(float(v), 3) for v in row] for row in pr[::step].tolist()]
 
+    # Pupil diameter (mm) → avatar 'pupilDilate' morph (via setPupilDiameter); plus
+    # the afferent luminance driving it. Both per-frame scalars.
+    if 'pupil_diameter' in sim_data and sim_data['pupil_diameter'] is not None:
+        pd = np.array(sim_data['pupil_diameter'])[::step]
+        out['pupil_diameter'] = [round(float(v), 3) for v in pd.tolist()]
+        lum = np.array(sim_data.get('luminance', np.zeros(len(t))))[::step]
+        out['luminance'] = [round(float(v), 3) for v in lum.tolist()]
+
+    # Eyelid aperture per eye (0 = open, 1 = fully closed). Placeholder so the
+    # client payload carries an eyelid slot; not model-driven (the avatar keeps
+    # its own blink animation — this is not wired to it).
+    if 'eyelid_L' in sim_data and sim_data['eyelid_L'] is not None:
+        out['eyelid_L'] = [round(float(v), 3) for v in np.array(sim_data['eyelid_L'])[::step].tolist()]
+        out['eyelid_R'] = [round(float(v), 3) for v in np.array(sim_data['eyelid_R'])[::step].tolist()]
+
     return out
 
 
@@ -722,6 +737,7 @@ async def download_endpoint(run_id: str):
         'head_vel_yaw_degs', 'head_vel_pitch_degs', 'head_vel_roll_degs',
         'scene_vel_yaw_degs', 'scene_vel_pitch_degs', 'scene_vel_roll_degs',
         'target_vel_yaw_degs', 'target_vel_pitch_degs', 'target_vel_roll_degs',
+        'pupil_diameter_mm', 'luminance', 'eyelid_L', 'eyelid_R',
     ])
 
     t          = np.array(data['t'])
@@ -731,6 +747,12 @@ async def download_endpoint(run_id: str):
     head_vel   = np.array(data['head_vel'])
     scene_vel  = np.array(data['scene_vel'])
     target_vel = np.array(data['target_vel'])
+    # Pupil + eyelid — fall back to zeros for older cached runs without them.
+    _z         = np.zeros(len(t))
+    pupil_diam = np.array(data.get('pupil_diameter', _z))
+    lum        = np.array(data.get('luminance', _z))
+    eyelid_L   = np.array(data.get('eyelid_L', _z))
+    eyelid_R   = np.array(data.get('eyelid_R', _z))
 
     for i in range(len(t)):
         writer.writerow([
@@ -741,6 +763,8 @@ async def download_endpoint(run_id: str):
             *[f'{v:.4f}' for v in head_vel[i]],
             *[f'{v:.4f}' for v in scene_vel[i]],
             *[f'{v:.4f}' for v in target_vel[i]],
+            f'{pupil_diam[i]:.4f}', f'{lum[i]:.4f}',
+            f'{eyelid_L[i]:.4f}', f'{eyelid_R[i]:.4f}',
         ])
 
     csv_bytes = buf.getvalue().encode('utf-8')

@@ -106,6 +106,25 @@ sensory.otolith:
   references: ["Fernandez & Goldberg (1976)"]
   llm_plottable: true
 
+sensory.luminance:
+  group: luminance_periphery
+  encodes:    "afferent retinal luminance (pupillary light reflex input)"
+  frame:      "whole-field (consensual)"
+  representation: "linear-firing-rate"
+  activation:     "state  (afferent luminance, normalised ~[0,1])"
+  shape: [1]
+  units: "normalised"
+  anatomy:    "Retina photoreceptors → pretectal olivary nucleus (retinotectal)"
+  population: "Luminance afferents (light-reflex pathway)"
+  description: |
+    First-order low-pass of physical retinal luminance (assembled from scene /
+    target presence, both eyes averaged for the consensual reflex). Drives the
+    pupillary light reflex in brain_models.pupil; distinct from the image-forming
+    retina cascade. Afferent latency set by tau_lum (~0.3 s).
+  state_slice: "sensory.lum"
+  references: ["Ellis (1981)", "McDougal & Gamlin (2015)"]
+  llm_plottable: true
+
 # ─────────────────────────────────────────────────────────────────────────────
 # SENSORY — retinal delay cascades (per eye)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -827,6 +846,23 @@ plant.acc_plant:
     tau_acc_plant ~0.16 s (Schor & Bharadwaj 2006).
   state_slice: "acc_plant"
   references: ["Schor & Bharadwaj (2006)"]
+  llm_plottable: true
+
+plant.pupil_plant:
+  group: plant
+  encodes:    "pupil diameter (iris plant output)"
+  frame:      "aperture (mm)"
+  representation: "linear-firing-rate"
+  activation:     "state  (actual pupil diameter; smaller = more constricted)"
+  shape: [1]
+  units: "mm"
+  anatomy:    "Iris sphincter / dilator muscle (pupil plant)"
+  description: |
+    Actual pupil diameter (mm), a first-order iris plant (tau_pupil ~0.4 s)
+    low-passing the commanded diameter from the pupil controller (light reflex +
+    near response).  Physiological ~3–8 mm.
+  state_slice: "pupil_plant"
+  references: ["Loewenfeld (1993)"]
   llm_plottable: true
 
 # ─────────────────────────────────────────────────────────────────────────────

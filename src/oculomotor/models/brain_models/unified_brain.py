@@ -1082,7 +1082,12 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
     dfcp, nerves = fcp.step(fcp_st, jnp.concatenate([motor_cmd_ni, u_verg]), brain_params)
     dbrain = dbrain._replace(fcp=dfcp)
 
-    return dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc
+    # Pupil not modelled in the experimental unified brain — return the dark
+    # baseline (both eyes) so the swappable-brain contract (7-tuple) holds and
+    # the two iris plants simply hold at their resting diameter.
+    u_pupil = jnp.full(2, brain_params.pupil_baseline)
+
+    return dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil
 
 
 __all__ = [

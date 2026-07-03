@@ -61,14 +61,16 @@ import jax
 import jax.numpy as jnp
 import diffrax
 
+from oculomotor import config as _config
 from oculomotor.sim.kinematics import KinematicTrajectory, TargetTrajectory, build_kinematics, build_target
 from oculomotor.models.sensory_models.retina import ypr_to_xyz, xyz_to_ypr
 from oculomotor.models.plant_models.readout import rotation_matrix as _rotation_matrix
 
 from oculomotor.models.sensory_models.sensory_model import SensoryParams
-from oculomotor.models.sensory_models               import canal   as _canal
-from oculomotor.models.sensory_models               import otolith as _otolith
-from oculomotor.models.sensory_models               import retina  as _retina
+from oculomotor.models.sensory_models               import canal     as _canal
+from oculomotor.models.sensory_models               import otolith   as _otolith
+from oculomotor.models.sensory_models               import retina    as _retina
+from oculomotor.models.sensory_models               import luminance as _luminance
 from oculomotor.models.brain_models.brain_model    import BrainParams
 from oculomotor.models.plant_models.plant_model_first_order import PlantParams
 from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLANT_EYE_R
@@ -76,6 +78,7 @@ from oculomotor.models.sensory_models import sensory_model
 from oculomotor.models.brain_models   import brain_model
 from oculomotor.models.plant_models   import plant_model_second_order as plant_model
 from oculomotor.models.plant_models   import accommodation_plant     as acc_plant_mod
+from oculomotor.models.plant_models   import pupil_plant             as pupil_plant_mod
 
 
 # ── Swappable brain step ────────────────────────────────────────────────────
@@ -89,7 +92,7 @@ def set_brain_step(fn):
 
     Pass any callable with the same signature as brain_model.step:
         fn(x_brain, sensory_out, brain_params, noise_acc) ->
-            (dx_brain, nerves, ec_vel, ec_pos, ec_verg, u_acc)
+            (dx_brain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil)
 
     Call set_brain_step(brain_model.step) to restore the default.
     """
@@ -164,9 +167,14 @@ class SimConfig(NamedTuple):
               Vergence is initialised analytically to tonic_verg (its TC ~6 s is
               too slow to settle in a short warmup).
               Set to 0.0 to disable.  Default: 3.0 s.
+
+    Defaults come from oculomotor.config (single source of truth). The NI
+    lead-filter pole tau_fast tracks config.DT_SOLVE, so overriding dt_solve
+    here alone leaves tau_fast at the config value — for a consistent sweep set
+    config.DT_SOLVE as well (see scratch/_diag_dt_sweep.py).
     """
-    dt_solve: float = 0.001
-    warmup_s: float = 3.0
+    dt_solve: float = _config.DT_SOLVE
+    warmup_s: float = _config.WARMUP_S
 
 
 # ── Top-level parameter container ──────────────────────────────────────────────
@@ -305,11 +313,60 @@ def with_vn_lesion(params: Params, side: str = 'left') -> Params:
     return params._replace(brain=params.brain._replace(b_vs=b_vs))
 
 
+# ── Pupil-relevant lesions ──────────────────────────────────────────────────────
+
+def with_cn3_palsy(params: Params, side: str = 'right',
+                   pupil_involving: bool = True) -> Params:
+    """Oculomotor (CN III) nerve palsy — shared eye-muscle + pupil lesion.
+
+    Silences the CN III-innervated eye muscles (MR, SR, IR, IO) on `side`, so the
+    eye rests 'down and out' (LR via CN VI and SO via CN IV are intact). The
+    pupillary parasympathetic fibres travel WITH CN III → a compressive
+    (pupil-involving) palsy also abolishes the IPSILATERAL pupil's constriction
+    (g_pupil_cn3_<side> → 0, a fixed dilated / 'blown' pupil on that side →
+    anisocoria), whereas an ischaemic (pupil-sparing) palsy leaves the pupil
+    reactive. This is the pupil↔eye-movement sharing for CN III.
+    """
+    from oculomotor.models.plant_models.muscle_geometry import (
+        MR_L, SR_L, IR_L, IO_L, MR_R, SR_R, IR_R, IO_R,
+    )
+    if side == 'left':
+        idx, pupil_key = jnp.array([MR_L, SR_L, IR_L, IO_L]), 'g_pupil_cn3_L'
+    elif side == 'right':
+        idx, pupil_key = jnp.array([MR_R, SR_R, IR_R, IO_R]), 'g_pupil_cn3_R'
+    else:
+        raise ValueError(f"side must be 'left' or 'right', got {side!r}")
+
+    g_nerve = jnp.asarray(params.brain.g_nerve, dtype=jnp.float32).at[idx].set(0.0)
+    kw = dict(g_nerve=g_nerve)
+    if pupil_involving:
+        kw[pupil_key] = 0.0
+    return with_brain(params, **kw)
+
+
+def with_horner(params: Params, side: str = 'left', miosis_mm: float = 2.5) -> Params:
+    """Horner's syndrome — loss of sympathetic dilator tone → ipsilateral miosis.
+
+    Lowers the dark (resting) diameter of the `side` pupil by ~`miosis_mm`
+    (floored at pupil_min) via its sympathetic gain g_pupil_symp_<side>. Light +
+    near reactions are preserved (parasympathetic intact); the anisocoria is
+    greatest in the dark.
+    """
+    bp   = params.brain
+    span = max(bp.pupil_baseline - bp.pupil_min, 1e-6)
+    g    = float(min(1.0, max(0.0, (bp.pupil_baseline - miosis_mm - bp.pupil_min) / span)))
+    if side == 'left':
+        return with_brain(params, g_pupil_symp_L=g)
+    elif side == 'right':
+        return with_brain(params, g_pupil_symp_R=g)
+    raise ValueError(f"side must be 'left' or 'right', got {side!r}")
+
+
 __all__ = [
     'SimState', 'ODE_ocular_motor', 'simulate',
     'Params', 'SimConfig', 'SensoryParams', 'PlantParams', 'BrainParams',
     'default_params', 'with_brain', 'with_sensory', 'with_plant', 'with_cerebellum',
-    'with_uvh', 'with_vn_lesion',
+    'with_uvh', 'with_vn_lesion', 'with_cn3_palsy', 'with_horner',
     'PARAMS_DEFAULT', 'SIM_CONFIG_DEFAULT',
 ]
 
@@ -324,15 +381,17 @@ class SimState(NamedTuple):
     `state.sensory.canal.x1`, etc.
 
     Groups:
-        sensory   sensory_model.State NT — canal, otolith, retina_L, retina_R
-        brain     brain_model.BrainState NT — pc, sm, pt, sg, pu, va, ni, fcp, ec_scene, ec_target
-        plant     plant_model.State NT — left, right eye rotation vectors (deg)
-        acc_plant (1,)  Lens accommodation plant state (D)
+        sensory    sensory_model.State NT — canal, otolith, retina_L, retina_R, lum
+        brain      brain_model.BrainState NT — pc, sm, pt, sg, pu, va, ni, fcp, ec_scene, ec_target
+        plant      plant_model.State NT — left, right eye rotation vectors (deg)
+        acc_plant  (1,)  Lens accommodation plant state (D)
+        pupil_plant (2,) Iris plant state — per-eye pupil diameter (mm) [L, R]
     """
-    sensory:   'sensory_model.State'    # nested per-sensor
-    brain:     'brain_model.BrainState' # nested per-subsystem
-    plant:     'plant_model.State'      # binocular eye rotation vectors
-    acc_plant: jnp.ndarray              # (1,) lens accommodation (D)
+    sensory:     'sensory_model.State'    # nested per-sensor
+    brain:       'brain_model.BrainState' # nested per-subsystem
+    plant:       'plant_model.State'      # binocular eye rotation vectors
+    acc_plant:   jnp.ndarray              # (1,) lens accommodation (D)
+    pupil_plant: jnp.ndarray              # (2,) per-eye pupil diameter (mm) [L, R]
 
 
 # ── ODE vector field ───────────────────────────────────────────────────────────
@@ -425,8 +484,8 @@ def ODE_ocular_motor(t, state, args):
         ),
     )
 
-    # ── Brain: VS + NI + SG + pursuit + vergence + accommodation ─────────────
-    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc = _BRAIN_STEP(
+    # ── Brain: VS + NI + SG + pursuit + vergence + accommodation + pupil ──────
+    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t))
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
@@ -439,6 +498,12 @@ def ODE_ocular_motor(t, state, args):
     # u_acc = brain neural command + CA/C feedforward (combined inside va.step).
     dx_acc_plant, _ = acc_plant_mod.step(
         state.acc_plant, u_acc, theta.brain.tau_acc_plant)
+
+    # ── Pupil (iris) plants — per eye [L, R] ─────────────────────────────────────
+    # u_pupil = (2,) commanded per-eye pupil diameter (mm) from the pupil
+    # controller (light reflex + near response); each iris low-passes it (tau_pupil).
+    dx_pupil_plant, _ = pupil_plant_mod.step(
+        state.pupil_plant, u_pupil, theta.brain.tau_pupil)
 
     # ── Optical interventions — applied after plant, before sensory step ─────
     # Prisms are head-frame mounted (glasses); they rotate the apparent gaze direction
@@ -473,10 +538,11 @@ def ODE_ocular_motor(t, state, args):
         theta.sensory)
 
     return SimState(
-        sensory   = dx_sensory,
-        brain     = dbrain,
-        plant     = plant_model.State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R),
-        acc_plant = dx_acc_plant,
+        sensory     = dx_sensory,
+        brain       = dbrain,
+        plant       = plant_model.State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R),
+        acc_plant   = dx_acc_plant,
+        pupil_plant = dx_pupil_plant,
     )
 
 
@@ -728,15 +794,23 @@ def simulate(
         otolith  = _otolith.rest_state(),   # both sides settled to gravity
         retina_L = _retina.rest_state(),
         retina_R = _retina.rest_state(),
+        lum      = _luminance.rest_state(), # dark (zero afferent luminance)
     )
     brain_x0 = brain_model.make_x0(params.brain)
     plant_x0 = plant_model.rest_state()
 
+    # Per-eye resting (dark) pupil diameter — reduced by sympathetic loss (Horner).
+    _bp       = params.brain
+    _pupil_lo = _bp.pupil_min
+    _rest_L   = _pupil_lo + _bp.g_pupil_symp_L * (_bp.pupil_baseline - _pupil_lo)
+    _rest_R   = _pupil_lo + _bp.g_pupil_symp_R * (_bp.pupil_baseline - _pupil_lo)
+
     x0 = SimState(
-        sensory   = sensory_x0,
-        brain     = brain_x0,
-        plant     = plant_x0,
-        acc_plant = jnp.array([params.brain.tonic_acc]),  # start at dark focus (D)
+        sensory     = sensory_x0,
+        brain       = brain_x0,
+        plant       = plant_x0,
+        acc_plant   = jnp.array([params.brain.tonic_acc]),   # start at dark focus (D)
+        pupil_plant = jnp.array([_rest_L, _rest_R]),         # per-eye dark resting diameter (mm)
     )
 
     # ── Solve ─────────────────────────────────────────────────────────────────
@@ -772,7 +846,7 @@ def simulate(
     )
 
     # `solution.ys` is a SimState pytree with a leading time axis on every leaf.
-    # All four fields are nested NamedTuples (or plain ndarray for acc_plant) —
+    # Fields are nested NamedTuples (or plain ndarray for acc_plant / pupil_plant) —
     # tree_map slices each leaf along the time axis.
     ys = jax.tree_util.tree_map(lambda x: x[warmup_T:], solution.ys)
 

@@ -244,7 +244,7 @@ class PlotConfig(BaseModel):
         'gaze_error', 'retinal_error', 'canal_afferents',
         'velocity_storage', 'neural_integrator',
         'saccade_burst', 'pursuit_drive', 'refractory',
-        'vergence',
+        'vergence', 'pupil_diameter',
         # Cerebellar diagnostic panels
         'cerebellum_pursuit', 'cerebellum_vor',
         # Stimulus panels
@@ -510,7 +510,7 @@ class SimulationComparison(BaseModel):
         'eye_position', 'eye_velocity', 'head_velocity', 'gaze_error',
         'retinal_error', 'canal_afferents', 'velocity_storage',
         'neural_integrator', 'saccade_burst', 'pursuit_drive', 'refractory',
-        'vergence',
+        'vergence', 'pupil_diameter',
         'target_position', 'target_velocity', 'scene_velocity', 'visual_flags',
     ]] = Field(description="Panels applied to all scenarios in the comparison.")
     scenarios: list[SimulationScenario] = Field(

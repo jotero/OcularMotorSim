@@ -88,6 +88,7 @@ tr:last-child { border-bottom: none; }
 <a href="#section-Plant">Plant</a>
 <a href="#section-Derived">Derived</a>
 <div class="nav-class">By group</div>
+<a href="#sensory-luminance_periphery" style="padding-left:32px;font-size:11px;color:#aaa">Luminance Periphery</a>
 <a href="#sensory-vestibular_periphery" style="padding-left:32px;font-size:11px;color:#aaa">Vestibular Periphery</a>
 <a href="#sensory-visual_periphery" style="padding-left:32px;font-size:11px;color:#aaa">Visual Periphery</a>
 <a href="#brain-cyclopean_perception" style="padding-left:32px;font-size:11px;color:#aaa">Cyclopean Perception</a>
@@ -113,7 +114,7 @@ tr:last-child { border-bottom: none; }
 <main>
   <h1>Model states &amp; activations</h1>
   <div class="meta">
-    54 entries · 44 LLM-plottable ·
+    56 entries · 46 LLM-plottable ·
     Source: <code>oculomotor/schema/states_schema.yaml</code> ·
     Companion to <a href="parameters.html">parameters.html</a>.
   </div>
@@ -129,6 +130,36 @@ tr:last-child { border-bottom: none; }
       <h2>Sensory</h2>
       <div class="desc">Receptor afferents and visual delay cascades — peripheral inputs to the brain.</div>
       
+    <div class="subsection" id="sensory-luminance_periphery">
+      <h3>Luminance Periphery <small style="font-size:11px;font-weight:400;color:#888">(1 signal)</small></h3>
+      <table>
+        <thead><tr>
+          <th style="width:140px">Signal</th>
+          <th style="width:50px">Shape</th>
+          <th style="width:140px">Axes</th>
+          <th style="width:65px">Units</th>
+          <th style="width:200px">Encodes / frame</th>
+          <th style="width:220px">Representation / activation</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:170px">Source</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="signal-name">luminance <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
+          <td class="shape-cell">(1)</td>
+          <td class="axes-cell"></td>
+          <td class="units">normalised</td>
+          <td><div class="encodes-cell">afferent retinal luminance (pupillary light reflex input)</div><div class="frame-cell">frame: whole-field (consensual)</div></td>
+          <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (afferent luminance, normalised ~[0,1])</div></td>
+          <td class="desc-cell"><p>First-order low-pass of physical retinal luminance (assembled from scene / target presence, both eyes averaged for the consensual reflex). Drives the pupillary light reflex in brain_models.pupil; distinct from the image-forming retina cascade. Afferent latency set by tau_lum (~0.3 s).</p><div class="population">Luminance afferents (light-reflex pathway)</div><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
+          <td class="anatomy-cell">Retina photoreceptors → pretectal olivary nucleus (retinotectal)</td>
+          <td><span class="computation">sensory.lum</span></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="subsection" id="sensory-vestibular_periphery">
       <h3>Vestibular Periphery <small style="font-size:11px;font-weight:400;color:#888">(3 signals)</small></h3>
       <table>
@@ -813,7 +844,7 @@ tr:last-child { border-bottom: none; }
       <div class="desc">Eyeball orientation states (rotation vectors) + lens / accommodation plant.</div>
       
     <div class="subsection" id="plant-plant">
-      <h3>Plant <small style="font-size:11px;font-weight:400;color:#888">(3 signals)</small></h3>
+      <h3>Plant <small style="font-size:11px;font-weight:400;color:#888">(4 signals)</small></h3>
       <table>
         <thead><tr>
           <th style="width:140px">Signal</th>
@@ -861,6 +892,18 @@ tr:last-child { border-bottom: none; }
           <td class="desc-cell"><p>Lens-driven accommodation state (diopters).  First-order plant with tau_acc_plant ~0.16 s (Schor & Bharadwaj 2006).</p><div class="refs">Schor & Bharadwaj (2006)</div></td>
           <td class="anatomy-cell">Lens / ciliary muscle (accommodation plant)</td>
           <td><span class="computation">acc_plant</span></td>
+        </tr>
+
+        <tr>
+          <td class="signal-name">pupil_plant <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
+          <td class="shape-cell">(1)</td>
+          <td class="axes-cell"></td>
+          <td class="units">mm</td>
+          <td><div class="encodes-cell">pupil diameter (iris plant output)</div><div class="frame-cell">frame: aperture (mm)</div></td>
+          <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (actual pupil diameter; smaller = more constricted)</div></td>
+          <td class="desc-cell"><p>Actual pupil diameter (mm), a first-order iris plant (tau_pupil ~0.4 s) low-passing the commanded diameter from the pupil controller (light reflex + near response).  Physiological ~3–8 mm.</p><div class="refs">Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Iris sphincter / dilator muscle (pupil plant)</td>
+          <td><span class="computation">pupil_plant</span></td>
         </tr>
         </tbody>
       </table>

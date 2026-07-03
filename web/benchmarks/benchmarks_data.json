@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-30 21:31",
-  "version": "3a161a2-dirty",
+  "generated": "2026-07-02 14:47",
+  "version": "4a852bf-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -876,6 +876,52 @@
               "golden": null
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "pupil",
+      "title": "Pupil \u2014 light reflex + near response",
+      "description": "Pupillary light reflex (afferent luminance \u2192 Edinger-Westphal \u2192 iris sphincter) and the near-triad pupil constriction (accommodation-linked). Pupil diameter (mm) is a first-order iris plant (tau_pupil \u2248 0.4 s) driven by a dark baseline minus light- and near-reflex constriction. Lesion panel exercises the CN III (blown pupil), afferent (RAPD), pretectal (light-near dissociation), and sympathetic (Horner) pathways.",
+      "runtime_s": 162.74,
+      "version": "4a852bf-dirty.f30f924",
+      "generated": "2026-07-02 14:47",
+      "figures": [
+        {
+          "rel": "figures/pupil_light_reflex.png",
+          "title": "Pupillary light reflex",
+          "description": "Scene steps dark\u2192light\u2192dark. Pupil constricts on light onset and re-dilates in the dark; afferent luminance (right axis) drives it.",
+          "expected": "Miosis to light (constriction ~3\u20134 mm) with \u03c4 \u2248 tau_pupil (~0.4 s); mydriasis back to baseline in the dark.",
+          "citation": "Loewenfeld (1993); McDougal & Gamlin (2015)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
+        },
+        {
+          "rel": "figures/pupil_near_response.png",
+          "title": "Near-response pupil constriction",
+          "description": "Target steps far\u2192near. Accommodation rises (right axis) and the pupil constricts with it \u2014 the near-triad pupil miosis.",
+          "expected": "Pupil constricts ~1 mm as accommodation rises to ~3 D; both track the near step with the accommodation/iris plant TCs.",
+          "citation": "Myers & Stark (1990)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
+        },
+        {
+          "rel": "figures/pupil_lesions.png",
+          "title": "Pupil lesions",
+          "description": "Light step across healthy, CN III palsy (blown pupil, shared with the oculomotor eye-muscle lesion), RAPD, Argyll Robertson (light-near dissociation), and Horner (sympathetic miosis).",
+          "expected": "Healthy constricts to light; CN III blown pupil + Argyll Robertson stay dilated (no light reflex); RAPD constricts weakly; Horner sits at a small baseline but still reacts.",
+          "citation": "Loewenfeld (1993); McDougal & Gamlin (2015)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
         }
       ]
     }

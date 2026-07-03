@@ -53,8 +53,8 @@
                    display: inline-block; flex-shrink: 0; }
       /* gantt */
       .ps-gantt-lane { display: flex; align-items: center; height: 24px; margin: 2px 0; }
-      .ps-gantt-label { width: 80px; flex-shrink: 0; font-size: 10px; color: #64748b;
-                        text-align: right; padding-right: 8px; }
+      .ps-gantt-label { box-sizing: border-box; width: 80px; flex-shrink: 0; font-size: 10px;
+                        color: #64748b; text-align: right; padding-right: 8px; }
       /* x-axis label under the stack (shared time axis). Left margin = gutter so
          it centres over the plot area, which starts after the 80px y-gutter. */
       .ps-xlabel { text-align: center; font-size: 10px; color: #64748b;
@@ -250,6 +250,7 @@
       lab.textContent = lane.label;
       const track = document.createElement('div');
       track.className = 'ps-gantt-track';
+      registry.addGanttTrack(track, lab);   // align its width to the plot area after layout
       (lane.segments || []).forEach(([s0, s1, state]) => {
         const seg = document.createElement('div');
         seg.className = 'ps-gantt-seg' + (state ? '' : ' off');
@@ -280,12 +281,29 @@
     const charts = [];
     const playheads = [];        // uPlot panels: [{ u, ph }]
     const ganttPlayheads = [];   // gantt lanes: [{ ph, tmin, tmax }] (fixed scale)
+    const ganttTracks = [];      // gantt tracks: [{ track, label }] — aligned to the plot area
     let playT = null;            // current playhead time (s), or null = hidden
     let syncingGlobal = false;
     const registry = {
       add: (u) => charts.push(u),
       addPlayhead: (u, ph) => playheads.push({ u, ph }),
       addGanttPlayhead: (ph, a, b) => ganttPlayheads.push({ ph, tmin: a, tmax: b }),
+      addGanttTrack: (track, label) => ganttTracks.push({ track, label }),
+      // Size each gantt track to EXACTLY the uPlot plot area (same left + right
+      // gutters), so its fixed-scale cursor lines up with the zoomable panels'.
+      // Otherwise the track runs wider (esp. when a panel has a right y-axis) and
+      // the cursor drifts ahead — most visibly toward the end of the trace.
+      alignGantt: () => {
+        const u = charts[0];
+        if (!u || !u.over) return;
+        const leftCss  = u.over.offsetLeft;                                  // plot-area left
+        const plotCss  = u.over.clientWidth;                                 // plot-area width
+        const rightCss = Math.max(0, u.root.clientWidth - leftCss - plotCss);
+        for (const { track, label } of ganttTracks) {
+          label.style.width       = leftCss + 'px';
+          track.style.marginRight = rightCss + 'px';
+        }
+      },
       reposition: () => {
         for (const { u, ph } of playheads) {
           if (playT == null) { ph.style.display = 'none'; continue; }
@@ -372,6 +390,7 @@
     // Responsive width
     const onResize = () => {
       charts.forEach((u) => u.setSize({ width: u.root.parentElement.clientWidth, height: 180 }));
+      registry.alignGantt();     // re-fit gantt tracks to the (possibly resized) plot area
       registry.reposition();
     };
     window.addEventListener('resize', onResize);

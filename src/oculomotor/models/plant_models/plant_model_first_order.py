@@ -49,6 +49,13 @@ class PlantParams(NamedTuple):
     tau_p:         float = 0.15    # plant TC / orbital slow pole τ₁ (s); Robinson 1981, Goldstein 1983
     tau_muscle:    float = 0.013   # muscle fast pole τ₂ (s) — force-development LP (2nd-order plant).
                                    # Ignored by the 1st-order plant; used by plant_model_second_order.
+    tau_see:       float = 0.008   # muscle SERIES-ELASTIC zero Tz (s) — numerator lead of the plant
+                                   # transfer, (1+Tz s)/[(1+τ₁ s)(1+τ₂ s)] (Robinson; Optican & Miles
+                                   # 1985 4th-order plant). The SEE transmits force *changes* to eye
+                                   # position with a lead, so the eye responds fast without an
+                                   # aggressive neural command. The NI's slide (brain.tau_slide) is set
+                                   # = Tz so its pole CANCELS this zero → eye tracks NI_net exactly (no
+                                   # ring, no peak cost). Ignored by the 1st-order plant.
     orbital_limit: float = 50.0   # mechanical half-range of the orbit (deg); anatomical
     k_orbital:     float = 1.0    # sigmoid steepness for orbital gate (1/deg)
 

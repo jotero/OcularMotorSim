@@ -32,7 +32,7 @@ from oculomotor.sim.simulator import (
 from oculomotor.models.brain_models import saccade_generator as sg_mod
 from oculomotor.models.brain_models.perception_cyclopean import C_slip, C_pos, C_vel, C_target_visible
 from oculomotor.models.brain_models import perception_cyclopean as _pc_mod
-from oculomotor.analysis import read_brain_acts, extract_spv, vs_net, ni_net
+from oculomotor.analysis import read_brain_acts, extract_spv, vs_net, ni_net, pupil_size, luminance
 from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
 
 
@@ -217,6 +217,10 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
     z_trig = np.array(sg_st.z_trig)
 
     # ── Cerebellar activations (vmapped over time) ───────────────────────────
+    # Pupil + afferent luminance (mm, normalised) — pupillary light + near reflex
+    pupil_diameter = pupil_size(states)   # (T,) mm
+    lum_afferent   = luminance(states)    # (T,) normalised ~[0, 1]
+
     cb = read_brain_acts(states, params).cb
     cb_vpf_drive    = np.array(cb.vpf_drive)                  # (T, 3) gated target EC → pursuit
     cb_fl_okr_drive = np.array(cb.fl_okr_drive)               # (T, 3) gated scene  EC → VS
@@ -241,6 +245,8 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         x_ni           = x_ni,
         x_pursuit      = x_pursuit,
         e_pos_delayed  = e_pos_delayed,
+        pupil_diameter = pupil_diameter,   # (T,) mm — iris plant output
+        luminance      = lum_afferent,     # (T,) afferent luminance (normalised)
         u_burst        = u_burst,
         z_opn          = z_opn,
         z_acc          = z_acc,
@@ -376,6 +382,7 @@ _PANEL_LABELS = {
     'pursuit_drive':     'Pursuit integrator (deg/s)',
     'refractory':        'Accumulator / trigger IBN',
     'vergence':          'Vergence angle (deg)',
+    'pupil_diameter':    'Pupil diameter (mm)',
     # cerebellar diagnostic panels
     'cerebellum_pursuit': 'Cerebellum — pursuit (deg/s)',
     'cerebellum_vor':     'Cerebellum — VOR/OKR (deg/s)',
@@ -394,7 +401,7 @@ _PANEL_ORDER = [
     # Visual-context strip leads (timeline of scene / target / cover / prism)
     'visual_flags',
     # Core readouts (fixed order)
-    'eye_position', 'eye_velocity', 'vergence', 'spv',
+    'eye_position', 'eye_velocity', 'vergence', 'pupil_diameter', 'spv',
     # Stimulus
     'head_velocity', 'target_position', 'target_velocity', 'scene_velocity',
     # Internal mechanism (chosen by relevance to the scenario)
@@ -787,6 +794,13 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
         cover_R          = np.array(stim_kw['cover_R_array']),          # (T,) 1 = R eye covered
         prism_L          = np.array(stim_kw['prism_L_array']),          # (T, 3) deg deviation, L eye
         prism_R          = np.array(stim_kw['prism_R_array']),          # (T, 3) deg deviation, R eye
+        pupil_diameter   = np.asarray(sig['pupil_diameter']),           # (T,) mm — pupil (light + near reflex)
+        luminance        = np.asarray(sig['luminance']),                # (T,) afferent luminance (normalised)
+        # Eyelid aperture per eye (0 = open, 1 = fully closed / blink). Placeholder
+        # zeros so the client-facing data structures carry an eyelid slot; not yet
+        # driven by any model pathway (the avatar keeps its own blink animation).
+        eyelid_L         = np.zeros(len(t_array), dtype=np.float32),
+        eyelid_R         = np.zeros(len(t_array), dtype=np.float32),
     )
 
 
@@ -1048,6 +1062,14 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
                                    'color': '#ff8c00', 'style': ':',
                                    'label': f'Tonic verg ({tonic_val:+.1f}°)'})
 
+    elif panel == 'pupil_diameter':
+        spec['ylabel'] = 'Pupil diameter (mm)'
+        tr('Pupil diameter', '#8B4513', sig['pupil_diameter'])
+        # Afferent luminance (0–1) on the right axis for light-reflex context.
+        if 'luminance' in sig:
+            spec['ylabel_right'] = 'luminance'
+            tr('Luminance (afferent)', '#c0a000', sig['luminance'], style='--', axis='right')
+
     elif panel == 'cerebellum_pursuit':
         spec['ylabel'] = 'Cerebellum — pursuit (deg/s)'
         spec['ylabel_right'] = 'sacc. supp. gate'
@@ -1278,6 +1300,9 @@ def _build_comparison_figure(
             elif panel == 'vergence':
                 ax.plot(t, sig['vergence'][:, 0], color=color, ls=ls, lw=1.5, label=label)
 
+            elif panel == 'pupil_diameter':
+                ax.plot(t, sig['pupil_diameter'], color=color, ls=ls, lw=1.5, label=label)
+
             elif panel == 'gaze_error':
                 dt = t[1] - t[0]
                 gaze = ep[:, 0] + np.cumsum(hv[:, 0]) * dt
@@ -1367,6 +1392,8 @@ def _build_comparison_spec(
                 add(label, sig['z_acc'])
             elif panel == 'vergence':
                 add(label, sig['vergence'][:, 0])
+            elif panel == 'pupil_diameter':
+                add(label, sig['pupil_diameter'])
             elif panel == 'gaze_error':
                 add(label, ep[:, 0] + head_angle)
             elif panel == 'retinal_error':

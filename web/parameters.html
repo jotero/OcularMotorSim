@@ -84,7 +84,7 @@ tr:last-child { border-bottom: none; }
     <a href="#brainparams">BrainParams</a>
     <a href="#brainparams-self_motion_estimation" style="padding-left:32px;font-size:11px;color:#aaa">Self Motion Estimation <span style="color:#666">(17)</span></a>
     <a href="#brainparams-neural_integrator" style="padding-left:32px;font-size:11px;color:#aaa">Neural Integrator <span style="color:#666">(7)</span></a>
-    <a href="#brainparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(20)</span></a>
+    <a href="#brainparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(22)</span></a>
     <a href="#brainparams-binocular" style="padding-left:32px;font-size:11px;color:#aaa">Binocular <span style="color:#666">(5)</span></a>
     <a href="#brainparams-saccade_generator" style="padding-left:32px;font-size:11px;color:#aaa">Saccade Generator <span style="color:#666">(29)</span></a>
     <a href="#brainparams-listing" style="padding-left:32px;font-size:11px;color:#aaa">Listing <span style="color:#666">(2)</span></a>
@@ -92,6 +92,7 @@ tr:last-child { border-bottom: none; }
     <a href="#brainparams-vergence" style="padding-left:32px;font-size:11px;color:#aaa">Vergence <span style="color:#666">(12)</span></a>
     <a href="#brainparams-tvor" style="padding-left:32px;font-size:11px;color:#aaa">Tvor <span style="color:#666">(6)</span></a>
     <a href="#brainparams-accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Accommodation <span style="color:#666">(9)</span></a>
+    <a href="#brainparams-pupil" style="padding-left:32px;font-size:11px;color:#aaa">Pupil <span style="color:#666">(9)</span></a>
     <a href="#brainparams-final_common_pathway" style="padding-left:32px;font-size:11px;color:#aaa">Final Common Pathway <span style="color:#666">(8)</span></a>
     <a href="#brainparams-cerebellum" style="padding-left:32px;font-size:11px;color:#aaa">Cerebellum <span style="color:#666">(4)</span></a>
     <div style="height:8px"></div>
@@ -103,10 +104,11 @@ tr:last-child { border-bottom: none; }
     <a href="#sensoryparams-noise" style="padding-left:32px;font-size:11px;color:#aaa">Noise <span style="color:#666">(5)</span></a>
     <a href="#sensoryparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(3)</span></a>
     <a href="#sensoryparams-binocular" style="padding-left:32px;font-size:11px;color:#aaa">Binocular <span style="color:#666">(1)</span></a>
+    <a href="#sensoryparams-luminance" style="padding-left:32px;font-size:11px;color:#aaa">Luminance <span style="color:#666">(3)</span></a>
     <div style="height:8px"></div>
     <a href="#plantparams">PlantParams</a>
     <a href="#plantparams-plant" style="padding-left:32px;font-size:11px;color:#aaa">Plant <span style="color:#666">(3)</span></a>
-    <a href="#plantparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(1)</span></a>
+    <a href="#plantparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(2)</span></a>
     <div style="border-top:1px solid #2a2a4e;margin:18px 12px 8px;"></div>
     <h2>Other pages</h2>
     <a href="benchmarks/">Benchmarks</a>
@@ -116,16 +118,16 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-07-01 22:03</strong> &nbsp;|&nbsp;
-      Version: <strong>b8dc154-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-02 14:47</strong> &nbsp;|&nbsp;
+      Version: <strong>4a852bf-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\src\oculomotor\schema\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
     <div id="match-count" class="match-count"></div>
-    <div class="warning"><b>24 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
+    <div class="warning"><b>27 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
     
   <section class="section" id="brainparams">
-    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(124 fields)</small></h2>
+    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(135 fields)</small></h2>
     <p class="desc">Central neural model parameters — VS, NI, SG, gravity, vergence, accommodation, T-VOR, OCR, CN/MLF gains. Read by every brain submodule's <code>step()</code>.</p>
     
     <div class="subsection" id="brainparams-self_motion_estimation">
@@ -401,7 +403,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="brainparams-ungrouped">
-      <h3>Ungrouped <small style="font-size:11px;font-weight:400;color:#888">(20 fields)</small></h3>
+      <h3>Ungrouped <small style="font-size:11px;font-weight:400;color:#888">(22 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -419,6 +421,16 @@ tr:last-child { border-bottom: none; }
           <td class="units"></td>
           <td class="range-cell"></td>
           <td class="desc-cell"><p>muscle fast-pole TC copy (τ₂, s) — 2nd-order plant inverse (muscle force-development LP); matches PlantParams.tau_muscle</p></td>
+          <td class="anatomy-cell"></td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">tau_slide<span class="todo">TODO: enrich schema</span></td>
+          <td><span class="default">0.01</span></td>
+          <td class="units"></td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>SLIDE time constant Ts (s) of the pulse-slide-step motor command (Optican & Miles 1985). The slide is a low-pass of the pulse, so the pulse-step's 2nd-order (accel) compensation is a SMOOTH branch (no burst-offset spike → no ring).  Tuned RELATIVE to the plant's series-elastic zero (PlantParams.tau_see = Tz): Ts = Tz  → slide pole cancels the zero → full peak, but a small residual overshoot glissade (FCP pole-lumping); Ts > Tz  → damps that overshoot for a clean landing, at a small peak-velocity cost (worst on small saccades); Ts < Tz  → undershoot glissade. Default Ts=10 vs Tz=8: the balance point. This lead/slide mismatch IS the clinical glissade knob.  See manuscripts/pulse_slide_step.md</p></td>
           <td class="anatomy-cell"></td>
           <td></td>
         </tr>
@@ -479,6 +491,16 @@ tr:last-child { border-bottom: none; }
           <td class="units"></td>
           <td class="range-cell"></td>
           <td class="desc-cell"><p>N-stage gamma TC (s) for target_pos / visibility brain phase (post-fusion). Total visual mean delay for these signals ≈ tau_vis_sharp + tau_brain_pos = 0.08 s.</p></td>
+          <td class="anatomy-cell"></td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">k_bn_lead<span class="todo">TODO: enrich schema</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units"></td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>burst-drive LEAD gain (× tau_bn). BNs are driven off relu(e_held − k_bn_lead·tau_bn·u_burst), not relu(e_held): the −tau_bn·u_burst term is a derivative/lead that cancels the BN membrane lag, so the resettable integrator e_held lands on 0 instead of overshooting negative — damps the underdamped e_held↔BN local-feedback loop that otherwise rings (a post- saccadic glissade, worst on small saccades). 0 = off (old ringy behaviour); 1 = full lag cancellation. Keeps peak velocity (the lead is ~constant mid-burst, only biting at the stop).</p></td>
           <td class="anatomy-cell"></td>
           <td></td>
         </tr>
@@ -1408,6 +1430,112 @@ tr:last-child { border-bottom: none; }
       </table>
     </div>
 
+    <div class="subsection" id="brainparams-pupil">
+      <h3>Pupil <small style="font-size:11px;font-weight:400;color:#888">(9 fields)</small></h3>
+      <table class="param-table">
+        <thead><tr>
+          <th style="width:160px">Parameter</th>
+          <th style="width:90px">Default</th>
+          <th style="width:60px">Units</th>
+          <th style="width:110px">Valid range</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:200px">Disorders / notable values</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="param-name">pupil_baseline<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">7.5</span></td>
+          <td class="units">mm</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Dark, fully-dilated pupil diameter. Light- and near-reflex constriction subtract from this baseline. Lowering it models Horner's syndrome (loss of sympathetic dilator tone → resting miosis; see with_horner).</p><div class="refs">Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Iris — resting (dark) aperture; sympathetic dilator tone</td>
+          <td><span class="tag tag-other">Horner (−2.5 mm): 5.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">K_pupil_light</td>
+          <td><span class="default">4.5</span></td>
+          <td class="units">mm</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Light-reflex constriction gain (mm per unit afferent luminance). Full-field light (lum≈1) constricts the pupil by ~this many mm (miosis).</p><div class="refs">McDougal & Gamlin (2015)</div></td>
+          <td class="anatomy-cell">Pretectal olivary nucleus → Edinger-Westphal → iris sphincter</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">K_pupil_near</td>
+          <td><span class="default">0.4</span></td>
+          <td class="units">mm/D</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Near-response constriction gain (mm per diopter of accommodation). The pupil miosis of the near triad, driven by the accommodation level.</p><div class="refs">Myers & Stark (1990)</div></td>
+          <td class="anatomy-cell">Near-triad — Edinger-Westphal (accommodation-linked)</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">pupil_min</td>
+          <td><span class="default">2</span></td>
+          <td class="units">mm</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Minimum physiological pupil diameter (constriction clip).</p></td>
+          <td class="anatomy-cell">Iris — maximal sphincter constriction</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">pupil_max</td>
+          <td><span class="default">8</span></td>
+          <td class="units">mm</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Maximum physiological pupil diameter (dilation clip).</p></td>
+          <td class="anatomy-cell">Iris — maximal dilation</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">tau_pupil</td>
+          <td><span class="default">0.4</span></td>
+          <td class="units">s</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Iris plant TC — first-order low-pass from commanded to actual pupil diameter. PLR settling ~0.3–0.8 s.</p><div class="refs">Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Iris sphincter / dilator muscle mechanics</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_pupil_cn3<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Efferent parasympathetic sphincter integrity. Gates BOTH light and near constriction (common final path). 0 = internal ophthalmoplegia / fixed dilated ('blown') pupil. Shared with the CN III eye-muscle palsy via with_cn3_palsy; an isolated 0 is a tonic (Adie) pupil / ciliary-ganglion lesion.</p><div class="refs">Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Parasympathetic efferent — CN III → ciliary ganglion → sphincter</td>
+          <td><span class="tag tag-cn">CN III palsy / blown pupil: 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_pupil_afferent<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Afferent light-reflex integrity. Scales the LIGHT drive only (near response preserved). <1 = relative afferent pupillary defect (RAPD / Marcus Gunn).</p></td>
+          <td class="anatomy-cell">Afferent limb — retina / optic nerve</td>
+          <td><span class="tag tag-other">RAPD (severe): 0.3</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_pupil_light_reflex<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Central (pretectal) light-reflex integrity. 0 = light-near dissociation (Argyll Robertson / Parinaud) — light reflex lost, near response preserved.</p></td>
+          <td class="anatomy-cell">Pretectal / central light-reflex relay</td>
+          <td><span class="tag tag-other">Argyll Robertson (light-near dissoc.): 0.0</span></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="subsection" id="brainparams-final_common_pathway">
       <h3>Final Common Pathway <small style="font-size:11px;font-weight:400;color:#888">(8 fields)</small></h3>
       <table class="param-table">
@@ -1562,7 +1690,7 @@ tr:last-child { border-bottom: none; }
   </section>
     
   <section class="section" id="sensoryparams">
-    <h2>SensoryParams <small style="font-size:12px;font-weight:400;color:#888">(20 fields)</small></h2>
+    <h2>SensoryParams <small style="font-size:12px;font-weight:400;color:#888">(23 fields)</small></h2>
     <p class="desc">Peripheral sensor parameters — canal/otolith dynamics, visual delay, retinal noise, IPD.</p>
     
     <div class="subsection" id="sensoryparams-canals">
@@ -1876,10 +2004,56 @@ tr:last-child { border-bottom: none; }
         </tbody>
       </table>
     </div>
+
+    <div class="subsection" id="sensoryparams-luminance">
+      <h3>Luminance <small style="font-size:11px;font-weight:400;color:#888">(3 fields)</small></h3>
+      <table class="param-table">
+        <thead><tr>
+          <th style="width:160px">Parameter</th>
+          <th style="width:90px">Default</th>
+          <th style="width:60px">Units</th>
+          <th style="width:110px">Valid range</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:200px">Disorders / notable values</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="param-name">tau_lum</td>
+          <td><span class="default">0.3</span></td>
+          <td class="units">s</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Luminance afferent low-pass TC — the afferent limb of the pupillary light reflex (retinal light adaptation + pretectal transport). Sets the PLR latency (~0.3 s); the slower iris lag lives in brain.tau_pupil.</p><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
+          <td class="anatomy-cell">Retina photoreceptor + pretectal olivary nucleus afferent</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">lum_scene</td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Weight of the scene-present flag in physical retinal luminance. A lit full-field scene dominates the light reaching the retina.</p></td>
+          <td class="anatomy-cell">Full-field scene illumination</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">lum_target</td>
+          <td><span class="default">0.15</span></td>
+          <td class="units">—</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Weight of the target-present flag in physical retinal luminance. A lone foveal target in the dark is a dim point source (small contribution).</p></td>
+          <td class="anatomy-cell">Foveal target luminance</td>
+          <td></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
     
   <section class="section" id="plantparams">
-    <h2>PlantParams <small style="font-size:12px;font-weight:400;color:#888">(4 fields)</small></h2>
+    <h2>PlantParams <small style="font-size:12px;font-weight:400;color:#888">(5 fields)</small></h2>
     <p class="desc">Extraocular plant — mechanical orbit dynamics.</p>
     
     <div class="subsection" id="plantparams-plant">
@@ -1929,7 +2103,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="plantparams-ungrouped">
-      <h3>Ungrouped <small style="font-size:11px;font-weight:400;color:#888">(1 field)</small></h3>
+      <h3>Ungrouped <small style="font-size:11px;font-weight:400;color:#888">(2 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -1947,6 +2121,16 @@ tr:last-child { border-bottom: none; }
           <td class="units"></td>
           <td class="range-cell"></td>
           <td class="desc-cell"><p>muscle fast pole τ₂ (s) — force-development LP (2nd-order plant). Ignored by the 1st-order plant; used by plant_model_second_order.</p></td>
+          <td class="anatomy-cell"></td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">tau_see<span class="todo">TODO: enrich schema</span></td>
+          <td><span class="default">0.008</span></td>
+          <td class="units"></td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>muscle SERIES-ELASTIC zero Tz (s) — numerator lead of the plant transfer, (1+Tz s)/[(1+τ₁ s)(1+τ₂ s)] (Robinson; Optican & Miles 1985 4th-order plant). The SEE transmits force *changes* to eye position with a lead, so the eye responds fast without an aggressive neural command. The NI's slide (brain.tau_slide) is set = Tz so its pole CANCELS this zero → eye tracks NI_net exactly (no ring, no peak cost). Ignored by the 1st-order plant.</p></td>
           <td class="anatomy-cell"></td>
           <td></td>
         </tr>

@@ -63,6 +63,7 @@ let coverMeshL   = null, coverMeshR = null;
 let prismL = null, prismR = null;          // prism lenses (head-fixed, tilt = base×power)
 let _prismDevL = null, _prismDevR = null;  // current-frame per-eye prism deviation [yaw,pitch,roll]
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
+let pupilTargets = [];     // meshes carrying the 'pupilDilate' morph (iris/pupil)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
 // eye bone's getWorldPosition() (the canonical, already-correct world position —
@@ -164,8 +165,14 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
     if (obj.name === 'RightEye' || obj.name === 'RightEye_09') rightEyeBone = obj;
     // First skinned/standard mesh that carries ARKit blendshapes = the face.
     if (obj.isMesh && obj.morphTargetDictionary && !faceMesh) faceMesh = obj;
+    // Any mesh carrying the pupil dilation morph (may be the eye meshes, not the
+    // face) — collected so setPupil() can drive them all together.
+    if (obj.isMesh && obj.morphTargetDictionary && ('pupilDilate' in obj.morphTargetDictionary)) {
+      pupilTargets.push({ mesh: obj, idx: obj.morphTargetDictionary['pupilDilate'] });
+    }
   });
   console.log('Face morph targets:', faceMesh ? Object.keys(faceMesh.morphTargetDictionary).length : 0);
+  console.log('Pupil morph targets:', pupilTargets.length);
 
   // Rotate the whole model for head/body movement — avoids neck artifacts
   headBone = model;
@@ -327,6 +334,14 @@ function setMorph(name, value) {
   if (i !== undefined) faceMesh.morphTargetInfluences[i] = value;
 }
 
+// ── Pupil dilation morph ────────────────────────────────────────────────────────
+// d in [0, 1] normally; up to ~1.6 is still geometrically valid.
+function setPupil(d) {
+  for (const { mesh, idx } of pupilTargets) mesh.morphTargetInfluences[idx] = d;
+}
+// Drive from a physiological pupil DIAMETER in mm (real pupils ~3–8 mm → d ≈ 0.0–0.57).
+function setPupilDiameter(mm) { setPupil((mm / 2 - 1.54) / 4.35); }
+
 // Spontaneous blink: a short 0->1->0 close every few seconds (real-time clock,
 // so the avatar looks alive even when paused). Advanced from animate(ts).
 let _blink = 0;
@@ -459,12 +474,12 @@ function applyFrame(fi) {
   leftEyeBone.rotation.set(
     restL.x - L[1] * DEG,   // pitch
     restL.y - L[0] * DEG,   // yaw
-    restL.z
+    restL.z - L[2] * DEG    // roll (ocular torsion)
   );
   rightEyeBone.rotation.set(
     restR.x - R[1] * DEG,
     restR.y - R[0] * DEG,
-    restR.z
+    restR.z - R[2] * DEG
   );
 
   // Head rotation for world view (applied before left render, removed before right)
@@ -473,7 +488,7 @@ function applyFrame(fi) {
     headBone.rotation.set(
       restHead.x - Hd[1] * DEG,   // pitch
       restHead.y - Hd[0] * DEG,   // yaw
-      restHead.z
+      restHead.z - Hd[2] * DEG    // roll
     );
   }
 
@@ -506,6 +521,14 @@ function applyFrame(fi) {
     setMorph('eyeBlinkRight', Math.min(1, Math.max(_blink, downR * 0.4)));
     setMorph('eyeWideLeft',  Math.min(0.5, upL) * (1 - _blink));
     setMorph('eyeWideRight', Math.min(0.5, upR) * (1 - _blink));
+  }
+
+  // Pupil dilation: drive the 'pupilDilate' morph from the model's pupil diameter
+  // (mm). Consensual — both pupils use the same diameter. Clamp to the valid morph
+  // range; physiological 3–8 mm maps to d ≈ 0.0–0.57.
+  if (pupilTargets.length && _traj.pupil_diameter) {
+    const mm = _traj.pupil_diameter[fi];
+    if (mm != null) setPupil(Math.max(0, Math.min(1.6, (mm / 2 - 1.54) / 4.35)));
   }
 
   // Target sphere (world-fixed) — only when a foveal target is present.

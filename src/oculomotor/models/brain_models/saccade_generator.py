@@ -368,10 +368,20 @@ def step(activations, weights, pos_delayed, target_visible, x_ni, ocr, w_est,
     # (z_dep persists as z_fac decays). alpha_fac=alpha_dep=0 → g_dyn≡1 (off).
     g_dyn = 1.0 + p.alpha_fac * z_fac - p.alpha_dep * z_dep
 
-    dx_ebn_R = (g_dyn * jax.nn.relu( e_held) - inh_from_L - opn_inh - x_ebn_R * opn_gain) / p.tau_bn
-    dx_ebn_L = (g_dyn * jax.nn.relu(-e_held) - inh_from_R - opn_inh - x_ebn_L * opn_gain) / p.tau_bn
-    dx_ibn_R = (g_dyn * jax.nn.relu( e_held) - inh_from_L - opn_inh - x_ibn_R * opn_gain) / p.tau_bn
-    dx_ibn_L = (g_dyn * jax.nn.relu(-e_held) - inh_from_R - opn_inh - x_ibn_L * opn_gain) / p.tau_bn
+    # LEAD-compensated burst drive: e_lead = e_held − k_bn_lead·tau_bn·u_burst.
+    # The −tau_bn·u_burst term is a derivative/lead (de_held = −u_burst during the
+    # burst) that cancels the BN-membrane lag, so x_bn tracks relu(e_held) without
+    # lag and the burst stops when e_held hits 0 instead of overshooting negative —
+    # damping the underdamped e_held↔BN local-feedback loop (the post-saccadic ring).
+    # Mid-burst u_burst is ~constant so the lead is a small offset (peak velocity kept);
+    # it only bites at the stop.  k_bn_lead=0 recovers the old relu(e_held) drive.
+    e_lead  = e_held - p.k_bn_lead * p.tau_bn * u_burst
+    drive_R = g_dyn * jax.nn.relu( e_lead)
+    drive_L = g_dyn * jax.nn.relu(-e_lead)
+    dx_ebn_R = (drive_R - inh_from_L - opn_inh - x_ebn_R * opn_gain) / p.tau_bn
+    dx_ebn_L = (drive_L - inh_from_R - opn_inh - x_ebn_L * opn_gain) / p.tau_bn
+    dx_ibn_R = (drive_R - inh_from_L - opn_inh - x_ibn_R * opn_gain) / p.tau_bn
+    dx_ibn_L = (drive_L - inh_from_R - opn_inh - x_ibn_L * opn_gain) / p.tau_bn
 
     # ── Resettable integrator (Robinson 1975) ────────────────────────────────
     # Continuous pre-loading: e_held tracks pos_delayed (=e_cur) between saccades.
