@@ -258,6 +258,45 @@ N_GAINS_NUCLEUS   = 12
 G_NUCLEUS_DEFAULT = jnp.ones(N_GAINS_NUCLEUS, dtype=jnp.float32)  # healthy: all = 1
 G_NERVE_DEFAULT   = jnp.ones(N_NERVES, dtype=jnp.float32)         # healthy: all = 1
 
+# CN III somatic-nerve muscle indices in g_nerve (MR, SR, IR, IO per side).
+_CN3_NERVE_L = jnp.array([MR_L, SR_L, IR_L, IO_L])
+_CN3_NERVE_R = jnp.array([MR_R, SR_R, IR_R, IO_R])
+# CN III subnucleus indices in g_nucleus (MR, SR, IR, IO subnuclei per side).
+_CN3_NUC_L = jnp.array([CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L])
+_CN3_NUC_R = jnp.array([CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R])
+
+
+def cn3_nerve_integrity(g_nerve):
+    """Per-side CN III (oculomotor) nerve integrity from the shared g_nerve gains.
+
+    The oculomotor nerve carries — besides the four extraocular muscles (MR, SR,
+    IR, IO) — the levator palpebrae (lid elevation) and the pupilloconstrictor
+    parasympathetics. Rather than duplicate the nerve with separate lid/pupil
+    gains, those effects follow this integrity, so ANY CN III nerve palsy (however
+    g_nerve is set) also produces ptosis + a fixed dilated pupil on that side.
+
+    Returns (left, right) scalars in [0, 1] = mean of that side's CN III muscle
+    nerve gains (1 = intact, 0 = complete palsy).
+    """
+    gn = jnp.asarray(g_nerve)
+    return jnp.mean(gn[_CN3_NERVE_L]), jnp.mean(gn[_CN3_NERVE_R])
+
+
+def cn3_nucleus_integrity(g_nucleus):
+    """Per-side CN III (oculomotor) NUCLEUS integrity from the shared g_nucleus gains.
+
+    The central caudal nucleus (which drives the levator palpebrae) sits inside the
+    oculomotor nuclear complex, so the levator's central drive follows the CN III
+    subnucleus gains rather than a duplicate lid-nucleus knob. A nuclear lesion on
+    one side therefore drops the shared (midline, bilateral) levator drive →
+    bilateral partial ptosis.
+
+    Returns (left, right) scalars in [0, 1] = mean of that side's CN III subnucleus
+    gains (1 = intact, 0 = complete nuclear lesion).
+    """
+    gn = jnp.asarray(g_nucleus)
+    return jnp.mean(gn[_CN3_NUC_L]), jnp.mean(gn[_CN3_NUC_R])
+
 # Per-nucleus tonic baseline firing rate (deg/s equivalent).  Each motoneuron
 # pool fires at this rate at primary position (no version drive).  Symmetric
 # defaults give zero plant effect (uniform baseline → zero-sum decode), but

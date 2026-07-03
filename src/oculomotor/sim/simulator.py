@@ -79,6 +79,9 @@ from oculomotor.models.brain_models   import brain_model
 from oculomotor.models.plant_models   import plant_model_second_order as plant_model
 from oculomotor.models.plant_models   import accommodation_plant     as acc_plant_mod
 from oculomotor.models.plant_models   import pupil_plant             as pupil_plant_mod
+from oculomotor.models.plant_models   import eyelid_plant            as eyelid_plant_mod
+from oculomotor.models.brain_models    import eyelid                 as eyelid_ctrl
+from oculomotor.sim                    import eyelid                 as eyelid_gen
 
 
 # ── Swappable brain step ────────────────────────────────────────────────────
@@ -315,40 +318,78 @@ def with_vn_lesion(params: Params, side: str = 'left') -> Params:
 
 # ── Pupil-relevant lesions ──────────────────────────────────────────────────────
 
-def with_cn3_palsy(params: Params, side: str = 'right',
-                   pupil_involving: bool = True) -> Params:
-    """Oculomotor (CN III) nerve palsy — shared eye-muscle + pupil lesion.
+def with_cn3_palsy(params: Params, side: str = 'right') -> Params:
+    """Oculomotor (CN III) nerve palsy — one lesion, shared consequences.
 
-    Silences the CN III-innervated eye muscles (MR, SR, IR, IO) on `side`, so the
-    eye rests 'down and out' (LR via CN VI and SO via CN IV are intact). The
-    pupillary parasympathetic fibres travel WITH CN III → a compressive
-    (pupil-involving) palsy also abolishes the IPSILATERAL pupil's constriction
-    (g_pupil_cn3_<side> → 0, a fixed dilated / 'blown' pupil on that side →
-    anisocoria), whereas an ischaemic (pupil-sparing) palsy leaves the pupil
-    reactive. This is the pupil↔eye-movement sharing for CN III.
+    Silences the CN III-innervated eye muscles (MR, SR, IR, IO) on `side` by
+    zeroing their g_nerve gains, so the eye rests 'down and out' (LR via CN VI and
+    SO via CN IV are intact). Because the levator palpebrae AND the pupillary
+    parasympathetics travel with the SAME nerve, ptosis and a fixed dilated
+    ('blown') pupil on that side follow automatically (derived from the g_nerve
+    gains via cn3_nerve_integrity) — there are no duplicate lid/pupil-nerve knobs.
+    For a NUCLEAR CN III lesion (bilateral partial ptosis) use with_cn3_nuclear_palsy.
     """
     from oculomotor.models.plant_models.muscle_geometry import (
         MR_L, SR_L, IR_L, IO_L, MR_R, SR_R, IR_R, IO_R,
     )
     if side == 'left':
-        idx, pupil_key = jnp.array([MR_L, SR_L, IR_L, IO_L]), 'g_pupil_cn3_L'
+        idx = jnp.array([MR_L, SR_L, IR_L, IO_L])
     elif side == 'right':
-        idx, pupil_key = jnp.array([MR_R, SR_R, IR_R, IO_R]), 'g_pupil_cn3_R'
+        idx = jnp.array([MR_R, SR_R, IR_R, IO_R])
     else:
         raise ValueError(f"side must be 'left' or 'right', got {side!r}")
 
     g_nerve = jnp.asarray(params.brain.g_nerve, dtype=jnp.float32).at[idx].set(0.0)
-    kw = dict(g_nerve=g_nerve)
-    if pupil_involving:
-        kw[pupil_key] = 0.0
-    return with_brain(params, **kw)
+    return with_brain(params, g_nerve=g_nerve)
+
+
+def with_cn3_nuclear_palsy(params: Params, side: str = 'left') -> Params:
+    """CN III NUCLEAR palsy — bilateral partial ptosis (central caudal nucleus).
+
+    Zeroes that side's CN III eye-muscle subnuclei (g_nucleus: MR/SR/IR/IO). The
+    levator's central drive follows those SHARED subnucleus gains (no duplicate
+    lid-nucleus knob): the central caudal nucleus projects to BOTH lids, so a
+    one-sided nuclear lesion → BILATERAL PARTIAL ptosis (asymmetric, ipsi-dominant
+    per eyelid_levator_contra_frac). The pupil follows the CN III NERVE (g_nerve),
+    intact here, so a nuclear lesion spares the pupil (dorsal-midbrain sparing).
+    """
+    from oculomotor.models.plant_models.muscle_geometry import (
+        G_NUCLEUS_DEFAULT, CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L,
+        CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R,
+    )
+    if side == 'left':
+        nuc_idx = jnp.array([CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L])
+    elif side == 'right':
+        nuc_idx = jnp.array([CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R])
+    else:
+        raise ValueError(f"side must be 'left' or 'right', got {side!r}")
+
+    g_nucleus = jnp.asarray(params.brain.g_nucleus, dtype=jnp.float32)
+    if g_nucleus.shape != (12,):
+        g_nucleus = jnp.asarray(G_NUCLEUS_DEFAULT, dtype=jnp.float32)
+    g_nucleus = g_nucleus.at[nuc_idx].set(0.0)
+    return with_brain(params, g_nucleus=g_nucleus)
+
+
+def with_facial_palsy(params: Params, side: str = 'left') -> Params:
+    """Facial (CN VII) palsy — orbicularis oculi weakness → lagophthalmos.
+
+    Sets the `side` facial-nerve gain g_cn7_<side> to 0, so that eye cannot blink
+    / close (Bell's palsy); the lid stays open (levator unopposed). Isolated from
+    CN III (the eye still moves and the pupil still reacts).
+    """
+    if side == 'left':
+        return with_brain(params, g_cn7_L=0.0)
+    elif side == 'right':
+        return with_brain(params, g_cn7_R=0.0)
+    raise ValueError(f"side must be 'left' or 'right', got {side!r}")
 
 
 def with_horner(params: Params, side: str = 'left', miosis_mm: float = 2.5) -> Params:
     """Horner's syndrome — loss of sympathetic dilator tone → ipsilateral miosis.
 
     Lowers the dark (resting) diameter of the `side` pupil by ~`miosis_mm`
-    (floored at pupil_min) via its sympathetic gain g_pupil_symp_<side>. Light +
+    (floored at pupil_min) via its sympathetic gain g_ocular_symp_<side>. Light +
     near reactions are preserved (parasympathetic intact); the anisocoria is
     greatest in the dark.
     """
@@ -356,9 +397,9 @@ def with_horner(params: Params, side: str = 'left', miosis_mm: float = 2.5) -> P
     span = max(bp.pupil_baseline - bp.pupil_min, 1e-6)
     g    = float(min(1.0, max(0.0, (bp.pupil_baseline - miosis_mm - bp.pupil_min) / span)))
     if side == 'left':
-        return with_brain(params, g_pupil_symp_L=g)
+        return with_brain(params, g_ocular_symp_L=g)
     elif side == 'right':
-        return with_brain(params, g_pupil_symp_R=g)
+        return with_brain(params, g_ocular_symp_R=g)
     raise ValueError(f"side must be 'left' or 'right', got {side!r}")
 
 
@@ -366,7 +407,8 @@ __all__ = [
     'SimState', 'ODE_ocular_motor', 'simulate',
     'Params', 'SimConfig', 'SensoryParams', 'PlantParams', 'BrainParams',
     'default_params', 'with_brain', 'with_sensory', 'with_plant', 'with_cerebellum',
-    'with_uvh', 'with_vn_lesion', 'with_cn3_palsy', 'with_horner',
+    'with_uvh', 'with_vn_lesion', 'with_cn3_palsy', 'with_cn3_nuclear_palsy',
+    'with_horner', 'with_facial_palsy',
     'PARAMS_DEFAULT', 'SIM_CONFIG_DEFAULT',
 ]
 
@@ -386,12 +428,14 @@ class SimState(NamedTuple):
         plant      plant_model.State NT — left, right eye rotation vectors (deg)
         acc_plant  (1,)  Lens accommodation plant state (D)
         pupil_plant (2,) Iris plant state — per-eye pupil diameter (mm) [L, R]
+        eyelid_plant (2,) Eyelid plant state — per-eye lid closure [L, R], 0=open..1=closed
     """
-    sensory:     'sensory_model.State'    # nested per-sensor
-    brain:       'brain_model.BrainState' # nested per-subsystem
-    plant:       'plant_model.State'      # binocular eye rotation vectors
-    acc_plant:   jnp.ndarray              # (1,) lens accommodation (D)
-    pupil_plant: jnp.ndarray              # (2,) per-eye pupil diameter (mm) [L, R]
+    sensory:      'sensory_model.State'    # nested per-sensor
+    brain:        'brain_model.BrainState' # nested per-subsystem
+    plant:        'plant_model.State'      # binocular eye rotation vectors
+    acc_plant:    jnp.ndarray              # (1,) lens accommodation (D)
+    pupil_plant:  jnp.ndarray              # (2,) per-eye pupil diameter (mm) [L, R]
+    eyelid_plant: jnp.ndarray              # (2,) per-eye lid closure [L, R], 0=open..1=closed
 
 
 # ── ODE vector field ───────────────────────────────────────────────────────────
@@ -431,7 +475,8 @@ def ODE_ocular_motor(t, state, args):
      target_strobed_interp,
      noise_canal_interp, noise_slip_interp, noise_pos_interp,
      noise_vel_interp,
-     noise_acc_interp) = args
+     noise_acc_interp,
+     blink_drive_interp) = args
 
     # ── External inputs at time t ────────────────────────────────────────────
     q_head  = head_q_interp.evaluate(t)       # (3,) [yaw,pitch,roll] deg
@@ -501,9 +546,19 @@ def ODE_ocular_motor(t, state, args):
 
     # ── Pupil (iris) plants — per eye [L, R] ─────────────────────────────────────
     # u_pupil = (2,) commanded per-eye pupil diameter (mm) from the pupil
-    # controller (light reflex + near response); each iris low-passes it (tau_pupil).
+    # controller (light reflex + near response); each iris low-passes it with a
+    # rate-asymmetric TC (fast constriction, slow re-dilation).
     dx_pupil_plant, _ = pupil_plant_mod.step(
-        state.pupil_plant, u_pupil, theta.brain.tau_pupil)
+        state.pupil_plant, u_pupil,
+        theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
+
+    # ── Eyelid plants — per eye [L, R] ───────────────────────────────────────────
+    # Commanded lid closure = posture (levator + Müller) − blink (orbicularis) +
+    # downgaze lid-follow, using the fresh eye pitch. blink_drive is the pre-
+    # generated central blink schedule. Each lid low-passes it (fast close/slow open).
+    u_lid = eyelid_ctrl.command(
+        blink_drive_interp.evaluate(t), q_eye_L[1], q_eye_R[1], theta.brain)
+    dx_eyelid_plant, _ = eyelid_plant_mod.step(state.eyelid_plant, u_lid)
 
     # ── Optical interventions — applied after plant, before sensory step ─────
     # Prisms are head-frame mounted (glasses); they rotate the apparent gaze direction
@@ -538,11 +593,12 @@ def ODE_ocular_motor(t, state, args):
         theta.sensory)
 
     return SimState(
-        sensory     = dx_sensory,
-        brain       = dbrain,
-        plant       = plant_model.State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R),
-        acc_plant   = dx_acc_plant,
-        pupil_plant = dx_pupil_plant,
+        sensory      = dx_sensory,
+        brain        = dbrain,
+        plant        = plant_model.State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R),
+        acc_plant    = dx_acc_plant,
+        pupil_plant  = dx_pupil_plant,
+        eyelid_plant = dx_eyelid_plant,
     )
 
 
@@ -695,7 +751,7 @@ def simulate(
     # ── Sensory noise ─────────────────────────────────────────────────────────
     if key is None:
         key = jax.random.PRNGKey(0)
-    k_canal, k_slip, k_pos, k_vel, k_acc_n = jax.random.split(key, 5)
+    k_canal, k_slip, k_pos, k_vel, k_acc_n, k_blink = jax.random.split(key, 6)
 
     # All four sensory noise sources are Ornstein-Uhlenbeck processes:
     #   x_{n+1} = α·x_n + √(1−α²)·σ·w_n,   α = exp(−dt/τ)
@@ -719,6 +775,20 @@ def simulate(
     # Accumulator diffusion noise: pre-scaled so that after ODE multiply-by-dt gives
     # N(0, sigma_acc·√dt) per step — standard Euler-Maruyama / Langevin scaling.
     noise_acc   = jax.random.normal(k_acc_n, (T,))   * (params.brain.sigma_acc / jnp.sqrt(dt))
+
+    # ── Spontaneous blink schedule (central blink command → eyelid) ───────────
+    # A stochastic 0→1→0 pulse train (like noise, pre-generated so the ODE stays
+    # pure). Seeded from the PRNG key; inter-blink interval jitters ±40% around
+    # 60/rate. eyelid_blink_rate = 0 → no spontaneous blinks.
+    _blink_seed = int(jax.random.randint(k_blink, (), 0, 2 ** 31 - 1))
+    _blink_rate = float(params.brain.eyelid_blink_rate)
+    if _blink_rate > 0.0:
+        _mean = 60.0 / _blink_rate
+        blink_drive = jnp.asarray(eyelid_gen.blink_train(
+            np.asarray(t_array), seed=_blink_seed,
+            blink_min_s=_mean * 0.6, blink_max_s=_mean * 1.4), dtype=jnp.float32)
+    else:
+        blink_drive = jnp.zeros(T, dtype=jnp.float32)
 
     # ── Warmup prepend ────────────────────────────────────────────────────────
     warmup_s = cfg.warmup_s
@@ -758,6 +828,7 @@ def simulate(
         noise_pos   = jnp.concatenate([_z3, noise_pos],   axis=0)
         noise_vel   = jnp.concatenate([_z3, noise_vel],   axis=0)
         noise_acc   = jnp.concatenate([jnp.zeros(warmup_T), noise_acc])
+        blink_drive = jnp.concatenate([jnp.zeros(warmup_T), blink_drive])  # no blinks during warmup
     else:
         t_full   = t_array
         warmup_T = 0
@@ -787,6 +858,7 @@ def simulate(
     noise_pos_interp   = _interp(noise_pos)
     noise_vel_interp   = _interp(noise_vel)
     noise_acc_interp   = _interp(noise_acc)
+    blink_drive_interp = _interp(blink_drive)
 
     # ── Initial state ─────────────────────────────────────────────────────────
     sensory_x0 = sensory_model.State(
@@ -802,15 +874,20 @@ def simulate(
     # Per-eye resting (dark) pupil diameter — reduced by sympathetic loss (Horner).
     _bp       = params.brain
     _pupil_lo = _bp.pupil_min
-    _rest_L   = _pupil_lo + _bp.g_pupil_symp_L * (_bp.pupil_baseline - _pupil_lo)
-    _rest_R   = _pupil_lo + _bp.g_pupil_symp_R * (_bp.pupil_baseline - _pupil_lo)
+    _rest_L   = _pupil_lo + _bp.g_ocular_symp_L * (_bp.pupil_baseline - _pupil_lo)
+    _rest_R   = _pupil_lo + _bp.g_ocular_symp_R * (_bp.pupil_baseline - _pupil_lo)
+
+    # Per-eye resting lid closure — the eyelid command with no blink and centred
+    # gaze (so a ptosis lesion starts already drooped).
+    _lid0 = eyelid_ctrl.command(0.0, 0.0, 0.0, params.brain)
 
     x0 = SimState(
-        sensory     = sensory_x0,
-        brain       = brain_x0,
-        plant       = plant_x0,
-        acc_plant   = jnp.array([params.brain.tonic_acc]),   # start at dark focus (D)
-        pupil_plant = jnp.array([_rest_L, _rest_R]),         # per-eye dark resting diameter (mm)
+        sensory      = sensory_x0,
+        brain        = brain_x0,
+        plant        = plant_x0,
+        acc_plant    = jnp.array([params.brain.tonic_acc]),   # start at dark focus (D)
+        pupil_plant  = jnp.array([_rest_L, _rest_R]),         # per-eye dark resting diameter (mm)
+        eyelid_plant = _lid0,                                 # per-eye resting lid closure
     )
 
     # ── Solve ─────────────────────────────────────────────────────────────────
@@ -830,6 +907,7 @@ def simulate(
         noise_canal_interp, noise_slip_interp, noise_pos_interp,
         noise_vel_interp,
         noise_acc_interp,
+        blink_drive_interp,
     )
 
     solution = diffrax.diffeqsolve(

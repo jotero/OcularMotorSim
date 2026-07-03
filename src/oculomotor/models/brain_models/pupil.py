@@ -23,26 +23,28 @@ Each pupil's constriction subtracts from a per-eye resting (dark) diameter:
     light  = g_light_reflex · K_pupil_light · clip(Σ_eye g_afferent·lum, 0, 1)
     near   = K_pupil_near · accom
     rest_i = pupil_min + g_symp_i · (pupil_baseline − pupil_min)     (per eye)
-    diam_i = clip(rest_i − g_cn3_i · (light + near), pupil_min, pupil_max)
+    diam_i = clip(rest_i − cn3_i · (light + near), pupil_min, pupil_max)
 
-Per-eye lesion gains: g_pupil_cn3_{L,R} (efferent parasympathetic, ipsilateral
-CN III), g_pupil_afferent_{L,R} (afferent limb / optic nerve → RAPD), and
-g_pupil_symp_{L,R} (sympathetic dilator tone → Horner miosis when < 1).
-g_pupil_light_reflex is the bilateral pretectal relay (Argyll Robertson).
+Lesion gains: cn3_{L,R} = CN III nerve integrity (from g_nerve, NOT a separate
+knob — parasympathetics travel with the nerve); g_pupil_afferent_{L,R} (afferent
+limb / optic nerve → RAPD); g_ocular_symp_{L,R} (oculosympathetic tone → Horner
+miosis when < 1); g_pupil_light_reflex is the bilateral pretectal relay (Argyll
+Robertson).
 
-Lesions (all knobs in BrainParams; helpers in sim.simulator):
-    * CN III efferent (blown pupil), per eye: g_pupil_cn3_{L,R} → 0 gates that
-      pupil's efferent path, abolishing BOTH its light and near constriction →
-      an ipsilateral fixed dilated pupil (anisocoria). Shares the CN III lesion
-      with the eye muscles via ``with_cn3_palsy(side=...)`` (down-and-out eye +
-      blown pupil on that side); an isolated 0 is a tonic (Adie) pupil.
+Lesions (helpers in sim.simulator):
+    * CN III efferent (blown pupil), per eye: a CN III nerve palsy zeroes that
+      side's cn3 integrity → abolishes BOTH its light and near constriction →
+      an ipsilateral fixed dilated pupil (anisocoria). The parasympathetics travel
+      with CN III, so this follows the SHARED oculomotor nerve gains (g_nerve) —
+      there is NO separate pupil-nerve knob. Any CN III nerve palsy (however set,
+      e.g. with_cn3_palsy) blows that side's pupil automatically.
     * Afferent defect (RAPD / Marcus Gunn), per eye: g_pupil_afferent_{L,R} < 1
       weakens that eye's contribution to the CONSENSUAL light drive. No
       anisocoria at rest — revealed by the swinging-flashlight test.
     * Pretectal (Argyll Robertson / Parinaud): g_pupil_light_reflex = 0 removes
       the LIGHT reflex centrally (both pupils) while sparing near — light-near
       dissociation.
-    * Sympathetic (Horner miosis), per eye: g_pupil_symp_{L,R} < 1 lowers that
+    * Sympathetic (Horner miosis), per eye: g_ocular_symp_{L,R} < 1 lowers that
       pupil's resting (dark) diameter via ``with_horner(side=...)`` — small
       ipsilateral pupil, reactions preserved.
 
@@ -58,6 +60,8 @@ References:
 
 import jax.numpy as jnp
 
+from oculomotor.models.plant_models.muscle_geometry import cn3_nerve_integrity
+
 N_STATES  = 0   # stateless — the dynamics live in the iris plants (pupil_plant.py)
 N_OUTPUTS = 2   # commanded pupil diameter (mm), per eye [L, R]
 
@@ -70,15 +74,19 @@ def command(lum_afferent, accom_level, brain_params):
                               from sensory_out.luminance (PLR-latency low-passed)
         accom_level:  scalar  accommodation level (D) — acts.va.acc_fast + acc_slow
         brain_params: BrainParams (reads pupil_baseline, K_pupil_light,
-                                   K_pupil_near, pupil_min, pupil_max, and the
-                                   per-eye lesion gains g_pupil_cn3_{L,R} /
-                                   g_pupil_afferent_{L,R} / g_pupil_symp_{L,R}
-                                   plus the bilateral g_pupil_light_reflex)
+                                   K_pupil_near, pupil_min, pupil_max, g_nerve
+                                   (CN III efferent), g_pupil_afferent_{L,R},
+                                   g_ocular_symp_{L,R}, g_pupil_light_reflex)
 
     Returns:
         u_pupil: (2,)  commanded pupil diameter (mm) [L, R] → iris plant low-pass
     """
     bp = brain_params
+
+    # Efferent parasympathetic (pupilloconstrictor) integrity per eye — travels
+    # with CN III, so it follows the SHARED oculomotor nerve gains (no separate
+    # pupil-nerve knob). A CN III palsy → that side's pupil is blown → anisocoria.
+    cn3_L, cn3_R = cn3_nerve_integrity(bp.g_nerve)
 
     # ── Consensual light drive (shared by both pupils) ────────────────────────
     # Bilateral pretectum sums the two eyes' afferents (each scaled by its
@@ -95,10 +103,10 @@ def command(lum_afferent, accom_level, brain_params):
 
     # ── Per-eye output: resting (sympathetic) size − ipsilateral parasympathetic
     # (CN III) constriction of the shared light + near drive ──────────────────
-    def _eye(g_cn3, g_symp):
+    def _eye(cn3, g_symp):
         rest = bp.pupil_min + g_symp * (bp.pupil_baseline - bp.pupil_min)
-        diam = rest - g_cn3 * (light + near)
+        diam = rest - cn3 * (light + near)
         return jnp.clip(diam, bp.pupil_min, bp.pupil_max)
 
-    return jnp.array([_eye(bp.g_pupil_cn3_L, bp.g_pupil_symp_L),
-                      _eye(bp.g_pupil_cn3_R, bp.g_pupil_symp_R)])
+    return jnp.array([_eye(cn3_L, bp.g_ocular_symp_L),
+                      _eye(cn3_R, bp.g_ocular_symp_R)])

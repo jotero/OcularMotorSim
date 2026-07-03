@@ -657,30 +657,41 @@ class BrainParams(NamedTuple):
                                           # myope needs less (natural far point = 1/|RE| m for myopia).
 
     # Pupil — light reflex + near-response constriction (pupil.py → pupil_plant.py).
-    # Commanded diameter = pupil_baseline − K_pupil_light·lum − K_pupil_near·accom,
-    # clipped to [pupil_min, pupil_max], then low-passed by the iris plant (tau_pupil).
+    # Per-eye commanded diameter = rest − cn3·(consensual light + near), where cn3
+    # is the CN III nerve integrity (from g_nerve), clipped to [pupil_min, pupil_max],
+    # then low-passed by the rate-asymmetric iris plant (fast constrict, slow dilate).
     pupil_baseline:        float = 7.5    # dark (fully dilated) pupil diameter (mm); dilator/sympathetic tone folded in
     K_pupil_light:         float = 4.5    # light-reflex constriction gain (mm per unit afferent luminance);
                                           #   full-field light (lum≈1) → ~4.5 mm miosis: 7.5 → ~3 mm
     K_pupil_near:          float = 0.4    # near-response constriction gain (mm per D of accommodation) [Myers & Stark 1990]
     pupil_min:             float = 2.0    # minimum physiological pupil diameter (mm)
     pupil_max:             float = 8.0    # maximum physiological pupil diameter (mm)
-    tau_pupil:             float = 0.4    # iris sphincter/dilator plant TC (s); PLR settling ~0.3–0.8 s [Loewenfeld 1993]
-    # Pupil lesion knobs (all [0,1], 1 = intact). PER EYE where the lesion is
-    # lateralised. See pupil.py + with_cn3_palsy / with_horner.
-    g_pupil_cn3_L:         float = 1.0    # LEFT efferent parasympathetic integrity (sphincter via CN III → ciliary
-                                          #   ganglion). 0 = ipsilateral blown pupil; gates BOTH light + near of the
-                                          #   left pupil. Shared with the left CN III eye-muscle palsy (with_cn3_palsy);
-                                          #   isolated 0 = left tonic (Adie) pupil / ciliary-ganglion lesion.
-    g_pupil_cn3_R:         float = 1.0    # RIGHT efferent parasympathetic integrity (symmetric to g_pupil_cn3_L).
+    tau_pupil_constrict:   float = 0.3    # fast iris-sphincter constriction TC (s); pupil shrinking [Ellis 1981]
+    tau_pupil_dilate:      float = 1.0    # slow dilation TC (s); dilator + viscoelastic recoil — pupil enlarging
+                                          #   → the hallmark fast-constriction / slow-redilation asymmetry
+    # Pupil lesion knobs (all [0,1], 1 = intact). The efferent PARASYMPATHETIC
+    # (pupilloconstrictor) is NOT a separate knob — it travels with CN III and
+    # follows the shared g_nerve gains (see pupil.py / cn3_nerve_integrity), so any
+    # CN III palsy blows that pupil automatically. These are the non-CN-III knobs:
     g_pupil_afferent_L:    float = 1.0    # LEFT afferent-limb integrity (retina / optic nerve); <1 = left RAPD. Scales
                                           #   the left eye's contribution to the CONSENSUAL light drive (no anisocoria).
     g_pupil_afferent_R:    float = 1.0    # RIGHT afferent-limb integrity (symmetric to g_pupil_afferent_L).
-    g_pupil_symp_L:        float = 1.0    # LEFT sympathetic dilator tone; <1 = ipsilateral Horner miosis (smaller
-                                          #   resting/dark left pupil). rest_L = pupil_min + g·(pupil_baseline − pupil_min).
-    g_pupil_symp_R:        float = 1.0    # RIGHT sympathetic dilator tone (symmetric to g_pupil_symp_L).
+    g_ocular_symp_L:        float = 1.0    # LEFT oculosympathetic tone (iris dilator + Müller's muscle); <1 = ipsilateral
+                                          #   Horner (miosis + mild ptosis). rest = pupil_min + g·(pupil_baseline − pupil_min).
+    g_ocular_symp_R:        float = 1.0    # RIGHT oculosympathetic tone (symmetric to g_ocular_symp_L).
     g_pupil_light_reflex:  float = 1.0    # bilateral pretectal / central light-reflex integrity; 0 = light-near
                                           #   dissociation (Argyll Robertson / Parinaud) — light reflex lost, near preserved.
+
+    # Eyelid (eyelid.py → eyelid_plant.py). Closure per eye in [0,1] (0 = open,
+    # 1 = closed) = posture (levator + Müller) − orbicularis blink + downgaze
+    # lid-follow. The levator has NO dedicated knobs — both its stages follow the
+    # shared CN III gains: the central caudal nucleus stage from g_nucleus (CN III
+    # subnuclei, projects to BOTH lids) and the peripheral nerve stage from g_nerve.
+    # The orbicularis follows the CN VII gain g_cn7; Müller ptosis reuses g_ocular_symp.
+    eyelid_levator_contra_frac: float = 0.3  # fraction of each levator's nuclear (CCN) drive from the CONTRA side
+                                          #   (0.3 → 70/30 ipsi/contra: a nuclear lesion → asymmetric, ipsi-dominant
+                                          #   bilateral ptosis; 0.5 = fully symmetric).
+    eyelid_blink_rate:     float = 15.0   # spontaneous blink rate (blinks/min); 0 = no spontaneous blinks
 
     # Motor nucleus and nerve gains — two-stage encode (see muscle_geometry.py)
     # Stage 1 — g_nucleus (12,): per-nucleus gain [0,1]. Zero = nucleus lesion.
@@ -697,6 +708,11 @@ class BrainParams(NamedTuple):
     # Healthy default: all ones → transparent round-trip through plant.
     g_nucleus:             jnp.ndarray  = G_NUCLEUS_DEFAULT  # (12,) motor nucleus gains (one per side)
     g_nerve:               jnp.ndarray  = G_NERVE_DEFAULT    # (12,) per-nerve ceiling fraction: clips nerve at g_nerve×_NERVE_MAX
+    # Facial nerve (CN VII) integrity — drives orbicularis oculi (lid closure / blink).
+    # Not an extraocular muscle, so it lives here rather than in g_nerve. 0 = Bell's
+    # palsy on that side (lagophthalmos: can't blink/close). See eyelid.py / with_facial_palsy.
+    g_cn7_L:               float        = 1.0   # LEFT  facial nerve (orbicularis oculi)
+    g_cn7_R:               float        = 1.0   # RIGHT facial nerve (orbicularis oculi)
     # Per-nucleus tonic baseline firing rate (deg/s equiv).  Symmetric default
     # (50 across all 12) gives zero plant effect (uniform → zero-sum decode).
     # Asymmetric values produce tonic strabismus without lesioning gains:

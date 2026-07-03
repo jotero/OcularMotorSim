@@ -92,8 +92,9 @@ tr:last-child { border-bottom: none; }
     <a href="#brainparams-vergence" style="padding-left:32px;font-size:11px;color:#aaa">Vergence <span style="color:#666">(12)</span></a>
     <a href="#brainparams-tvor" style="padding-left:32px;font-size:11px;color:#aaa">Tvor <span style="color:#666">(6)</span></a>
     <a href="#brainparams-accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Accommodation <span style="color:#666">(9)</span></a>
-    <a href="#brainparams-pupil" style="padding-left:32px;font-size:11px;color:#aaa">Pupil <span style="color:#666">(9)</span></a>
-    <a href="#brainparams-final_common_pathway" style="padding-left:32px;font-size:11px;color:#aaa">Final Common Pathway <span style="color:#666">(8)</span></a>
+    <a href="#brainparams-pupil" style="padding-left:32px;font-size:11px;color:#aaa">Pupil <span style="color:#666">(12)</span></a>
+    <a href="#brainparams-eyelid" style="padding-left:32px;font-size:11px;color:#aaa">Eyelid <span style="color:#666">(2)</span></a>
+    <a href="#brainparams-final_common_pathway" style="padding-left:32px;font-size:11px;color:#aaa">Final Common Pathway <span style="color:#666">(10)</span></a>
     <a href="#brainparams-cerebellum" style="padding-left:32px;font-size:11px;color:#aaa">Cerebellum <span style="color:#666">(4)</span></a>
     <div style="height:8px"></div>
     <a href="#sensoryparams">SensoryParams</a>
@@ -118,8 +119,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-07-02 14:47</strong> &nbsp;|&nbsp;
-      Version: <strong>4a852bf-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-03 13:01</strong> &nbsp;|&nbsp;
+      Version: <strong>880daa5-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\src\oculomotor\schema\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -127,7 +128,7 @@ tr:last-child { border-bottom: none; }
     <div class="warning"><b>27 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
     
   <section class="section" id="brainparams">
-    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(135 fields)</small></h2>
+    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(142 fields)</small></h2>
     <p class="desc">Central neural model parameters — VS, NI, SG, gravity, vergence, accommodation, T-VOR, OCR, CN/MLF gains. Read by every brain submodule's <code>step()</code>.</p>
     
     <div class="subsection" id="brainparams-self_motion_estimation">
@@ -1431,7 +1432,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="brainparams-pupil">
-      <h3>Pupil <small style="font-size:11px;font-weight:400;color:#888">(9 fields)</small></h3>
+      <h3>Pupil <small style="font-size:11px;font-weight:400;color:#888">(12 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -1444,13 +1445,13 @@ tr:last-child { border-bottom: none; }
         </tr></thead>
         <tbody>
         <tr>
-          <td class="param-name">pupil_baseline<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td class="param-name">pupil_baseline</td>
           <td><span class="default">7.5</span></td>
           <td class="units">mm</td>
           <td class="range-cell"></td>
-          <td class="desc-cell"><p>Dark, fully-dilated pupil diameter. Light- and near-reflex constriction subtract from this baseline. Lowering it models Horner's syndrome (loss of sympathetic dilator tone → resting miosis; see with_horner).</p><div class="refs">Loewenfeld (1993)</div></td>
-          <td class="anatomy-cell">Iris — resting (dark) aperture; sympathetic dilator tone</td>
-          <td><span class="tag tag-other">Horner (−2.5 mm): 5.0</span></td>
+          <td class="desc-cell"><p>Dark, fully-dilated pupil diameter (both eyes). Per-eye resting size = pupil_min + g_ocular_symp·(pupil_baseline − pupil_min); light- and near-reflex constriction subtract from that. Horner miosis is modelled per eye via g_ocular_symp_{L,R} (see with_horner), not by lowering this baseline.</p><div class="refs">Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Iris — resting (dark) aperture (full sympathetic dilator tone)</td>
+          <td></td>
         </tr>
 
         <tr>
@@ -1494,33 +1495,63 @@ tr:last-child { border-bottom: none; }
         </tr>
 
         <tr>
-          <td class="param-name">tau_pupil</td>
-          <td><span class="default">0.4</span></td>
+          <td class="param-name">tau_pupil_constrict</td>
+          <td><span class="default">0.3</span></td>
           <td class="units">s</td>
           <td class="range-cell"></td>
-          <td class="desc-cell"><p>Iris plant TC — first-order low-pass from commanded to actual pupil diameter. PLR settling ~0.3–0.8 s.</p><div class="refs">Loewenfeld (1993)</div></td>
-          <td class="anatomy-cell">Iris sphincter / dilator muscle mechanics</td>
+          <td class="desc-cell"><p>Fast iris time constant used while the pupil is CONSTRICTING (commanded diameter < current). The sphincter contracts quickly (~0.2–0.4 s).</p><div class="refs">Ellis (1981) · Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Iris sphincter (parasympathetic) — active constriction</td>
           <td></td>
         </tr>
 
         <tr>
-          <td class="param-name">g_pupil_cn3<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td class="param-name">tau_pupil_dilate</td>
           <td><span class="default">1</span></td>
-          <td class="units">—</td>
-          <td class="range-cell">[0, 1]</td>
-          <td class="desc-cell"><p>Efferent parasympathetic sphincter integrity. Gates BOTH light and near constriction (common final path). 0 = internal ophthalmoplegia / fixed dilated ('blown') pupil. Shared with the CN III eye-muscle palsy via with_cn3_palsy; an isolated 0 is a tonic (Adie) pupil / ciliary-ganglion lesion.</p><div class="refs">Loewenfeld (1993)</div></td>
-          <td class="anatomy-cell">Parasympathetic efferent — CN III → ciliary ganglion → sphincter</td>
-          <td><span class="tag tag-cn">CN III palsy / blown pupil: 0.0</span></td>
+          <td class="units">s</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Slow iris time constant used while the pupil is DILATING (commanded diameter ≥ current). Re-dilation is slower (~0.5–1.5 s) — the weaker dilator plus passive recoil of the relaxing sphincter. Gives the hallmark fast- constriction / slow-redilation asymmetry.</p><div class="refs">Ellis (1981)</div></td>
+          <td class="anatomy-cell">Iris dilator (sympathetic) + viscoelastic recoil</td>
+          <td></td>
         </tr>
 
         <tr>
-          <td class="param-name">g_pupil_afferent<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td class="param-name">g_pupil_afferent_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
           <td><span class="default">1</span></td>
           <td class="units">—</td>
           <td class="range-cell">[0, 1]</td>
-          <td class="desc-cell"><p>Afferent light-reflex integrity. Scales the LIGHT drive only (near response preserved). <1 = relative afferent pupillary defect (RAPD / Marcus Gunn).</p></td>
-          <td class="anatomy-cell">Afferent limb — retina / optic nerve</td>
-          <td><span class="tag tag-other">RAPD (severe): 0.3</span></td>
+          <td class="desc-cell"><p>Left eye's afferent light-reflex integrity. Scales the left eye's contribution to the CONSENSUAL light drive; <1 = left RAPD (revealed by the swinging- flashlight test, no anisocoria at rest).</p></td>
+          <td class="anatomy-cell">LEFT afferent limb — retina / optic nerve</td>
+          <td><span class="tag tag-other">Left RAPD (severe): 0.3</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_pupil_afferent_R</td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right eye's afferent light-reflex integrity (symmetric to g_pupil_afferent_L).</p></td>
+          <td class="anatomy-cell">RIGHT afferent limb — retina / optic nerve</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_ocular_symp_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left oculosympathetic tone. <1 lowers the left pupil's resting (dark) diameter → ipsilateral Horner miosis, AND (via Müller's muscle in the eyelid model) a mild ipsilateral ptosis. Reactions preserved. See with_horner.</p></td>
+          <td class="anatomy-cell">LEFT oculosympathetic tone (iris dilator + Müller's muscle)</td>
+          <td><span class="tag tag-other">Left Horner: 0.42</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_ocular_symp_R</td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right oculosympathetic tone (symmetric to g_ocular_symp_L) — Horner miosis + mild ptosis.</p></td>
+          <td class="anatomy-cell">RIGHT oculosympathetic tone (iris dilator + Müller's muscle)</td>
+          <td></td>
         </tr>
 
         <tr>
@@ -1536,8 +1567,44 @@ tr:last-child { border-bottom: none; }
       </table>
     </div>
 
+    <div class="subsection" id="brainparams-eyelid">
+      <h3>Eyelid <small style="font-size:11px;font-weight:400;color:#888">(2 fields)</small></h3>
+      <table class="param-table">
+        <thead><tr>
+          <th style="width:160px">Parameter</th>
+          <th style="width:90px">Default</th>
+          <th style="width:60px">Units</th>
+          <th style="width:110px">Valid range</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:200px">Disorders / notable values</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="param-name">eyelid_levator_contra_frac</td>
+          <td><span class="default">0.3</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 0.5]</td>
+          <td class="desc-cell"><p>Fraction of each levator's central (central caudal nucleus) drive coming from the CONTRALATERAL side. The CCN projects to BOTH lids; 0.3 → 70/30 ipsi/contra, so a one-sided CN III nuclear lesion gives asymmetric (ipsi-dominant) bilateral partial ptosis. 0.5 = perfectly symmetric bilateral ptosis. The nuclear and nerve levator drives themselves follow the shared g_nucleus / g_nerve gains.</p></td>
+          <td class="anatomy-cell">Central caudal nucleus → levator ipsi/contra projection split</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">eyelid_blink_rate<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">15</span></td>
+          <td class="units">blinks/min</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Spontaneous blink rate. Inter-blink interval jitters ±40% around 60/rate; 0 = no spontaneous blinks (e.g. to isolate the lid-follow). Fixed blink duration (~150 ms) and lid time constants are module constants.</p></td>
+          <td class="anatomy-cell">Spontaneous blink generator (brainstem)</td>
+          <td><span class="tag tag-other">No spontaneous blinks: 0.0</span></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="subsection" id="brainparams-final_common_pathway">
-      <h3>Final Common Pathway <small style="font-size:11px;font-weight:400;color:#888">(8 fields)</small></h3>
+      <h3>Final Common Pathway <small style="font-size:11px;font-weight:400;color:#888">(10 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -1567,6 +1634,26 @@ tr:last-child { border-bottom: none; }
           <td class="desc-cell"><p>Per-nerve max firing rate as a fraction of NERVE_MAX (250 deg/s). Models conduction block / demyelination of the cranial nerve axon — frequency-selective (burst clipped, tonic preserved).  At g=0 the axon transmits nothing → muscle paralysis.  At g=1 the axon is transparent (cap above normal firing range). 12 elements (left then right): [LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,  LR_R, MR_R, SR_R, IR_R, SO_R, IO_R].</p></td>
           <td class="anatomy-cell">12 cranial nerve axon ceiling (axonal conduction block)</td>
           <td><span class="tag tag-cn">CN VI palsy (R): [1,1,1,1,1,1, 0,1,1,1,1,1]</span> <span class="tag tag-cn">CN III palsy (R): [1,1,1,1,1,1, 1,0,0,0,1,0]</span> <span class="tag tag-cn">CN IV palsy (R, SO): [1,1,1,1,1,1, 1,1,1,1,0,1]</span> <span class="tag tag-cn">Recovering CN VI (R): [1,1,1,1,1,1, 0.4,1,1,1,1,1]</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_cn7_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left facial-nerve integrity driving the orbicularis oculi (lid closure / blink). Not an extraocular muscle, so it is a separate cranial-nerve gain (not in g_nerve). 0 = left Bell's palsy — lagophthalmos (can't blink/close). See eyelid.py / with_facial_palsy.</p></td>
+          <td class="anatomy-cell">LEFT facial nerve (CN VII) → orbicularis oculi</td>
+          <td><span class="tag tag-cn">Left facial palsy (lagophthalmos): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_cn7_R<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right facial-nerve integrity (symmetric to g_cn7_L).</p></td>
+          <td class="anatomy-cell">RIGHT facial nerve (CN VII) → orbicularis oculi</td>
+          <td><span class="tag tag-cn">Right facial palsy (lagophthalmos): 0.0</span></td>
         </tr>
 
         <tr>
@@ -2023,7 +2110,7 @@ tr:last-child { border-bottom: none; }
           <td><span class="default">0.3</span></td>
           <td class="units">s</td>
           <td class="range-cell"></td>
-          <td class="desc-cell"><p>Luminance afferent low-pass TC — the afferent limb of the pupillary light reflex (retinal light adaptation + pretectal transport). Sets the PLR latency (~0.3 s); the slower iris lag lives in brain.tau_pupil.</p><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
+          <td class="desc-cell"><p>Luminance afferent low-pass TC — the afferent limb of the pupillary light reflex (retinal light adaptation + pretectal transport). Sets the PLR latency (~0.3 s); the (rate-asymmetric) iris lag lives in brain.tau_pupil_constrict / brain.tau_pupil_dilate.</p><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
           <td class="anatomy-cell">Retina photoreceptor + pretectal olivary nucleus afferent</td>
           <td></td>
         </tr>

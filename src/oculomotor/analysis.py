@@ -22,6 +22,9 @@ pupil_size(states)
 luminance(states)
     Per-eye afferent retinal luminance, shape (T, 2) = [left, right], ~[0, 1].
 
+eyelid(states)
+    Per-eye upper-lid closure, shape (T, 2) = [left, right], in [0, 1].
+
 extract_canal(states)
     Canal head-velocity estimate (yaw) from SimState trajectory.
 
@@ -152,6 +155,16 @@ def luminance(states):
     luminance sensory afferent), NOT the physical scene/target presence.
     """
     return np.array(states.sensory.lum.x_lum)
+
+
+def eyelid(states):
+    """Per-eye upper-lid closure, shape (T, 2) = [left, right], in [0, 1].
+
+    0 = eye fully open, 1 = fully closed. Iris/lid plant output combining resting
+    posture (levator + Müller), blinks (orbicularis), and downgaze lid-follow;
+    ptosis / lagophthalmos lesions show here per eye.
+    """
+    return np.array(states.eyelid_plant)
 
 
 # ── Canal ──────────────────────────────────────────────────────────────────────

@@ -100,21 +100,22 @@ h1   { font-size: 22px; margin-bottom: 4px; }
     <a href="#fixation">6. Fixation</a>
     <a href="#listing">7. Listing's Law</a>
     <a href="#fcp">8. Final Common Pathway</a>
-    <a href="#pupil">Pupil — light reflex + near response</a>
+    <a href="#pupil">9. Pupil</a>
+    <a href="#eyelid">10. Eyelid</a>
     <a href="#bibliography">References</a>
   </nav>
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-07-02 14:47</strong> &nbsp;|&nbsp;
-      Version: <strong>4a852bf-dirty.f30f924</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-03 13:01</strong> &nbsp;|&nbsp;
+      Version: <strong>880daa5-dirty.7f6c369</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
     <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span> 5 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 13 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span> 4 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 58</p>
-    <div class="warn-banner">&#9888; <b>8 of 9</b> sections were run on an older version (current build <b>4a852bf-dirty.f30f924</b>). Versions present: 3a161a2-dirty.47c5fda, 3a161a2-dirty.56e1704, 3a161a2-dirty.5724eed, 3a161a2-dirty.af17cea, 3a161a2-dirty.dc5301c, 3a161a2-dirty.ffcc216, 4a852bf-dirty.f30f924, fbff34f-dirty.dc96548. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law, 8. Final Common Pathway.</div>
+    <div class="warn-banner">&#9888; <b>8 of 10</b> sections were run on an older version (current build <b>880daa5-dirty.7f6c369</b>). Versions present: 3a161a2-dirty.47c5fda, 3a161a2-dirty.56e1704, 3a161a2-dirty.5724eed, 3a161a2-dirty.af17cea, 3a161a2-dirty.dc5301c, 3a161a2-dirty.ffcc216, 880daa5-dirty.7f6c369, fbff34f-dirty.dc96548. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law, 8. Final Common Pathway.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 193.6s · 3a161a2-dirty.af17cea · 2026-06-30 20:50</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>1. Saccades <span class="rt">· 193.6s · 3a161a2-dirty.af17cea · 2026-06-30 20:50</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
@@ -261,7 +262,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 1352.2s · 3a161a2-dirty.47c5fda · 2026-06-30 21:31</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 1352.2s · 3a161a2-dirty.47c5fda · 2026-06-30 21:31</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -413,7 +414,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 993.9s · fbff34f-dirty.dc96548 · 2026-06-26 10:51</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 993.9s · fbff34f-dirty.dc96548 · 2026-06-26 10:51</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path — gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -692,7 +693,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 290.0s · 3a161a2-dirty.5724eed · 2026-06-30 21:08</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 290.0s · 3a161a2-dirty.5724eed · 2026-06-30 21:08</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -781,7 +782,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 527.6s · 3a161a2-dirty.dc5301c · 2026-06-30 20:59</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 527.6s · 3a161a2-dirty.dc5301c · 2026-06-30 20:59</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -1073,7 +1074,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 101.6s · 3a161a2-dirty.56e1704 · 2026-06-30 21:03</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>6. Fixation <span class="rt">· 101.6s · 3a161a2-dirty.56e1704 · 2026-06-30 21:03</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1119,7 +1120,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 103.0s · fbff34f-dirty.dc96548 · 2026-06-26 11:06</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 103.0s · fbff34f-dirty.dc96548 · 2026-06-26 11:06</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
@@ -1203,7 +1204,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fcp">
-    <h2>8. Final Common Pathway <span class="rt">· 37.4s · 3a161a2-dirty.ffcc216 · 2026-06-30 21:01</span> <span class="stale">&#9888; out of date — code now 4a852bf-dirty.f30f924</span></h2>
+    <h2>8. Final Common Pathway <span class="rt">· 37.4s · 3a161a2-dirty.ffcc216 · 2026-06-30 21:01</span> <span class="stale">&#9888; out of date — code now 880daa5-dirty.7f6c369</span></h2>
     <p>Motoneuron + cranial-nerve output stage. Traces the full command cascade — Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves — over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command ↔ per-muscle recruitment mapping.</p>
     <div class="fig-grid">
       
@@ -1257,19 +1258,19 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pupil">
-    <h2>Pupil — light reflex + near response <span class="rt">· 162.7s · 4a852bf-dirty.f30f924 · 2026-07-02 14:47</span></h2>
-    <p>Pupillary light reflex (afferent luminance → Edinger-Westphal → iris sphincter) and the near-triad pupil constriction (accommodation-linked). Pupil diameter (mm) is a first-order iris plant (tau_pupil ≈ 0.4 s) driven by a dark baseline minus light- and near-reflex constriction. Lesion panel exercises the CN III (blown pupil), afferent (RAPD), pretectal (light-near dissociation), and sympathetic (Horner) pathways.</p>
+    <h2>9. Pupil <span class="rt">· 147.4s · 880daa5-dirty.7f6c369 · 2026-07-03 13:00</span></h2>
+    <p>Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance → pretectum → both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). Lesions: CN III (blown pupil, per eye → anisocoria; shared with the eye-muscle palsy), afferent (RAPD), pretectal (light-near dissociation), and sympathetic (Horner).</p>
     <div class="fig-grid">
       
     <div class="fig-card">
       <div class="fig-main">
-        <h3>Pupillary light reflex</h3>
+        <h3>Pupillary light reflex (constriction/dilation asymmetry)</h3>
         
-        <a href="figures/pupil_light_reflex.png" target="_blank"><img src="figures/pupil_light_reflex.png" alt="Pupillary light reflex"></a>
+        <a href="figures/pupil_light_reflex.png" target="_blank"><img src="figures/pupil_light_reflex.png" alt="Pupillary light reflex (constriction/dilation asymmetry)"></a>
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Scene steps dark→light→dark. Pupil constricts on light onset and re-dilates in the dark; afferent luminance (right axis) drives it. Miosis to light (constriction ~3–4 mm) with τ ≈ tau_pupil (~0.4 s); mydriasis back to baseline in the dark.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-40" title="Loewenfeld (1993)">40</a>, <a class="cref" href="#ref-41" title="McDougal & Gamlin (2015)">41</a>]</span></p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Scene steps dark→light→dark. The pupil constricts quickly on light onset (sphincter) and re-dilates slowly in the dark. Fast miosis to light (τ ≈ tau_pupil_constrict ~0.3 s); slow mydriasis (τ ≈ tau_pupil_dilate ~1 s) — visibly asymmetric.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-40" title="Loewenfeld (1993)">40</a>, <a class="cref" href="#ref-41" title="Ellis (1981)">41</a>]</span></p></div>
       </div>
     </div>
 
@@ -1281,19 +1282,62 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Target steps far→near. Accommodation rises (right axis) and the pupil constricts with it — the near-triad pupil miosis. Pupil constricts ~1 mm as accommodation rises to ~3 D; both track the near step with the accommodation/iris plant TCs.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-42" title="Myers & Stark (1990)">42</a>]</span></p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Target far→near. Accommodation rises (right axis) and the pupil constricts with it — the near-triad pupil miosis. Pupil constricts ~1 mm as accommodation rises to ~3 D.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-42" title="Myers & Stark (1990)">42</a>]</span></p></div>
       </div>
     </div>
 
     <div class="fig-card">
       <div class="fig-main">
-        <h3>Pupil lesions</h3>
+        <h3>Anisocoria — left CN III palsy</h3>
         
-        <a href="figures/pupil_lesions.png" target="_blank"><img src="figures/pupil_lesions.png" alt="Pupil lesions"></a>
+        <a href="figures/pupil_anisocoria_cn3.png" target="_blank"><img src="figures/pupil_anisocoria_cn3.png" alt="Anisocoria — left CN III palsy"></a>
       </div>
       <div class="fig-metrics">
         <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Light step across healthy, CN III palsy (blown pupil, shared with the oculomotor eye-muscle lesion), RAPD, Argyll Robertson (light-near dissociation), and Horner (sympathetic miosis). Healthy constricts to light; CN III blown pupil + Argyll Robertson stay dilated (no light reflex); RAPD constricts weakly; Horner sits at a small baseline but still reacts.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-40" title="Loewenfeld (1993)">40</a>, <a class="cref" href="#ref-41" title="McDougal & Gamlin (2015)">41</a>]</span></p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">A pupil-involving left oculomotor palsy: the left pupil is fixed and dilated (parasympathetic sphincter fibres travel with CN III) while the right pupil constricts normally to light — anisocoria. Left pupil stays ~7.5 mm (blown, unreactive); right pupil constricts to ~2.7 mm on light. Pupil-sparing palsy would keep both reactive.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-40" title="Loewenfeld (1993)">40</a>, <a class="cref" href="#ref-43" title="Kerr & Hollowell (1964)">43</a>]</span></p></div>
+      </div>
+    </div>
+
+    <div class="fig-card">
+      <div class="fig-main">
+        <h3>Pupil lesion survey</h3>
+        
+        <a href="figures/pupil_lesions.png" target="_blank"><img src="figures/pupil_lesions.png" alt="Pupil lesion survey"></a>
+      </div>
+      <div class="fig-metrics">
+        <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Left pupil across healthy, CN III palsy (blown), RAPD, Argyll Robertson (light-near dissociation), and Horner (sympathetic miosis). Healthy constricts; CN III blown + Argyll Robertson stay dilated (no light reflex); RAPD constricts weakly; Horner sits at a small baseline but reacts.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-40" title="Loewenfeld (1993)">40</a>, <a class="cref" href="#ref-44" title="McDougal & Gamlin (2015)">44</a>]</span></p></div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <section class="section" id="eyelid">
+    <h2>10. Eyelid <span class="rt">· 59.2s · 880daa5-dirty.7f6c369 · 2026-07-03 13:01</span></h2>
+    <p>Per-eye upper-lid plant: spontaneous blinks (conjugate, ~15/min) + an upper lid that follows vertical gaze (downgaze lowers the lid). Fast closing / slower opening (rate-asymmetric). Ptosis (CN III levator, nuclear vs nerve; Horner Müller) and lagophthalmos (CN VII orbicularis) lesions are wired but not shown here.</p>
+    <div class="fig-grid">
+      
+    <div class="fig-card">
+      <div class="fig-main">
+        <h3>Spontaneous blinks</h3>
+        
+        <a href="figures/eyelid_blinks.png" target="_blank"><img src="figures/eyelid_blinks.png" alt="Spontaneous blinks"></a>
+      </div>
+      <div class="fig-metrics">
+        <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Model eyelid output during steady fixation — the spontaneous blink train (conjugate): a smooth 0→1→0 pulse, rate ~15/min. ~12–20 blinks/min, each ~150 ms; conjugate across both eyes.</p></div>
+      </div>
+    </div>
+
+    <div class="fig-card">
+      <div class="fig-main">
+        <h3>Eyelid follows vertical eye movement</h3>
+        
+        <a href="figures/eyelid_vertical_follow.png" target="_blank"><img src="figures/eyelid_vertical_follow.png" alt="Eyelid follows vertical eye movement"></a>
+      </div>
+      <div class="fig-metrics">
+        <div class="novis">Visual check — no quantitative metric reduced from this figure yet.</div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">The eye makes graded downward movements (~15° then ~30°); the model upper-lid closure tracks downgaze depth (lid lowers as the eye looks further down). Blinks disabled here to isolate the gaze-follow. Closure ~0 at centre / upgaze, rising with downgaze depth (graded).</p></div>
       </div>
     </div>
     </div>
@@ -1344,8 +1388,10 @@ h1   { font-size: 22px; margin-bottom: 4px; }
       <div class="ref" id="ref-38"><span class="ref-n">38.</span><span class="ref-t">Listing JB (1854). Listing's law of ocular torsion (as reported by Ruete; later formalized by Helmholtz, Handbuch der physiologischen Optik, 1867).</span></div>
       <div class="ref" id="ref-39"><span class="ref-n">39.</span><span class="ref-t">Sparks (2002)</span></div>
       <div class="ref" id="ref-40"><span class="ref-n">40.</span><span class="ref-t">Loewenfeld (1993)</span></div>
-      <div class="ref" id="ref-41"><span class="ref-n">41.</span><span class="ref-t">McDougal & Gamlin (2015)</span></div>
+      <div class="ref" id="ref-41"><span class="ref-n">41.</span><span class="ref-t">Ellis (1981)</span></div>
       <div class="ref" id="ref-42"><span class="ref-n">42.</span><span class="ref-t">Myers & Stark (1990)</span></div>
+      <div class="ref" id="ref-43"><span class="ref-n">43.</span><span class="ref-t">Kerr & Hollowell (1964)</span></div>
+      <div class="ref" id="ref-44"><span class="ref-n">44.</span><span class="ref-t">McDougal & Gamlin (2015)</span></div>
     </div>
   </section>
   </main>

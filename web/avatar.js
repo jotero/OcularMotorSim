@@ -166,9 +166,12 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
     // First skinned/standard mesh that carries ARKit blendshapes = the face.
     if (obj.isMesh && obj.morphTargetDictionary && !faceMesh) faceMesh = obj;
     // Any mesh carrying the pupil dilation morph (may be the eye meshes, not the
-    // face) — collected so setPupil() can drive them all together.
+    // face) — collected so the two pupils can be driven independently (anisocoria).
+    // Tag each target with a side from its (or its parent's) name; unknown → both.
     if (obj.isMesh && obj.morphTargetDictionary && ('pupilDilate' in obj.morphTargetDictionary)) {
-      pupilTargets.push({ mesh: obj, idx: obj.morphTargetDictionary['pupilDilate'] });
+      const nm = ((obj.name || '') + ' ' + (obj.parent && obj.parent.name || '')).toLowerCase();
+      const side = nm.includes('left') ? 'L' : nm.includes('right') ? 'R' : null;
+      pupilTargets.push({ mesh: obj, idx: obj.morphTargetDictionary['pupilDilate'], side });
     }
   });
   console.log('Face morph targets:', faceMesh ? Object.keys(faceMesh.morphTargetDictionary).length : 0);
@@ -357,6 +360,15 @@ function updateBlink(ts) {
     _blink = 0;
     _nextBlinkTs = ts + 2000 + Math.random() * 3500;
   }
+  // Client-driven fallback: when NO run is loaded (idle), drive the lids locally
+  // so the avatar looks alive before any simulation. Once a run is loaded,
+  // blinking follows playback — applyFrame drives the lids (from the model when
+  // the trajectory carries eyelid data, else a local blink+downgaze), and pausing
+  // simply stops calling applyFrame, so the lids freeze (pause pauses blinking).
+  if (faceMesh && !_traj) {
+    setMorph('eyeBlinkLeft',  _blink);
+    setMorph('eyeBlinkRight', _blink);
+  }
 }
 
 // ── Bone application ──────────────────────────────────────────────────────────
@@ -511,24 +523,45 @@ function applyFrame(fi) {
     anchorPrisms();
   }
 
-  // Eyelids: spontaneous blink + upper lid follows vertical gaze (downgaze
-  // lowers the lid via eyeBlink; upgaze retracts it via eyeWide). L/R = [yaw,
-  // pitch, roll] deg; pitch > 0 = up.
+  // Eyelids: lid CLOSURE comes from the model (server) when present — this carries
+  // spontaneous blinks + downgaze lid-follow AND lesions (ptosis / lagophthalmos),
+  // so the two lids can differ. Falls back to a local blink + downgaze animation
+  // for older payloads. Upgaze retraction (eyeWide) stays local. L/R = [yaw, pitch,
+  // roll] deg; pitch > 0 = up.
   if (faceMesh) {
-    const downL = Math.max(0, -L[1]) / 70, upL = Math.max(0, L[1]) / 45;
-    const downR = Math.max(0, -R[1]) / 70, upR = Math.max(0, R[1]) / 45;
-    setMorph('eyeBlinkLeft',  Math.min(1, Math.max(_blink, downL * 0.4)));
-    setMorph('eyeBlinkRight', Math.min(1, Math.max(_blink, downR * 0.4)));
-    setMorph('eyeWideLeft',  Math.min(0.5, upL) * (1 - _blink));
-    setMorph('eyeWideRight', Math.min(0.5, upR) * (1 - _blink));
+    const upL = Math.max(0, L[1]) / 45, upR = Math.max(0, R[1]) / 45;
+    let closeL, closeR;
+    if (_traj.eyelid_L) {
+      closeL = _traj.eyelid_L[fi];
+      closeR = _traj.eyelid_R ? _traj.eyelid_R[fi] : closeL;
+    } else {
+      closeL = Math.max(_blink, Math.max(0, -L[1]) / 70 * 0.4);
+      closeR = Math.max(_blink, Math.max(0, -R[1]) / 70 * 0.4);
+    }
+    // "Hold lids open" override: ignore the (mostly-shut, e.g. ptosis) lid data so
+    // the eye/pupil is visible. Toggled from the UI button that appears only when
+    // the lids are detected as closed for most of the run.
+    if (_holdLidsOpen) { closeL = 0; closeR = 0; }
+    setMorph('eyeBlinkLeft',  Math.min(1, closeL));
+    setMorph('eyeBlinkRight', Math.min(1, closeR));
+    setMorph('eyeWideLeft',  Math.min(0.5, upL) * (1 - closeL));
+    setMorph('eyeWideRight', Math.min(0.5, upR) * (1 - closeR));
   }
 
-  // Pupil dilation: drive the 'pupilDilate' morph from the model's pupil diameter
-  // (mm). Consensual — both pupils use the same diameter. Clamp to the valid morph
-  // range; physiological 3–8 mm maps to d ≈ 0.0–0.57.
-  if (pupilTargets.length && _traj.pupil_diameter) {
-    const mm = _traj.pupil_diameter[fi];
-    if (mm != null) setPupil(Math.max(0, Math.min(1.6, (mm / 2 - 1.54) / 4.35)));
+  // Pupil dilation: drive each 'pupilDilate' morph from the model's PER-EYE pupil
+  // diameter (mm), so an efferent / iris lesion shows anisocoria. Left/right targets
+  // use their own diameter; an unsided (shared) morph uses the mean. Clamp to the
+  // valid morph range; physiological 3–8 mm maps to d ≈ 0.0–0.57.
+  if (pupilTargets.length && _traj.pupil_diameter_L) {
+    const mmL = _traj.pupil_diameter_L[fi];
+    const mmR = _traj.pupil_diameter_R ? _traj.pupil_diameter_R[fi] : mmL;
+    const dOf = (mm) => Math.max(0, Math.min(1.6, (mm / 2 - 1.54) / 4.35));
+    if (mmL != null) {
+      const dL = dOf(mmL), dR = dOf(mmR), dMean = 0.5 * (dL + dR);
+      for (const p of pupilTargets) {
+        p.mesh.morphTargetInfluences[p.idx] = p.side === 'L' ? dL : p.side === 'R' ? dR : dMean;
+      }
+    }
   }
 
   // Target sphere (world-fixed) — only when a foveal target is present.
@@ -595,6 +628,7 @@ let _frame     = 0;
 let _playing   = false;
 let _lastRafTs = null;
 let _headMoves = false;
+let _holdLidsOpen = false;   // UI override: force eyelids open (see ptosis eye)
 
 function updateTimeDisplay(fi) {
   if (!_traj) return;
@@ -629,6 +663,21 @@ window.loadEyeTrajectory = function(traj) {
   const wrap = document.querySelector('.avatar-wrap');
   if (wrap) wrap.classList.remove('single-view');
 
+  // "Hold lids open" button: only surface it when the lids are shut for most of
+  // the run (e.g. ptosis), so the eye/pupil would otherwise be hidden. Detected as
+  // a high mean closure on either eye. Reset the override for each new trajectory.
+  _holdLidsOpen = false;
+  const _meanClose = (arr) => (arr && arr.length)
+    ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+  const _lidsMostlyShut = Math.max(_meanClose(traj.eyelid_L), _meanClose(traj.eyelid_R)) > 0.2;
+  const _lidBtn = document.getElementById('lift-lids-btn');
+  if (_lidBtn) {
+    _lidBtn.style.display = _lidsMostlyShut ? '' : 'none';
+    _lidBtn.textContent = '👁 Lift lids';
+    _lidBtn.classList.remove('active');
+    _lidBtn.title = 'Hold eyelids open (ignore lid data to see the eye)';
+  }
+
   document.getElementById('scrubber').max         = traj.n_frames - 1;
   document.getElementById('scrubber').value       = 0;
   updateTimeDisplay(0);
@@ -636,6 +685,18 @@ window.loadEyeTrajectory = function(traj) {
   // Auto-play on load (example loaded or simulation finished).
   _frame = 0; _lastRafTs = null; _playing = true;
   document.getElementById('play-btn').textContent = '⏸';
+};
+
+// Toggle the "hold lids open" override (button appears only when lids are mostly
+// shut). When on, applyFrame forces the eyelids open regardless of the data.
+window._avatarToggleLids = function() {
+  _holdLidsOpen = !_holdLidsOpen;
+  const btn = document.getElementById('lift-lids-btn');
+  if (btn) {
+    btn.textContent = _holdLidsOpen ? '👁 Lids held open' : '👁 Lift lids';
+    btn.classList.toggle('active', _holdLidsOpen);
+  }
+  if (_traj) applyFrame(Math.min(Math.floor(_frame), _traj.n_frames - 1));  // reflect immediately if paused
 };
 
 window._avatarTogglePlay = function() {

@@ -1051,15 +1051,14 @@ brain.refractive_error:
 brain.pupil_baseline:
   group: pupil
   units: "mm"
-  anatomy: "Iris — resting (dark) aperture; sympathetic dilator tone"
+  anatomy: "Iris — resting (dark) aperture (full sympathetic dilator tone)"
   description: |
-    Dark, fully-dilated pupil diameter. Light- and near-reflex constriction
-    subtract from this baseline. Lowering it models Horner's syndrome (loss of
-    sympathetic dilator tone → resting miosis; see with_horner).
+    Dark, fully-dilated pupil diameter (both eyes). Per-eye resting size =
+    pupil_min + g_ocular_symp·(pupil_baseline − pupil_min); light- and near-reflex
+    constriction subtract from that. Horner miosis is modelled per eye via
+    g_ocular_symp_{L,R} (see with_horner), not by lowering this baseline.
   references:
     - "Loewenfeld (1993)"
-  disorders:
-    - {name: "Horner (−2.5 mm)", value: 5.0, tag: other}
 
 brain.K_pupil_light:
   group: pupil
@@ -1093,41 +1092,70 @@ brain.pupil_max:
   anatomy: "Iris — maximal dilation"
   description: "Maximum physiological pupil diameter (dilation clip)."
 
-brain.tau_pupil:
+brain.tau_pupil_constrict:
   group: pupil
   units: "s"
-  anatomy: "Iris sphincter / dilator muscle mechanics"
+  anatomy: "Iris sphincter (parasympathetic) — active constriction"
   description: |
-    Iris plant TC — first-order low-pass from commanded to actual pupil
-    diameter. PLR settling ~0.3–0.8 s.
+    Fast iris time constant used while the pupil is CONSTRICTING (commanded
+    diameter < current). The sphincter contracts quickly (~0.2–0.4 s).
   references:
+    - "Ellis (1981)"
     - "Loewenfeld (1993)"
 
-brain.g_pupil_cn3:
+brain.tau_pupil_dilate:
+  group: pupil
+  units: "s"
+  anatomy: "Iris dilator (sympathetic) + viscoelastic recoil"
+  description: |
+    Slow iris time constant used while the pupil is DILATING (commanded diameter
+    ≥ current). Re-dilation is slower (~0.5–1.5 s) — the weaker dilator plus
+    passive recoil of the relaxing sphincter. Gives the hallmark fast-
+    constriction / slow-redilation asymmetry.
+  references:
+    - "Ellis (1981)"
+
+# NOTE: the pupil's efferent parasympathetic is NOT a separate parameter — it
+# travels with CN III and follows the shared g_nerve gains (cn3_nerve_integrity),
+# so any CN III palsy blows that pupil automatically (see pupil.py).
+
+brain.g_pupil_afferent_L:
   range: [0, 1]
   group: pupil
   units: "—"
-  anatomy: "Parasympathetic efferent — CN III → ciliary ganglion → sphincter"
+  anatomy: "LEFT afferent limb — retina / optic nerve"
   description: |
-    Efferent parasympathetic sphincter integrity. Gates BOTH light and near
-    constriction (common final path). 0 = internal ophthalmoplegia / fixed
-    dilated ('blown') pupil. Shared with the CN III eye-muscle palsy via
-    with_cn3_palsy; an isolated 0 is a tonic (Adie) pupil / ciliary-ganglion lesion.
-  references:
-    - "Loewenfeld (1993)"
+    Left eye's afferent light-reflex integrity. Scales the left eye's contribution
+    to the CONSENSUAL light drive; <1 = left RAPD (revealed by the swinging-
+    flashlight test, no anisocoria at rest).
   disorders:
-    - {name: "CN III palsy / blown pupil", value: 0.0, tag: cn}
+    - {name: "Left RAPD (severe)", value: 0.3, tag: other}
 
-brain.g_pupil_afferent:
+brain.g_pupil_afferent_R:
   range: [0, 1]
   group: pupil
   units: "—"
-  anatomy: "Afferent limb — retina / optic nerve"
+  anatomy: "RIGHT afferent limb — retina / optic nerve"
+  description: "Right eye's afferent light-reflex integrity (symmetric to g_pupil_afferent_L)."
+
+brain.g_ocular_symp_L:
+  range: [0, 1]
+  group: pupil
+  units: "—"
+  anatomy: "LEFT oculosympathetic tone (iris dilator + Müller's muscle)"
   description: |
-    Afferent light-reflex integrity. Scales the LIGHT drive only (near response
-    preserved). <1 = relative afferent pupillary defect (RAPD / Marcus Gunn).
+    Left oculosympathetic tone. <1 lowers the left pupil's resting (dark) diameter
+    → ipsilateral Horner miosis, AND (via Müller's muscle in the eyelid model) a
+    mild ipsilateral ptosis. Reactions preserved. See with_horner.
   disorders:
-    - {name: "RAPD (severe)", value: 0.3, tag: other}
+    - {name: "Left Horner", value: 0.42, tag: other}
+
+brain.g_ocular_symp_R:
+  range: [0, 1]
+  group: pupil
+  units: "—"
+  anatomy: "RIGHT oculosympathetic tone (iris dilator + Müller's muscle)"
+  description: "Right oculosympathetic tone (symmetric to g_ocular_symp_L) — Horner miosis + mild ptosis."
 
 brain.g_pupil_light_reflex:
   range: [0, 1]
@@ -1139,6 +1167,40 @@ brain.g_pupil_light_reflex:
     (Argyll Robertson / Parinaud) — light reflex lost, near response preserved.
   disorders:
     - {name: "Argyll Robertson (light-near dissoc.)", value: 0.0, tag: other}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BrainParams — Eyelid (levator / orbicularis; blinks + posture + lid-follow)
+# ─────────────────────────────────────────────────────────────────────────────
+
+brain.eyelid_levator_contra_frac:
+  range: [0, 0.5]
+  group: eyelid
+  units: "—"
+  anatomy: "Central caudal nucleus → levator ipsi/contra projection split"
+  description: |
+    Fraction of each levator's central (central caudal nucleus) drive coming from
+    the CONTRALATERAL side. The CCN projects to BOTH lids; 0.3 → 70/30 ipsi/contra,
+    so a one-sided CN III nuclear lesion gives asymmetric (ipsi-dominant) bilateral
+    partial ptosis. 0.5 = perfectly symmetric bilateral ptosis. The nuclear and
+    nerve levator drives themselves follow the shared g_nucleus / g_nerve gains.
+
+# NOTE: the central (CCN) and peripheral (nerve) levator drives are NOT separate
+# parameters — they follow the shared CN III g_nucleus / g_nerve gains. The
+# peripheral levator (CN III nerve) is NOT a separate parameter — the
+# levator travels with CN III and follows the shared g_nerve gains, so a CN III
+# nerve palsy gives unilateral complete ptosis automatically. The orbicularis
+# (blink / closure) follows the facial nerve gain g_cn7_{L,R} (FCP section below).
+
+brain.eyelid_blink_rate:
+  group: eyelid
+  units: "blinks/min"
+  anatomy: "Spontaneous blink generator (brainstem)"
+  description: |
+    Spontaneous blink rate. Inter-blink interval jitters ±40% around 60/rate;
+    0 = no spontaneous blinks (e.g. to isolate the lid-follow). Fixed blink
+    duration (~150 ms) and lid time constants are module constants.
+  disorders:
+    - {name: "No spontaneous blinks", value: 0.0, tag: other}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # BrainParams — Final Common Pathway (cranial nerves, MLF)
@@ -1188,6 +1250,28 @@ brain.g_nerve:
     - {name: "CN III palsy (R)", value: "[1,1,1,1,1,1, 1,0,0,0,1,0]", tag: cn}
     - {name: "CN IV palsy (R, SO)", value: "[1,1,1,1,1,1, 1,1,1,1,0,1]", tag: cn}
     - {name: "Recovering CN VI (R)", value: "[1,1,1,1,1,1, 0.4,1,1,1,1,1]", tag: cn}
+
+brain.g_cn7_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT facial nerve (CN VII) → orbicularis oculi"
+  description: |
+    Left facial-nerve integrity driving the orbicularis oculi (lid closure /
+    blink). Not an extraocular muscle, so it is a separate cranial-nerve gain
+    (not in g_nerve). 0 = left Bell's palsy — lagophthalmos (can't blink/close).
+    See eyelid.py / with_facial_palsy.
+  disorders:
+    - {name: "Left facial palsy (lagophthalmos)", value: 0.0, tag: cn}
+
+brain.g_cn7_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT facial nerve (CN VII) → orbicularis oculi"
+  description: "Right facial-nerve integrity (symmetric to g_cn7_L)."
+  disorders:
+    - {name: "Right facial palsy (lagophthalmos)", value: 0.0, tag: cn}
 
 brain.r_baseline:
   range: [0, 200]
@@ -1499,7 +1583,8 @@ sensory.tau_lum:
   description: |
     Luminance afferent low-pass TC — the afferent limb of the pupillary light
     reflex (retinal light adaptation + pretectal transport). Sets the PLR latency
-    (~0.3 s); the slower iris lag lives in brain.tau_pupil.
+    (~0.3 s); the (rate-asymmetric) iris lag lives in brain.tau_pupil_constrict /
+    brain.tau_pupil_dilate.
   references:
     - "Ellis (1981)"
     - "McDougal & Gamlin (2015)"

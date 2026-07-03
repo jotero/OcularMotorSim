@@ -32,7 +32,7 @@ from oculomotor.sim.simulator import (
 from oculomotor.models.brain_models import saccade_generator as sg_mod
 from oculomotor.models.brain_models.perception_cyclopean import C_slip, C_pos, C_vel, C_target_visible
 from oculomotor.models.brain_models import perception_cyclopean as _pc_mod
-from oculomotor.analysis import read_brain_acts, extract_spv, vs_net, ni_net, pupil_size, luminance
+from oculomotor.analysis import read_brain_acts, extract_spv, vs_net, ni_net, pupil_size, luminance, eyelid
 from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
 
 
@@ -217,9 +217,11 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
     z_trig = np.array(sg_st.z_trig)
 
     # ── Cerebellar activations (vmapped over time) ───────────────────────────
-    # Pupil + afferent luminance (mm, normalised) — pupillary light + near reflex
-    pupil_diameter = pupil_size(states)   # (T,) mm
-    lum_afferent   = luminance(states)    # (T,) normalised ~[0, 1]
+    # Pupil + afferent luminance — per eye (T, 2) = [L, R]. Pupils differ only
+    # under an efferent / iris lesion (anisocoria). Eyelid closure per eye (T, 2).
+    pupil_diameter = pupil_size(states)   # (T, 2) mm
+    lum_afferent   = luminance(states)    # (T, 2) normalised ~[0, 1]
+    eyelid_closure = eyelid(states)       # (T, 2) lid closure in [0, 1]
 
     cb = read_brain_acts(states, params).cb
     cb_vpf_drive    = np.array(cb.vpf_drive)                  # (T, 3) gated target EC → pursuit
@@ -245,8 +247,9 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         x_ni           = x_ni,
         x_pursuit      = x_pursuit,
         e_pos_delayed  = e_pos_delayed,
-        pupil_diameter = pupil_diameter,   # (T,) mm — iris plant output
-        luminance      = lum_afferent,     # (T,) afferent luminance (normalised)
+        pupil_diameter = pupil_diameter,   # (T, 2) mm — per-eye iris plant output
+        luminance      = lum_afferent,     # (T, 2) afferent luminance (normalised)
+        eyelid         = eyelid_closure,   # (T, 2) lid closure [L, R] in [0, 1]
         u_burst        = u_burst,
         z_opn          = z_opn,
         z_acc          = z_acc,
@@ -775,6 +778,11 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
     Arrays are plain numpy, shape (T, 3) for 3-D channels or (T,) for scalars.
     All angular quantities in deg or deg/s.
     """
+    # Eyelid closure (per eye) — model output (eyelid plant): spontaneous blinks +
+    # downgaze lid-follow, with ptosis / lagophthalmos lesions applied.
+    eyelid_L = np.asarray(sig['eyelid'])[:, 0]
+    eyelid_R = np.asarray(sig['eyelid'])[:, 1]
+
     return dict(
         t               = np.array(t_array),
         eye_pos         = sig['eye_pos'],                              # (T, 3) deg — conjugate version
@@ -794,13 +802,15 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
         cover_R          = np.array(stim_kw['cover_R_array']),          # (T,) 1 = R eye covered
         prism_L          = np.array(stim_kw['prism_L_array']),          # (T, 3) deg deviation, L eye
         prism_R          = np.array(stim_kw['prism_R_array']),          # (T, 3) deg deviation, R eye
-        pupil_diameter   = np.asarray(sig['pupil_diameter']),           # (T,) mm — pupil (light + near reflex)
-        luminance        = np.asarray(sig['luminance']),                # (T,) afferent luminance (normalised)
-        # Eyelid aperture per eye (0 = open, 1 = fully closed / blink). Placeholder
-        # zeros so the client-facing data structures carry an eyelid slot; not yet
-        # driven by any model pathway (the avatar keeps its own blink animation).
-        eyelid_L         = np.zeros(len(t_array), dtype=np.float32),
-        eyelid_R         = np.zeros(len(t_array), dtype=np.float32),
+        pupil_diameter_L = np.asarray(sig['pupil_diameter'])[:, 0],     # (T,) mm — left pupil
+        pupil_diameter_R = np.asarray(sig['pupil_diameter'])[:, 1],     # (T,) mm — right pupil
+        luminance_L      = np.asarray(sig['luminance'])[:, 0],          # (T,) afferent luminance, left
+        luminance_R      = np.asarray(sig['luminance'])[:, 1],          # (T,) afferent luminance, right
+        # Eyelid closure per eye (0 = open, 1 = fully closed / blink), generated
+        # server-side (oculomotor.sim.eyelid) to mimic the client animation:
+        # random spontaneous blinks + upper lid following vertical (down) gaze.
+        eyelid_L         = eyelid_L,
+        eyelid_R         = eyelid_R,
     )
 
 
@@ -1064,11 +1074,14 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
 
     elif panel == 'pupil_diameter':
         spec['ylabel'] = 'Pupil diameter (mm)'
-        tr('Pupil diameter', '#8B4513', sig['pupil_diameter'])
-        # Afferent luminance (0–1) on the right axis for light-reflex context.
+        pup = sig['pupil_diameter']   # (T, 2) [L, R]
+        tr('Pupil L', '#8B4513', pup[:, 0])
+        tr('Pupil R', '#d98b5f', pup[:, 1], style='--')
+        # Afferent luminance (mean of both eyes, 0–1) on the right axis for context.
         if 'luminance' in sig:
             spec['ylabel_right'] = 'luminance'
-            tr('Luminance (afferent)', '#c0a000', sig['luminance'], style='--', axis='right')
+            lum_mean = 0.5 * (sig['luminance'][:, 0] + sig['luminance'][:, 1])
+            tr('Luminance (afferent)', '#c0a000', lum_mean, style=':', axis='right')
 
     elif panel == 'cerebellum_pursuit':
         spec['ylabel'] = 'Cerebellum — pursuit (deg/s)'
@@ -1301,7 +1314,9 @@ def _build_comparison_figure(
                 ax.plot(t, sig['vergence'][:, 0], color=color, ls=ls, lw=1.5, label=label)
 
             elif panel == 'pupil_diameter':
-                ax.plot(t, sig['pupil_diameter'], color=color, ls=ls, lw=1.5, label=label)
+                pup = sig['pupil_diameter']   # (T, 2) [L, R]
+                ax.plot(t, pup[:, 0], color=color, ls='-',  lw=1.5, label=f'{label} L'.strip())
+                ax.plot(t, pup[:, 1], color=color, ls='--', lw=1.5, label=f'{label} R'.strip())
 
             elif panel == 'gaze_error':
                 dt = t[1] - t[0]
@@ -1393,7 +1408,9 @@ def _build_comparison_spec(
             elif panel == 'vergence':
                 add(label, sig['vergence'][:, 0])
             elif panel == 'pupil_diameter':
-                add(label, sig['pupil_diameter'])
+                # Comparison overlays many scenarios — use the mean pupil (both eyes)
+                # as a single representative trace per scenario.
+                add(label, 0.5 * (sig['pupil_diameter'][:, 0] + sig['pupil_diameter'][:, 1]))
             elif panel == 'gaze_error':
                 add(label, ep[:, 0] + head_angle)
             elif panel == 'retinal_error':

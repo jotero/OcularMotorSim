@@ -108,19 +108,21 @@ sensory.otolith:
 
 sensory.luminance:
   group: luminance_periphery
-  encodes:    "afferent retinal luminance (pupillary light reflex input)"
-  frame:      "whole-field (consensual)"
+  encodes:    "per-eye afferent retinal luminance (pupillary light reflex input)"
+  frame:      "per eye [L, R]"
   representation: "linear-firing-rate"
   activation:     "state  (afferent luminance, normalised ~[0,1])"
-  shape: [1]
+  shape: [2]
+  axes:  [left, right]
   units: "normalised"
-  anatomy:    "Retina photoreceptors → pretectal olivary nucleus (retinotectal)"
-  population: "Luminance afferents (light-reflex pathway)"
+  anatomy:    "Retina photoreceptors → pretectal olivary nucleus (retinotectal), per eye"
+  population: "Luminance afferents (light-reflex pathway), one per eye"
   description: |
-    First-order low-pass of physical retinal luminance (assembled from scene /
-    target presence, both eyes averaged for the consensual reflex). Drives the
-    pupillary light reflex in brain_models.pupil; distinct from the image-forming
-    retina cascade. Afferent latency set by tau_lum (~0.3 s).
+    Per-eye first-order low-pass of physical retinal luminance (from each eye's
+    scene / target presence). The two eyes are separate afferents so a monocular
+    defect (RAPD) can be modelled; the consensual combination happens downstream
+    in brain_models.pupil. Distinct from the image-forming retina cascade;
+    afferent latency set by tau_lum (~0.3 s).
   state_slice: "sensory.lum"
   references: ["Ellis (1981)", "McDougal & Gamlin (2015)"]
   llm_plottable: true
@@ -850,18 +852,40 @@ plant.acc_plant:
 
 plant.pupil_plant:
   group: plant
-  encodes:    "pupil diameter (iris plant output)"
-  frame:      "aperture (mm)"
+  encodes:    "per-eye pupil diameter (iris plant output)"
+  frame:      "aperture (mm), per eye [L, R]"
   representation: "linear-firing-rate"
   activation:     "state  (actual pupil diameter; smaller = more constricted)"
-  shape: [1]
+  shape: [2]
+  axes:  [left, right]
   units: "mm"
-  anatomy:    "Iris sphincter / dilator muscle (pupil plant)"
+  anatomy:    "Iris sphincter / dilator muscle (pupil plant), one per eye"
   description: |
-    Actual pupil diameter (mm), a first-order iris plant (tau_pupil ~0.4 s)
-    low-passing the commanded diameter from the pupil controller (light reflex +
-    near response).  Physiological ~3–8 mm.
+    Actual per-eye pupil diameter (mm) — two independent iris plants (so an
+    efferent / iris lesion produces anisocoria) low-passing the commanded diameter
+    from the pupil controller (light reflex + near response). Rate-asymmetric TC:
+    fast constriction (tau_pupil_constrict ~0.3 s), slow re-dilation
+    (tau_pupil_dilate ~1 s). Physiological ~3–8 mm.
   state_slice: "pupil_plant"
+  references: ["Loewenfeld (1993)", "Ellis (1981)"]
+  llm_plottable: true
+
+plant.eyelid_plant:
+  group: plant
+  encodes:    "per-eye upper-lid closure (eyelid plant output)"
+  frame:      "closure [0,1], per eye [L, R]"
+  representation: "linear-firing-rate"
+  activation:     "state  (0 = open, 1 = fully closed)"
+  shape: [2]
+  axes:  [left, right]
+  units: "—"
+  anatomy:    "Levator palpebrae + orbicularis oculi (eyelid plant), one per eye"
+  description: |
+    Actual per-eye upper-lid closure — two independent lid plants (so ptosis /
+    lagophthalmos show per eye) low-passing the eyelid command (levator + Müller
+    posture − orbicularis blink + downgaze lid-follow). Rate-asymmetric TC: fast
+    closing (tau_lid_close ~20 ms), slower opening (tau_lid_open ~60 ms).
+  state_slice: "eyelid_plant"
   references: ["Loewenfeld (1993)"]
   llm_plottable: true
 

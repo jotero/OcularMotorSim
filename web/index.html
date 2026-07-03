@@ -229,6 +229,13 @@
     font-size: 0.75rem; color: #64748b; font-family: monospace;
     white-space: nowrap; flex-shrink: 0;
   }
+  #lift-lids-btn {
+    background: #eef0f4; border: 1px solid #d3d7e0; color: #334155;
+    border-radius: 6px; height: 32px; padding: 0 10px; font-size: 0.78rem;
+    flex-shrink: 0; cursor: pointer; white-space: nowrap;
+  }
+  #lift-lids-btn:hover { border-color: #2563eb; color: #1c2230; background: #e4ecff; }
+  #lift-lids-btn.active { background: #e4ecff; border-color: #2563eb; color: #1c2230; }
   #avatar-loading {
     position: absolute; font-size: 0.8rem; color: #94a3b8; pointer-events: none;
   }
@@ -359,6 +366,8 @@
         <input type="range" id="scrubber" min="0" max="100" value="0"
                oninput="onScrub(this.value)">
         <span id="time-display">0.0 / 0.0 s</span>
+        <button id="lift-lids-btn" onclick="window._avatarToggleLids()"
+                style="display:none" title="Hold eyelids open (ignore lid data to see the eye)">👁 Lift lids</button>
       </div>
     </div>
 

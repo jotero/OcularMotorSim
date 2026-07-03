@@ -1,6 +1,6 @@
 {
-  "generated": "2026-07-02 14:47",
-  "version": "4a852bf-dirty",
+  "generated": "2026-07-03 13:01",
+  "version": "880daa5-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -881,18 +881,18 @@
     },
     {
       "id": "pupil",
-      "title": "Pupil \u2014 light reflex + near response",
-      "description": "Pupillary light reflex (afferent luminance \u2192 Edinger-Westphal \u2192 iris sphincter) and the near-triad pupil constriction (accommodation-linked). Pupil diameter (mm) is a first-order iris plant (tau_pupil \u2248 0.4 s) driven by a dark baseline minus light- and near-reflex constriction. Lesion panel exercises the CN III (blown pupil), afferent (RAPD), pretectal (light-near dissociation), and sympathetic (Horner) pathways.",
-      "runtime_s": 162.74,
-      "version": "4a852bf-dirty.f30f924",
-      "generated": "2026-07-02 14:47",
+      "title": "9. Pupil",
+      "description": "Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance \u2192 pretectum \u2192 both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). Lesions: CN III (blown pupil, per eye \u2192 anisocoria; shared with the eye-muscle palsy), afferent (RAPD), pretectal (light-near dissociation), and sympathetic (Horner).",
+      "runtime_s": 147.44,
+      "version": "880daa5-dirty.7f6c369",
+      "generated": "2026-07-03 13:00",
       "figures": [
         {
           "rel": "figures/pupil_light_reflex.png",
-          "title": "Pupillary light reflex",
-          "description": "Scene steps dark\u2192light\u2192dark. Pupil constricts on light onset and re-dilates in the dark; afferent luminance (right axis) drives it.",
-          "expected": "Miosis to light (constriction ~3\u20134 mm) with \u03c4 \u2248 tau_pupil (~0.4 s); mydriasis back to baseline in the dark.",
-          "citation": "Loewenfeld (1993); McDougal & Gamlin (2015)",
+          "title": "Pupillary light reflex (constriction/dilation asymmetry)",
+          "description": "Scene steps dark\u2192light\u2192dark. The pupil constricts quickly on light onset (sphincter) and re-dilates slowly in the dark.",
+          "expected": "Fast miosis to light (\u03c4 \u2248 tau_pupil_constrict ~0.3 s); slow mydriasis (\u03c4 \u2248 tau_pupil_dilate ~1 s) \u2014 visibly asymmetric.",
+          "citation": "Loewenfeld (1993); Ellis (1981)",
           "type": "behavior",
           "ref_rel": "",
           "diff_status": "no-ref",
@@ -902,8 +902,8 @@
         {
           "rel": "figures/pupil_near_response.png",
           "title": "Near-response pupil constriction",
-          "description": "Target steps far\u2192near. Accommodation rises (right axis) and the pupil constricts with it \u2014 the near-triad pupil miosis.",
-          "expected": "Pupil constricts ~1 mm as accommodation rises to ~3 D; both track the near step with the accommodation/iris plant TCs.",
+          "description": "Target far\u2192near. Accommodation rises (right axis) and the pupil constricts with it \u2014 the near-triad pupil miosis.",
+          "expected": "Pupil constricts ~1 mm as accommodation rises to ~3 D.",
           "citation": "Myers & Stark (1990)",
           "type": "behavior",
           "ref_rel": "",
@@ -912,11 +912,57 @@
           "metrics": []
         },
         {
+          "rel": "figures/pupil_anisocoria_cn3.png",
+          "title": "Anisocoria \u2014 left CN III palsy",
+          "description": "A pupil-involving left oculomotor palsy: the left pupil is fixed and dilated (parasympathetic sphincter fibres travel with CN III) while the right pupil constricts normally to light \u2014 anisocoria.",
+          "expected": "Left pupil stays ~7.5 mm (blown, unreactive); right pupil constricts to ~2.7 mm on light. Pupil-sparing palsy would keep both reactive.",
+          "citation": "Loewenfeld (1993); Kerr & Hollowell (1964)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
+        },
+        {
           "rel": "figures/pupil_lesions.png",
-          "title": "Pupil lesions",
-          "description": "Light step across healthy, CN III palsy (blown pupil, shared with the oculomotor eye-muscle lesion), RAPD, Argyll Robertson (light-near dissociation), and Horner (sympathetic miosis).",
-          "expected": "Healthy constricts to light; CN III blown pupil + Argyll Robertson stay dilated (no light reflex); RAPD constricts weakly; Horner sits at a small baseline but still reacts.",
+          "title": "Pupil lesion survey",
+          "description": "Left pupil across healthy, CN III palsy (blown), RAPD, Argyll Robertson (light-near dissociation), and Horner (sympathetic miosis).",
+          "expected": "Healthy constricts; CN III blown + Argyll Robertson stay dilated (no light reflex); RAPD constricts weakly; Horner sits at a small baseline but reacts.",
           "citation": "Loewenfeld (1993); McDougal & Gamlin (2015)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
+        }
+      ]
+    },
+    {
+      "id": "eyelid",
+      "title": "10. Eyelid",
+      "description": "Per-eye upper-lid plant: spontaneous blinks (conjugate, ~15/min) + an upper lid that follows vertical gaze (downgaze lowers the lid). Fast closing / slower opening (rate-asymmetric). Ptosis (CN III levator, nuclear vs nerve; Horner M\u00fcller) and lagophthalmos (CN VII orbicularis) lesions are wired but not shown here.",
+      "runtime_s": 59.19,
+      "version": "880daa5-dirty.7f6c369",
+      "generated": "2026-07-03 13:01",
+      "figures": [
+        {
+          "rel": "figures/eyelid_blinks.png",
+          "title": "Spontaneous blinks",
+          "description": "Model eyelid output during steady fixation \u2014 the spontaneous blink train (conjugate): a smooth 0\u21921\u21920 pulse, rate ~15/min.",
+          "expected": "~12\u201320 blinks/min, each ~150 ms; conjugate across both eyes.",
+          "citation": "eyelid model (eyelid.py \u2192 eyelid_plant.py)",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
+        },
+        {
+          "rel": "figures/eyelid_vertical_follow.png",
+          "title": "Eyelid follows vertical eye movement",
+          "description": "The eye makes graded downward movements (~15\u00b0 then ~30\u00b0); the model upper-lid closure tracks downgaze depth (lid lowers as the eye looks further down). Blinks disabled here to isolate the gaze-follow.",
+          "expected": "Closure ~0 at centre / upgaze, rising with downgaze depth (graded).",
+          "citation": "eyelid model (eyelid.py \u2192 eyelid_plant.py)",
           "type": "behavior",
           "ref_rel": "",
           "diff_status": "no-ref",

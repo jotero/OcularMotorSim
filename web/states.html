@@ -114,7 +114,7 @@ tr:last-child { border-bottom: none; }
 <main>
   <h1>Model states &amp; activations</h1>
   <div class="meta">
-    56 entries · 46 LLM-plottable ·
+    57 entries · 47 LLM-plottable ·
     Source: <code>oculomotor/schema/states_schema.yaml</code> ·
     Companion to <a href="parameters.html">parameters.html</a>.
   </div>
@@ -147,13 +147,13 @@ tr:last-child { border-bottom: none; }
         <tbody>
         <tr>
           <td class="signal-name">luminance <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
-          <td class="shape-cell">(1)</td>
-          <td class="axes-cell"></td>
+          <td class="shape-cell">(2)</td>
+          <td class="axes-cell">left, right</td>
           <td class="units">normalised</td>
-          <td><div class="encodes-cell">afferent retinal luminance (pupillary light reflex input)</div><div class="frame-cell">frame: whole-field (consensual)</div></td>
+          <td><div class="encodes-cell">per-eye afferent retinal luminance (pupillary light reflex input)</div><div class="frame-cell">frame: per eye [L, R]</div></td>
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (afferent luminance, normalised ~[0,1])</div></td>
-          <td class="desc-cell"><p>First-order low-pass of physical retinal luminance (assembled from scene / target presence, both eyes averaged for the consensual reflex). Drives the pupillary light reflex in brain_models.pupil; distinct from the image-forming retina cascade. Afferent latency set by tau_lum (~0.3 s).</p><div class="population">Luminance afferents (light-reflex pathway)</div><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
-          <td class="anatomy-cell">Retina photoreceptors → pretectal olivary nucleus (retinotectal)</td>
+          <td class="desc-cell"><p>Per-eye first-order low-pass of physical retinal luminance (from each eye's scene / target presence). The two eyes are separate afferents so a monocular defect (RAPD) can be modelled; the consensual combination happens downstream in brain_models.pupil. Distinct from the image-forming retina cascade; afferent latency set by tau_lum (~0.3 s).</p><div class="population">Luminance afferents (light-reflex pathway), one per eye</div><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
+          <td class="anatomy-cell">Retina photoreceptors → pretectal olivary nucleus (retinotectal), per eye</td>
           <td><span class="computation">sensory.lum</span></td>
         </tr>
         </tbody>
@@ -844,7 +844,7 @@ tr:last-child { border-bottom: none; }
       <div class="desc">Eyeball orientation states (rotation vectors) + lens / accommodation plant.</div>
       
     <div class="subsection" id="plant-plant">
-      <h3>Plant <small style="font-size:11px;font-weight:400;color:#888">(4 signals)</small></h3>
+      <h3>Plant <small style="font-size:11px;font-weight:400;color:#888">(5 signals)</small></h3>
       <table>
         <thead><tr>
           <th style="width:140px">Signal</th>
@@ -896,14 +896,26 @@ tr:last-child { border-bottom: none; }
 
         <tr>
           <td class="signal-name">pupil_plant <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
-          <td class="shape-cell">(1)</td>
-          <td class="axes-cell"></td>
+          <td class="shape-cell">(2)</td>
+          <td class="axes-cell">left, right</td>
           <td class="units">mm</td>
-          <td><div class="encodes-cell">pupil diameter (iris plant output)</div><div class="frame-cell">frame: aperture (mm)</div></td>
+          <td><div class="encodes-cell">per-eye pupil diameter (iris plant output)</div><div class="frame-cell">frame: aperture (mm), per eye [L, R]</div></td>
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (actual pupil diameter; smaller = more constricted)</div></td>
-          <td class="desc-cell"><p>Actual pupil diameter (mm), a first-order iris plant (tau_pupil ~0.4 s) low-passing the commanded diameter from the pupil controller (light reflex + near response).  Physiological ~3–8 mm.</p><div class="refs">Loewenfeld (1993)</div></td>
-          <td class="anatomy-cell">Iris sphincter / dilator muscle (pupil plant)</td>
+          <td class="desc-cell"><p>Actual per-eye pupil diameter (mm) — two independent iris plants (so an efferent / iris lesion produces anisocoria) low-passing the commanded diameter from the pupil controller (light reflex + near response). Rate-asymmetric TC: fast constriction (tau_pupil_constrict ~0.3 s), slow re-dilation (tau_pupil_dilate ~1 s). Physiological ~3–8 mm.</p><div class="refs">Loewenfeld (1993) · Ellis (1981)</div></td>
+          <td class="anatomy-cell">Iris sphincter / dilator muscle (pupil plant), one per eye</td>
           <td><span class="computation">pupil_plant</span></td>
+        </tr>
+
+        <tr>
+          <td class="signal-name">eyelid_plant <span class="llm-tag" title="Exposable to LLM custom-panel signal picker">LLM</span></td>
+          <td class="shape-cell">(2)</td>
+          <td class="axes-cell">left, right</td>
+          <td class="units">—</td>
+          <td><div class="encodes-cell">per-eye upper-lid closure (eyelid plant output)</div><div class="frame-cell">frame: closure [0,1], per eye [L, R]</div></td>
+          <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (0 = open, 1 = fully closed)</div></td>
+          <td class="desc-cell"><p>Actual per-eye upper-lid closure — two independent lid plants (so ptosis / lagophthalmos show per eye) low-passing the eyelid command (levator + Müller posture − orbicularis blink + downgaze lid-follow). Rate-asymmetric TC: fast closing (tau_lid_close ~20 ms), slower opening (tau_lid_open ~60 ms).</p><div class="refs">Loewenfeld (1993)</div></td>
+          <td class="anatomy-cell">Levator palpebrae + orbicularis oculi (eyelid plant), one per eye</td>
+          <td><span class="computation">eyelid_plant</span></td>
         </tr>
         </tbody>
       </table>
