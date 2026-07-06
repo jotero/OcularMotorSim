@@ -352,21 +352,12 @@ function renderFigure(runId, payload) {
   const figHost = document.getElementById('figHost');
   figHost.innerHTML = '';
   if (figHandle) { try { figHandle.destroy(); } catch (e) {} figHandle = null; }
-  const bar = document.createElement('div'); bar.className = 'fig-toolbar';
-  const host = document.createElement('div'); host.className = 'plot-host';
-  const img = document.createElement('img'); img.src = '/outputs/server_figures/' + runId + '.png'; img.alt = 'figure';
-  const bInter = document.createElement('button'); bInter.className='fig-btn'; bInter.textContent='Interactive plots';
-  const bImg   = document.createElement('button'); bImg.className='fig-btn';   bImg.textContent='Image';
-  const showImg   = () => { host.style.display='none'; img.style.display='block'; bImg.classList.add('on'); bInter.classList.remove('on'); };
-  const showInter = () => { img.style.display='none'; host.style.display='block'; bInter.classList.add('on'); bImg.classList.remove('on'); };
-  bImg.onclick = showImg; bInter.onclick = () => { if (!bInter.disabled) showInter(); };
-  bar.appendChild(bInter); bar.appendChild(bImg);
-  figHost.appendChild(bar); figHost.appendChild(host); figHost.appendChild(img);
-  showImg();
   const canInter = (typeof uPlot !== 'undefined') && window.PlotSpec && payload && payload.plot_spec;
-  if (!canInter) { bInter.disabled = true; return; }
-  try { showInter(); figHandle = window.PlotSpec.render(host, payload.plot_spec); }
-  catch (e) { bInter.disabled = true; showImg(); }
+  if (!canInter) { figHost.innerHTML = '<div class="no-interactive">No interactive plot data for this run.</div>'; return; }
+  const host = document.createElement('div'); host.className = 'plot-host';
+  figHost.appendChild(host);
+  try { figHandle = window.PlotSpec.render(host, payload.plot_spec); }
+  catch (e) { figHost.innerHTML = '<div class="no-interactive">Could not render the interactive plots.</div>'; }
 }
 
 // ── Playback delegates (avatar.js exposes the implementations on window) ───────

@@ -823,20 +823,23 @@ async def collections_add(cid: str, req: CollectionAdd,
 
 @app.get('/runs')
 async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool = False,
-                              featured_only: bool = False):
+                              featured_only: bool = False, include_all: bool = False):
     """Return the index of past runs (newest first) for browsing.
 
-    Only runs with a persisted data sidecar are listed — those can be
+    By default only runs with a persisted data sidecar are listed — those can be
     re-rendered client-side via /run/{run_id}/data.  Same backend the public
     site already calls for /run, so the static frontend can browse the database
     cross-origin (CORS is open).
 
     The public gallery calls this with ``favorites_only=true`` so only curated
-    runs are shown; the admin calls it without filters to see everything.
+    runs are shown; the admin calls it with ``include_all=true`` to see EVERY run
+    (even sidecar-less older ones, for management/deletion).  Every row carries a
+    ``has_sidecar`` flag so the admin can flag runs with no interactive data.
     """
     rows = []
     for run_id, row in _log_entries.items():
-        if not _data_path(run_id).exists():
+        has_sidecar = _data_path(run_id).exists()
+        if not has_sidecar and not include_all:
             continue
         lc   = row.get('looks_correct', '')
         fav  = _truthy(row.get('favorite'))
@@ -861,6 +864,7 @@ async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool =
             'ms_total':      row.get('ms_total', ''),
             'ms_llm':        row.get('ms_llm', ''),
             'ms_sim':        row.get('ms_sim', ''),
+            'has_sidecar':   has_sidecar,
         })
     rows.sort(key=lambda r: r['timestamp'], reverse=True)
     return JSONResponse(rows)
@@ -948,14 +952,21 @@ from fastapi.responses import RedirectResponse as _Redirect
 
 @app.get('/admin')
 async def admin_redirect():
-    """Redirect /admin → /outputs/admin.html (served via HTTP, no file:// issues)."""
-    return _Redirect('/outputs/admin.html')
+    """Redirect /admin → the unified admin page (web/admin.html): the run log + the
+    collections editor in one, view-switched between 'All runs' and 'By collection'."""
+    return _Redirect('/admin.html')
 
 
 @app.get('/lists')
 async def lists_redirect():
-    """Redirect /lists → the curated-collections page (web/collections.html)."""
-    return _Redirect('/collections.html')
+    """Back-compat: collections are now a view inside the unified admin page."""
+    return _Redirect('/admin.html')
+
+
+@app.get('/collections.html')
+async def collections_page_redirect():
+    """Back-compat: the standalone collections editor merged into /admin.html."""
+    return _Redirect('/admin.html')
 
 
 # ── Static file mounts (specific paths before the catch-all /) ────────────────

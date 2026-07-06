@@ -20,9 +20,10 @@
  ALIASES:        start_dev=dev | start_stable=stable | make_stable=make-stable
 
  NOTES:
-   * dev and stable have SEPARATE databases: each serves its own checkout's data/
-     (the package self-locates via OCULOMOTOR_DATA / OCULOMOTOR_WEB, default <checkout>/{data,web}).
-     So dev experiments never pollute the public stable gallery.
+   * dev and stable share ONE database (OCULOMOTOR_DATA -> ..\om-data\server_data):
+     the log, per-run data, figures, favorites/featured, and collections are identical
+     everywhere. Dev test-runs still stay out of the public gallery because it only
+     shows FAVORITES (and the carousel only FEATURED) — curation, not a separate DB.
    * stable runs the worktree's OWN venv, so the frozen model code is truly isolated from dev.
    * Website deploy copies the frozen web/ into ..\om-lab-website\sim, then you commit + push there.
 =====================================================================================
@@ -38,6 +39,9 @@ $mainPython      = Join-Path $root '.venv\Scripts\python.exe'
 $stableWorktree  = Join-Path (Split-Path $root -Parent) 'om-stable'
 $stablePython    = Join-Path $stableWorktree '.venv\Scripts\python.exe'
 $websiteDest     = 'D:\OneDrive\UC Berkeley\OMlab - JOM\Code\om-lab-website\sim'
+# Single shared database (log CSV, per-run sidecars, figures, collections.json) used by
+# BOTH dev and stable via OCULOMOTOR_DATA. Neutral folder, owned by neither checkout.
+$sharedData      = Join-Path (Split-Path $root -Parent) 'om-data\server_data'
 
 function Show-Usage {
     Write-Host @'
@@ -58,8 +62,8 @@ server.ps1 - Oculomotor simulator server management
   ALIASES   start_dev=dev | start_stable=stable | make_stable=make-stable
 
   NOTES
-    * dev and stable have SEPARATE databases (each checkout's data/). Override with
-      $env:OCULOMOTOR_DATA / $env:OCULOMOTOR_WEB.
+    * dev and stable share ONE database via OCULOMOTOR_DATA (..\om-data\server_data);
+      only the CODE (frozen web/ + venv) differs for stable.
     * stable uses the worktree's own venv -> its model code is frozen, isolated from dev.
     * Website deploy dest: ..\om-lab-website\sim
 
@@ -67,7 +71,10 @@ server.ps1 - Oculomotor simulator server management
 }
 
 function Start-Dev {
+    New-Item -ItemType Directory -Force -Path $sharedData | Out-Null
+    $env:OCULOMOTOR_DATA = $sharedData
     Write-Host 'Starting DEV server (live code) on http://localhost:8001'
+    Write-Host "Shared DB: $sharedData"
     & $mainPython -X utf8 -m oculomotor.server --port 8001
 }
 
@@ -81,7 +88,10 @@ function Start-Stable {
         exit 1
     }
     $ver = git -C $stableWorktree rev-parse --short HEAD
+    New-Item -ItemType Directory -Force -Path $sharedData | Out-Null
+    $env:OCULOMOTOR_DATA = $sharedData
     Write-Host "Starting STABLE server (frozen commit $ver) on http://localhost:8000"
+    Write-Host "Shared DB: $sharedData"
     Write-Host 'Ctrl-C to stop.'
     & $stablePython -X utf8 -m oculomotor.server --port 8000
 }
@@ -122,23 +132,14 @@ function Invoke-MakeStable {
 
     Write-Host "Run '.\server.ps1 stable' to serve the frozen snapshot on port 8000"
 
-    # 4. Optional: promote curated examples from dev's DB into the stable gallery.
-    #    dev and stable keep separate databases, so featured/favorite runs don't
-    #    cross over automatically. This copy is idempotent (existing runs are
-    #    re-flagged, never duplicated).
+    # 4. Data is now a SINGLE shared DB (OCULOMOTOR_DATA=$sharedData) used by both dev
+    #    and stable, so featured / favorites / collections are already identical
+    #    everywhere - nothing to copy. (copy_featured is retired.)
     Write-Host ''
-    Write-Host 'Copy curated examples from dev into the stable gallery?' -ForegroundColor Cyan
-    Write-Host '  [f] featured only   [b] featured + favorites   [n] none ' -NoNewline
-    $pick = (Read-Host).ToLower()
-    if ($pick -eq 'f' -or $pick -eq 'b') {
-        $cfArgs = @('-X', 'utf8', '-m', 'oculomotor.reports.copy_featured',
-                    '--from', (Join-Path $root 'server_data'),
-                    '--to',   (Join-Path $stableWorktree 'server_data'))
-        if ($pick -eq 'b') { $cfArgs += '--favorites' }
-        & $mainPython @cfArgs
-    }
+    Write-Host "Shared DB in use ($sharedData) - no dev/stable data copy needed." -ForegroundColor Cyan
 
     # 5. Optional: deploy the frozen frontend (web/) to the public website repo.
+    $publishRepo = $null
     Write-Host ''
     Write-Host 'Deploy the simulator frontend to the website repo too? (y/n) ' -NoNewline
     if ((Read-Host) -eq 'y') {
@@ -154,11 +155,24 @@ function Invoke-MakeStable {
             if ($LASTEXITCODE -ge 8) {
                 Write-Host "robocopy failed (exit $LASTEXITCODE)" -ForegroundColor Red
             } else {
-                $repo = Split-Path $websiteDest -Parent
-                Write-Host 'Deployed. To publish, from the website repo:' -ForegroundColor Green
-                Write-Host "  cd `"$repo`"; git add -A; git commit -m `"update sim`"; git push" -ForegroundColor Cyan
+                $publishRepo = Split-Path $websiteDest -Parent
             }
         }
+    }
+
+    # 6. Final reminder. Copying web/ into the website repo only STAGES the files on
+    #    disk; the public main page updates ONLY after you commit + push that repo.
+    #    That step is manual, so print a loud reminder as the LAST thing on screen.
+    if ($publishRepo) {
+        Write-Host ''
+        Write-Host '============================================================' -ForegroundColor Yellow
+        Write-Host '  REMINDER: the website is NOT published yet!' -ForegroundColor Yellow
+        Write-Host '  Copying web/ only staged the files locally. The public' -ForegroundColor Yellow
+        Write-Host '  main page updates ONLY after you commit + push the repo:' -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host "    cd `"$publishRepo`"" -ForegroundColor Cyan
+        Write-Host '    git add -A; git commit -m "update sim"; git push' -ForegroundColor Cyan
+        Write-Host '============================================================' -ForegroundColor Yellow
     }
 }
 

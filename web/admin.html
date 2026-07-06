@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViSiOMlab — Admin</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f4f5f7; color: #1c2230; height: 100vh; display: flex;
+  flex-direction: column; overflow: hidden; }
+
+/* ── Top bar ── */
+header { background: #fff; border-bottom: 1px solid #e3e6ec; padding: 0 16px;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0; height: 46px; }
+header .title { font-size: 0.82rem; font-weight: 600; color: #475569;
+  letter-spacing: 0.06em; text-transform: uppercase; }
+header .count { font-size: 0.75rem; color: #94a3b8; margin-left: auto; white-space: nowrap; }
+header input { background: #fff; border: 1px solid #d3d7e0; border-radius: 6px;
+  color: #333; font-size: 0.8rem; padding: 5px 10px; outline: none; }
+header input#search { width: 200px; }
+header input:focus { border-color: #4a6cf7; }
+header select { background: #fff; border: 1px solid #d3d7e0; border-radius: 6px;
+  color: #333; font-size: 0.8rem; padding: 5px 8px; outline: none; max-width: 240px; }
+header select:focus { border-color: #4a6cf7; }
+.token-input { font-size: 0.72rem !important; width: 140px !important; }
+.wide-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #475569;
+  font-size: 0.72rem; padding: 5px 11px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.wide-btn:hover { border-color: #2563eb; color: #1c2230; }
+.wide-btn.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+.wide-btn.danger:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+.saved-msg { font-size: 0.72rem; color: #16a34a; white-space: nowrap; }
+
+/* View switcher (All runs ↔ By collection) */
+.seg { display: inline-flex; border: 1px solid #d3d7e0; border-radius: 7px; overflow: hidden; }
+.seg button { background: #fff; border: none; border-right: 1px solid #d3d7e0; color: #475569;
+  font-size: 0.74rem; padding: 5px 12px; cursor: pointer; }
+.seg button:last-child { border-right: none; }
+.seg button.on { background: #2563eb; color: #fff; }
+
+/* Mode-scoped header controls (display:contents keeps header flex layout intact). */
+.only-all, .only-coll { display: contents; }
+body:not(.mode-all) .only-all { display: none; }
+body:not(.mode-coll) .only-coll { display: none; }
+body:not(.mode-all) #bulkbar { display: none !important; }
+
+/* ── Bulk bar (all-runs mode) ── */
+#bulkbar { display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: #1f2937; color: #e5e7eb; padding: 7px 16px; flex-shrink: 0;
+  border-bottom: 1px solid #111827; font-size: 0.76rem; }
+#bulkbar.show { display: flex; }
+#bulkbar .bulk-count { font-weight: 600; margin-right: 6px; }
+#bulkbar .bulk-msg { margin-left: auto; color: #9ca3af; font-size: 0.72rem; }
+.bulk-btn { background: #374151; border: 1px solid #4b5563; color: #e5e7eb;
+  font-size: 0.74rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.bulk-btn:hover { border-color: #9ca3af; }
+.bulk-btn.danger:hover { border-color: #f87171; color: #fecaca; background: #3f2222; }
+.bulk-btn.warn { border-color: #b45309; color: #fcd34d; }
+.bulk-btn.warn:hover { border-color: #f59e0b; color: #fde68a; background: #3a2c10; }
+.bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bulk-sep { width: 1px; height: 18px; background: #4b5563; margin: 0 4px; }
+
+/* ── Main layout ── */
+.layout { display: flex; flex: 1; overflow: hidden; }
+.list-panel { width: 36%; min-width: 300px; border-right: 1px solid #e3e6ec;
+  overflow-y: auto; flex-shrink: 0; transition: width 0.15s ease; }
+.list-panel.collapsed { width: 0; min-width: 0; border-right: none; overflow: hidden; }
+.list-pad { padding: 12px 14px; }
+
+/* ── All-runs table ── */
+table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+thead th { background: #eef0f4; color: #6b7280; font-size: 0.68rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; text-align: left;
+  position: sticky; top: 0; z-index: 1; border-bottom: 1px solid #e3e6ec; }
+tbody tr { border-bottom: 1px solid #edeff3; cursor: pointer; transition: background 0.1s; }
+tbody tr:hover { background: #eef3ff; }
+tbody tr.active { background: #e4ecff; border-left: 3px solid #4a6cf7; }
+tbody tr.active td:first-child { padding-left: 7px; }
+td { padding: 7px 10px; vertical-align: top; color: #475569; }
+td.ts { color: #94a3b8; white-space: nowrap; font-size: 0.7rem; }
+td.prompt-cell { color: #1f2937; max-width: 240px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+td.title-cell { color: #64748b; font-size: 0.7rem; max-width: 150px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.coll-cell { color: #7c9; font-size: 0.68rem; max-width: 130px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.coll-cell span.chip { color: #0f766e; }
+.mode-badge { display: inline-block; font-size: 0.62rem; font-weight: 700; padding: 1px 6px;
+  border-radius: 8px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.04em; }
+.mode-single { background: #dbeafe; color: #1d4ed8; }
+.mode-comparison { background: #dcfce7; color: #15803d; }
+.ok-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; }
+.ok-true { background: #22c55e; } .ok-false { background: #ef4444; } .ok-null { background: #cbd0d8; }
+.no-sc-dot { color: #f0b429; font-size: 0.7rem; } /* run without interactive data */
+tr.hidden { display: none; }
+td.fav-cell, td.feat-cell { text-align: center; cursor: pointer; font-size: 0.92rem;
+  user-select: none; width: 30px; }
+td.fav-cell:hover, td.feat-cell:hover { background: #fff7e6; }
+.fav-on { color: #f0b429; } .feat-on { color: #2563eb; } .fav-off, .feat-off { color: #cbd0d8; }
+td.sel-cell, th.sel-cell { text-align: center; width: 26px; padding-left: 6px; padding-right: 0; cursor: default; }
+td.sel-cell input, th.sel-cell input { cursor: pointer; }
+tbody tr.selected { background: #eaf1ff; }
+tbody tr.selected:hover { background: #e0eaff; }
+tbody tr.selected.active { background: #dbe6ff; }
+
+/* ── Collection tree (by-collection mode) ── */
+.coll-desc { width: 100%; background: #fff; border: 1px solid #e3e6ec; border-radius: 6px;
+  color: #475569; font-size: 0.78rem; padding: 7px 9px; resize: vertical; min-height: 38px;
+  outline: none; font-family: inherit; margin-bottom: 10px; }
+.coll-desc:focus { border-color: #2563eb; }
+.coll-bar { margin-bottom: 10px; }
+.coll-picker { width: 100%; font-size: 0.86rem; padding: 8px 10px; margin-bottom: 6px;
+  border: 1px solid #d3d7e0; border-radius: 7px; background: #fff; color: #1c2230; outline: none; cursor: pointer; }
+.coll-picker:focus { border-color: #2563eb; }
+.coll-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.coll-empty { color: #94a3b8; font-size: 0.82rem; text-align: center; padding: 30px 10px; line-height: 1.7; }
+.section, .loose-wrap { margin-bottom: 12px; border: 1px solid #e3e6ec; border-radius: 8px; background: #fff; overflow: hidden; }
+.sec-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  background: #eef0f4; border-bottom: 1px solid #e3e6ec; }
+.sec-head input.sec-title { flex: 1; border: none; background: transparent; font-weight: 600;
+  font-size: 0.78rem; color: #334155; outline: none; padding: 2px 3px; }
+.sec-head input.sec-title:focus { background: #fff; border-radius: 4px; }
+.run-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  border-bottom: 1px solid #f0f2f5; cursor: pointer; font-size: 0.78rem; }
+.run-row:last-child { border-bottom: none; }
+.run-row:hover { background: #eef3ff; }
+.run-row.active { background: #e4ecff; border-left: 3px solid #4a6cf7; padding-left: 5px; }
+.run-row.missing { color: #b91c1c; font-style: italic; cursor: default; }
+.run-row .num { color: #94a3b8; font-size: 0.7rem; width: 16px; text-align: right; flex-shrink: 0; }
+.run-row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937; }
+.mini-btns { display: flex; gap: 2px; flex-shrink: 0; }
+.mini-btn { background: #f1f3f7; border: 1px solid #dfe3ea; color: #64748b; font-size: 0.66rem;
+  width: 20px; height: 20px; border-radius: 4px; cursor: pointer; padding: 0; line-height: 1; }
+.mini-btn:hover { border-color: #2563eb; color: #1c2230; }
+.mini-btn.x:hover { border-color: #dc2626; color: #dc2626; }
+.move-sel { font-size: 0.66rem; border: 1px solid #dfe3ea; border-radius: 4px; color: #64748b;
+  background: #f1f3f7; height: 20px; max-width: 96px; padding: 0 2px; cursor: pointer; outline: none; }
+.move-sel:hover, .move-sel:focus { border-color: #2563eb; color: #1c2230; }
+
+/* ── Right panel (shared viewer) ── */
+.figure-panel { flex: 1; min-width: 0; overflow-y: auto; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px; }
+.no-selection { flex: 1; display: flex; align-items: center; justify-content: center;
+  color: #aab; font-size: 0.85rem; text-align: center; line-height: 1.8; }
+.detail-grid { display: grid; grid-template-columns: 100px 1fr; gap: 4px 12px; font-size: 0.75rem; }
+.detail-grid .lbl { color: #94a3b8; text-transform: uppercase; font-size: 0.65rem;
+  letter-spacing: 0.05em; padding-top: 2px; }
+.detail-grid .val { color: #334155; word-break: break-word; }
+.detail-grid .val.prompt-val { color: #0f172a; font-size: 0.8rem; line-height: 1.5; }
+.feedback-val { color: #64748b; font-style: italic; }
+.admin-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.adm-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #475569;
+  font-size: 0.74rem; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+.adm-btn:hover { border-color: #2563eb; color: #1c2230; }
+.adm-btn.fav.on { background: #fff7e6; border-color: #f0b429; color: #8a6d1a; }
+.adm-btn.danger:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+.note-box { width: 100%; background: #fff; border: 1px solid #d3d7e0; border-radius: 6px;
+  color: #1c2230; font-size: 0.82rem; padding: 8px 10px; resize: vertical; min-height: 44px;
+  outline: none; font-family: inherit; }
+.note-box:focus { border-color: #2563eb; }
+.adm-saved { font-size: 0.72rem; color: #16a34a; }
+.adm-warn { font-size: 0.72rem; color: #b45309; background: #fffbeb;
+  border: 1px solid #fde68a; border-radius: 6px; padding: 6px 9px; }
+.timing-val { font-family: monospace; font-size: 0.72rem; color: #475569; }
+.adm-narrative { font-size: 0.84rem; color: #334155; line-height: 1.55;
+  background: #f6f8fa; border: 1px solid #e3e6ec; border-radius: 8px; padding: 10px 12px; }
+.adm-narr-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #94a3b8; margin-bottom: 4px; }
+.plot-host { width: 100%; background: #fff; border: 1px solid #e3e6ec; border-radius: 6px; padding: 6px 4px; }
+.plot-host .u-legend { color: #475569; }
+.no-interactive { color: #94a3b8; font-size: 0.8rem; padding: 20px; text-align: center; }
+
+/* ── Shared 3D avatar + playback (same block as the simulator / gallery) ── */
+#avatar-section { display: none; border: 1px solid #e3e6ec; border-radius: 10px; overflow: hidden; background: #eef0f4; }
+#avatar-canvas { width: 100%; height: 380px; display: block; }
+#playback-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f6f8fa; border-top: 1px solid #e3e6ec; }
+#play-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #334155; border-radius: 6px; width: 36px; height: 32px; padding: 0; font-size: 1rem; flex-shrink: 0; cursor: pointer; }
+#play-btn:hover { border-color: #2563eb; color: #1c2230; background: #e4ecff; }
+#scrubber { flex: 1; accent-color: #2563eb; height: 4px; cursor: pointer; }
+#time-display { font-size: 0.75rem; color: #64748b; font-family: monospace; white-space: nowrap; flex-shrink: 0; }
+#lift-lids-btn { background: #eef0f4; border: 1px solid #d3d7e0; color: #334155; border-radius: 6px; height: 32px; padding: 0 10px; font-size: 0.78rem; flex-shrink: 0; cursor: pointer; white-space: nowrap; }
+#lift-lids-btn:hover { border-color: #2563eb; color: #1c2230; background: #e4ecff; }
+#lift-lids-btn.active { background: #e4ecff; border-color: #2563eb; color: #1c2230; }
+#avatar-loading { position: absolute; font-size: 0.8rem; color: #94a3b8; pointer-events: none; }
+.avatar-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+.avatar-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #d3d7e0; pointer-events: none; }
+.avatar-wrap.single-view::after { display: none; }
+#avatar-tabs { display: none; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; background: #eef0f4; }
+.avatar-tab { padding: 4px 12px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; border: 1px solid #d3d7e0; background: #fff; color: #475569; }
+.avatar-tab:hover { background: #e4ecff; color: #1c2230; }
+.avatar-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.avatar-labels { position: absolute; top: 8px; left: 0; right: 0; display: flex; pointer-events: none; z-index: 1; }
+.avatar-labels span { flex: 1; text-align: center; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ── "Add to collection" modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none;
+  align-items: center; justify-content: center; z-index: 100; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 12px; width: 460px; max-width: 92vw; max-height: 84vh;
+  display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,.28); overflow: hidden; }
+.modal-head { padding: 14px 18px; font-size: 0.92rem; font-weight: 600; color: #1c2230; border-bottom: 1px solid #eef0f4; }
+.modal-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.modal-foot { padding: 12px 18px; border-top: 1px solid #eef0f4; display: flex; align-items: center; gap: 8px; }
+.atc-msg { margin-right: auto; font-size: 0.74rem; color: #dc2626; }
+.atc-field { display: flex; flex-direction: column; gap: 5px; }
+.atc-field label { font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+.atc-field input, .atc-field select { border: 1px solid #d3d7e0; border-radius: 6px; padding: 7px 9px;
+  font-size: 0.82rem; outline: none; font-family: inherit; }
+.atc-field input:focus, .atc-field select:focus { border-color: #2563eb; }
+.adm-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.adm-btn.primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+.adm-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+<link rel="stylesheet" href="/vendor/uPlot.min.css">
+<script src="/vendor/uPlot.iife.min.js"></script>
+<script src="/plotspec.js"></script>
+<script type="importmap">
+{ "imports": {
+    "three":         "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/" } }
+</script>
+<script type="module" src="/avatar.js"></script>
+</head>
+<body class="mode-all">
+
+<header>
+  <span class="title">Admin</span>
+  <span class="seg">
+    <button id="modeAllBtn" class="on" onclick="setMode('all')">All runs</button>
+    <button id="modeCollBtn" onclick="setMode('coll')">By collection</button>
+  </span>
+
+  <!-- All-runs controls -->
+  <span class="only-all" style="display:contents">
+    <input id="search" placeholder="Filter by prompt…" oninput="applyFilter()">
+    <button id="favFilterBtn" class="wide-btn" onclick="toggleFavFilter()" title="Show only favorites">★ Favorites</button>
+    <button id="featFilterBtn" class="wide-btn" onclick="toggleFeatFilter()" title="Show only featured">◆ Featured</button>
+  </span>
+
+  <button id="wideBtn" class="wide-btn" onclick="toggleWide()" title="Hide the list to give plots full width">⤢ Wide</button>
+  <input id="adminToken" class="token-input" placeholder="admin token (if set)"
+         oninput="localStorage.setItem('oculomotor_admin_token', this.value)">
+  <span class="count" id="count"></span>
+</header>
+
+<div id="bulkbar">
+  <span class="bulk-count" id="bulkCount">0 selected</span>
+  <button class="bulk-btn" onclick="bulkRerun('sim')" title="Re-simulate from each stored scenario — no LLM, free/local">↻ Rerun sim</button>
+  <button class="bulk-btn warn" onclick="bulkRerun('prompt')" title="Re-run each prompt through the LLM, then simulate — costs API tokens">↻ Rerun prompt+sim</button>
+  <button class="bulk-btn" onclick="bulkAddToCollection()" title="Add the selected runs to a collection">➕ Add to collection</button>
+  <span class="bulk-sep"></span>
+  <button class="bulk-btn" onclick="bulkFavorite(true)">★ Favorite</button>
+  <button class="bulk-btn" onclick="bulkFavorite(false)">☆ Unfavorite</button>
+  <button class="bulk-btn" onclick="bulkFeatured(true)">◆ Feature</button>
+  <button class="bulk-btn" onclick="bulkFeatured(false)">◇ Unfeature</button>
+  <button class="bulk-btn danger" onclick="bulkDelete()">🗑 Delete</button>
+  <button class="bulk-btn" onclick="clearSelection()">Clear</button>
+  <span class="bulk-msg" id="bulkMsg"></span>
+</div>
+
+<div class="layout">
+  <div class="list-panel" id="listPanel"></div>
+
+  <div class="figure-panel" id="panel">
+    <div class="no-selection" id="emptyMsg">← select a run to view its animation and plots</div>
+    <div id="viewer" style="display:none; flex-direction:column; gap:14px;">
+      <div id="adminHost" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="avatar-section">
+        <div id="avatar-tabs"></div>
+        <div class="avatar-wrap">
+          <canvas id="avatar-canvas"></canvas>
+          <span id="avatar-loading">Loading avatar…</span>
+          <div class="avatar-labels"><span>Head-fixed</span><span>World view</span></div>
+        </div>
+        <div id="playback-bar">
+          <button id="play-btn" onclick="togglePlay()" title="Play / Pause">▶</button>
+          <input type="range" id="scrubber" min="0" max="100" value="0" oninput="onScrub(this.value)">
+          <span id="time-display">0.0 / 0.0 s</span>
+          <button id="lift-lids-btn" onclick="window._avatarToggleLids && window._avatarToggleLids()"
+                  style="display:none" title="Hold eyelids open (ignore lid data to see the eye)">👁 Lift lids</button>
+        </div>
+      </div>
+      <div id="figHost"></div>
+      <div id="narrHost" class="adm-narrative" style="display:none;"></div>
+      <div id="detailsHost" class="detail-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add-to-collection modal (dropdowns; New… options reveal a text field) -->
+<div id="atcOverlay" class="modal-overlay" onclick="if(event.target===this) closeAtc()">
+  <div class="modal">
+    <div class="modal-head">Add <span id="atcCount"></span> to a collection</div>
+    <div class="modal-body">
+      <div class="atc-field">
+        <label>Collection</label>
+        <select id="atcColl" onchange="atcCollChanged()"></select>
+        <input id="atcNewName" placeholder="New collection name…" style="display:none">
+      </div>
+      <div class="atc-field">
+        <label>Section (optional)</label>
+        <select id="atcSection" onchange="atcSectionChanged()"></select>
+        <input id="atcNewSection" placeholder="New section name…" style="display:none">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="atc-msg" id="atcMsg"></span>
+      <button class="adm-btn" onclick="closeAtc()">Cancel</button>
+      <button class="adm-btn primary" id="atcAddBtn" onclick="atcConfirm()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let ALL_ROWS = [];       // every run (from /runs?include_all=true)
+let RUNS = {};           // run_id → row (references into ALL_ROWS)
+let COLLECTIONS = [];    // curated collections
+let COLL_OF = {};        // run_id → [collection titles]
+let mode = 'all';        // 'all' | 'coll'
+let curId = null;        // current collection id (coll mode)
+let activeRun = null;    // run_id shown in the right panel
+let rows = [];           // table view (all mode; newest-first, may be filtered by DOM)
+const selected = new Set();
+let figHandle = null;
+
+// ── Small helpers ──────────────────────────────────────────────────────────────
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function adminToken() { return localStorage.getItem('oculomotor_admin_token') || ''; }
+function isFav(r) { const v=(r&&r.favorite||'').toString().toLowerCase(); return v==='true'||v==='1'||v==='yes'; }
+function isFeatured(r) { const v=(r&&r.featured||'').toString().toLowerCase(); return v==='true'||v==='1'||v==='yes'; }
+function fmtTs(ts) { if(!ts) return '—'; const m=ts.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m?`${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}`:ts.slice(0,10); }
+function fmtTiming(r) { if(!r.ms_total) return '—'; const s=x=>(Number(x)/1000).toFixed(1); return `${s(r.ms_total)}s total · LLM ${s(r.ms_llm)}s · sim ${s(r.ms_sim)}s`; }
+function collNames(runId) { return COLL_OF[runId] || []; }
+function adminPost(url, body) { return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},body:JSON.stringify(body)}); }
+function admMsg(t, ok=true) { const e=document.getElementById('admSaved'); if(e){ e.textContent=t; e.style.color=ok?'#16a34a':'#dc2626'; } }
+function savedMsg(t, ok=true) { const e=document.getElementById('savedMsg'); if(e){ e.textContent=t; e.style.color=ok?'#16a34a':'#dc2626'; if(t) setTimeout(()=>{ if(e.textContent===t) e.textContent=''; },2500); } }
+function curColl() { return COLLECTIONS.find(c => c.id === curId) || null; }
+
+// ── Load everything ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [rRes, cRes] = await Promise.all([
+      fetch('/runs?include_all=true', { headers: { 'ngrok-skip-browser-warning': 'true' } }),
+      fetch('/collections',           { headers: { 'ngrok-skip-browser-warning': 'true' } }),
+    ]);
+    ALL_ROWS = await rRes.json();
+    COLLECTIONS = (await cRes.json()).collections || [];
+  } catch (e) { ALL_ROWS = []; COLLECTIONS = []; }
+  RUNS = {}; ALL_ROWS.forEach(r => { RUNS[r.run_id] = r; });
+  rebuildCollIndex();
+  renderSelect();
+  if (!curId && COLLECTIONS.length) curId = COLLECTIONS[0].id;
+  renderList();
+}
+function rebuildCollIndex() {
+  COLL_OF = {};
+  COLLECTIONS.forEach(c => {
+    (c.items || []).forEach(it => {
+      if (it.type === 'run') (COLL_OF[it.run_id] = COLL_OF[it.run_id] || []).push(c.title);
+      else if (it.type === 'section') (it.runs || []).forEach(rid => (COLL_OF[rid] = COLL_OF[rid] || []).push(c.title));
+    });
+  });
+}
+
+// ── View switch ─────────────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.body.className = 'mode-' + (m === 'coll' ? 'coll' : 'all');
+  document.getElementById('modeAllBtn').classList.toggle('on', m === 'all');
+  document.getElementById('modeCollBtn').classList.toggle('on', m === 'coll');
+  renderList();
+}
+function renderList() { if (mode === 'coll') renderCollectionTree(); else renderTable(); }
+function updateCount(n) { document.getElementById('count').textContent = n; }
+
+// ── All-runs table ───────────────────────────────────────────────────────────────
+function renderTable() {
+  const panel = document.getElementById('listPanel');
+  panel.innerHTML = `<table id="log"><thead><tr>
+      <th class="sel-cell"><input type="checkbox" id="selAll" title="Select all visible" onclick="toggleSelectAll(this)"></th>
+      <th style="width:88px">Date</th>
+      <th style="width:70px">Mode</th>
+      <th style="width:28px" title="Favorite — shows in the gallery">★</th>
+      <th style="width:28px" title="Featured — front-page example">◆</th>
+      <th>Prompt</th>
+      <th style="width:120px">Title</th>
+      <th style="width:120px">Collections</th>
+      <th style="width:22px" title="looks-correct / ⬤ = no interactive data"></th>
+    </tr></thead><tbody id="tbody"></tbody></table>`;
+  const tbody = panel.querySelector('#tbody');
+  rows = [...ALL_ROWS];   // ALL_ROWS is already newest-first from the server
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.dataset.idx = i;
+    tr.dataset.run = r.run_id;
+    const coll = collNames(r.run_id).map(esc).join(', ');
+    const okDot = r.has_sidecar === false
+      ? '<span class="no-sc-dot" title="No interactive data (older run)">⬤</span>'
+      : `<span class="ok-dot ok-${r.looks_correct==='True'?'true':r.looks_correct==='False'?'false':'null'}"></span>`;
+    tr.innerHTML = `
+      <td class="sel-cell" onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onclick="onRowCheck(event, ${i})"></td>
+      <td class="ts">${fmtTs(r.timestamp)}</td>
+      <td><span class="mode-badge mode-${r.mode}">${r.mode||'—'}</span></td>
+      <td class="fav-cell" title="Toggle favorite" onclick="event.stopPropagation(); toggleFavorite('${r.run_id}')">${isFav(r)?'<span class="fav-on">★</span>':'<span class="fav-off">☆</span>'}</td>
+      <td class="feat-cell" title="Toggle featured" onclick="event.stopPropagation(); toggleFeatured('${r.run_id}')">${isFeatured(r)?'<span class="feat-on">◆</span>':'<span class="feat-off">◇</span>'}</td>
+      <td class="prompt-cell" title="${esc(r.prompt)}">${esc(r.prompt)}</td>
+      <td class="title-cell" title="${esc(r.title)}">${esc(r.title)}</td>
+      <td class="coll-cell" title="${coll}">${coll}</td>
+      <td>${okDot}</td>`;
+    tr.addEventListener('click', () => selectRun(r.run_id));
+    tbody.appendChild(tr);
+  });
+  // Re-apply multi-select highlight + active row.
+  document.querySelectorAll('#tbody tr').forEach((tr) => {
+    if (selected.has(tr.dataset.run)) { tr.classList.add('selected'); const cb=tr.querySelector('.row-check'); if(cb) cb.checked=true; }
+    if (tr.dataset.run === activeRun) tr.classList.add('active');
+  });
+  applyFilter();
+  updateBulkBar();
+}
+
+// ── By-collection tree ───────────────────────────────────────────────────────────
+function renderSelect() {
+  const sel = document.getElementById('collSelect');
+  if (!sel) return;   // the picker lives in the list panel (collection mode only)
+  sel.innerHTML = COLLECTIONS.map(c => `<option value="${esc(c.id)}"${c.id===curId?' selected':''}>${esc(c.title)} (${countRuns(c)})</option>`).join('')
+    || '<option disabled>— no collections yet —</option>';
+}
+function countRuns(c) { let n=0; (c.items||[]).forEach(it => { if(it.type==='run') n++; else if(it.type==='section') n+=(it.runs||[]).length; }); return n; }
+function selectCollection(cid) { curId = cid; renderCollectionTree(); }
+
+// Full-width collection picker + actions, shown at the TOP of the list (collection mode)
+// so choosing which collection to view is as prominent as the list itself.
+function collBarHtml() {
+  const opts = COLLECTIONS.map(c => `<option value="${esc(c.id)}"${c.id===curId?' selected':''}>${esc(c.title)} (${countRuns(c)})</option>`).join('')
+    || '<option disabled>— no collections yet —</option>';
+  return `<div class="coll-bar">
+    <select id="collSelect" class="coll-picker" onchange="selectCollection(this.value)">${opts}</select>
+    <div class="coll-btns">
+      <button class="wide-btn" onclick="newCollection()">+ New</button>
+      <button class="wide-btn" onclick="addSection()">＋ Section</button>
+      <button class="wide-btn" onclick="if(curId) window.open('/?list='+encodeURIComponent(curId),'_blank')" title="Open this collection on the public site (read-only)">▶ View</button>
+      <button class="wide-btn danger" onclick="deleteCollection()">🗑 Delete list</button>
+      <span class="saved-msg" id="savedMsg"></span>
+    </div>
+  </div>`;
+}
+
+function renderCollectionTree() {
+  const panel = document.getElementById('listPanel');
+  const c = curColl();
+  if (!c) { panel.innerHTML = `<div class="list-pad">${collBarHtml()}<div class="coll-empty">No collections yet.<br>Click <b>+ New</b>, then add runs from <b>All runs</b> (select rows → “Add to collection”).</div></div>`;
+    updateCount('0 in list'); return; }
+  let html = `<div class="list-pad">${collBarHtml()}<textarea class="coll-desc" placeholder="Description (optional)…" onblur="saveDesc(this.value)">${esc(c.description||'')}</textarea>`;
+  const items = c.items || [];
+  const loose = items.map((it,i)=>({it,i})).filter(x=>x.it.type==='run');
+  const secs  = items.map((it,i)=>({it,i})).filter(x=>x.it.type==='section');
+  if (loose.length) {
+    html += `<div class="loose-wrap"><div class="sec-head"><input class="sec-title" value="(ungrouped)" disabled></div>`;
+    loose.forEach(({it,i}) => { html += runRowHtml(it.run_id, `top:${i}`); });
+    html += `</div>`;
+  }
+  secs.forEach(({it,i}) => {
+    html += `<div class="section"><div class="sec-head">
+      <input class="sec-title" value="${esc(it.title||'')}" onchange="renameSection(${i}, this.value)">
+      <div class="mini-btns">
+        <button class="mini-btn" title="Move section up" onclick="moveTop(${i},-1)">▲</button>
+        <button class="mini-btn" title="Move section down" onclick="moveTop(${i},1)">▼</button>
+        <button class="mini-btn x" title="Remove section" onclick="removeSection(${i})">✕</button>
+      </div></div>`;
+    (it.runs||[]).forEach((rid, r) => { html += runRowHtml(rid, `sec:${i}:${r}`); });
+    if (!(it.runs||[]).length) html += `<div style="padding:8px;color:#aab;font-size:0.74rem">empty — add runs from All runs</div>`;
+    html += `</div>`;
+  });
+  if (!items.length) html += `<div class="coll-empty">Empty list.<br>Add a section, or add runs from <b>All runs</b>.</div>`;
+  html += `</div>`;
+  panel.innerHTML = html;
+  if (activeRun) { const el = panel.querySelector(`.run-row[data-run="${activeRun}"]`); if (el) el.classList.add('active'); }
+  updateCount(`${countRuns(c)} in list`);
+}
+function runRowHtml(runId, loc) {
+  const r = RUNS[runId];
+  if (!r) return `<div class="run-row missing" title="${esc(runId)}"><span class="num"></span><span class="label">⚠ run not available (deleted / no data)</span>
+    <div class="mini-btns"><button class="mini-btn x" title="Remove" onclick="removeAt('${loc}')">✕</button></div></div>`;
+  const label = r.title || r.prompt || runId;
+  return `<div class="run-row" data-run="${esc(runId)}" onclick="selectRun('${esc(runId)}')">
+    <span class="num">▸</span><span class="label" title="${esc(r.prompt||'')}">${esc(label)}</span>
+    <div class="mini-btns" onclick="event.stopPropagation()">
+      ${moveSelectHtml(loc)}
+      <button class="mini-btn" title="Up" onclick="moveRun('${loc}',-1)">▲</button>
+      <button class="mini-btn" title="Down" onclick="moveRun('${loc}',1)">▼</button>
+      <button class="mini-btn x" title="Remove from list" onclick="removeAt('${loc}')">✕</button>
+    </div></div>`;
+}
+function moveSelectHtml(loc) {
+  const items = (curColl() || {}).items || [];
+  const secs = items.map((it, i) => ({ it, i })).filter(x => x.it.type === 'section');
+  if (!secs.length) return '';
+  const p = loc.split(':');
+  const curVal = p[0] === 'top' ? 'top' : ('s:' + p[1]);
+  let opts = `<option value="top"${curVal==='top'?' selected':''}>(ungrouped)</option>`;
+  secs.forEach(({ it, i }) => { const v='s:'+i; opts += `<option value="${v}"${curVal===v?' selected':''}>${esc(it.title||'Section')}</option>`; });
+  return `<select class="move-sel" title="Move to section…" onchange="moveTo('${loc}', this.value)">${opts}</select>`;
+}
+function moveTo(loc, dest) {
+  const p = loc.split(':');
+  const curVal = p[0] === 'top' ? 'top' : ('s:' + p[1]);
+  if (dest === curVal) { renderCollectionTree(); return; }
+  const items = curColl().items;
+  const destRuns = dest === 'top' ? null : items[+dest.slice(2)].runs;
+  let rid;
+  if (p[0] === 'top') { rid = items[+p[1]].run_id; items.splice(+p[1], 1); }
+  else { rid = items[+p[1]].runs[+p[2]]; items[+p[1]].runs.splice(+p[2], 1); }
+  if (dest === 'top') items.push({ type: 'run', run_id: rid }); else destRuns.push(rid);
+  save(); renderCollectionTree();
+}
+function _swap(a,i,j){ if(j<0||j>=a.length) return false; const t=a[i]; a[i]=a[j]; a[j]=t; return true; }
+function moveTop(i,d){ if(_swap(curColl().items,i,i+d)){ save(); renderCollectionTree(); } }
+function moveRun(loc,d){ const items=curColl().items; const p=loc.split(':');
+  if(p[0]==='top'){ if(_swap(items,+p[1],+p[1]+d)){ save(); renderCollectionTree(); } }
+  else { if(_swap(items[+p[1]].runs,+p[2],+p[2]+d)){ save(); renderCollectionTree(); } } }
+function removeAt(loc){ const items=curColl().items; const p=loc.split(':');
+  if(p[0]==='top') items.splice(+p[1],1); else items[+p[1]].runs.splice(+p[2],1); save(); rebuildCollIndex(); renderCollectionTree(); }
+function removeSection(i){ const s=curColl().items[i];
+  if((s.runs||[]).length && !confirm(`Remove section “${s.title||''}” and its ${s.runs.length} run(s)? (Runs are not deleted.)`)) return;
+  curColl().items.splice(i,1); save(); rebuildCollIndex(); renderCollectionTree(); }
+function renameSection(i,t){ curColl().items[i].title=t; save(); }
+function addSection(){ const c=curColl(); if(!c){ alert('Create a collection first.'); return; }
+  const t=prompt('Section name:','New section'); if(t===null) return; c.items.push({type:'section',title:t||'Section',runs:[]}); save(); renderCollectionTree(); }
+function saveDesc(v){ const c=curColl(); if(c){ c.description=v; save(); } }
+async function newCollection(){ const t=prompt('New collection name (e.g. “Vestibular lecture”):',''); if(!t) return;
+  try{ const resp=await fetch('/collections',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},body:JSON.stringify({title:t})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status); const col=await resp.json(); COLLECTIONS.push(col); curId=col.id; renderSelect(); renderCollectionTree(); savedMsg('Created'); }
+  catch(e){ savedMsg('Error: '+e.message,false); } }
+async function deleteCollection(){ const c=curColl(); if(!c) return;
+  if(!confirm(`Delete the collection “${c.title}”? (The simulations are not deleted.)`)) return;
+  try{ const resp=await fetch('/collections/'+c.id,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}});
+    if(!resp.ok) throw new Error('HTTP '+resp.status); COLLECTIONS=COLLECTIONS.filter(x=>x.id!==c.id); curId=COLLECTIONS.length?COLLECTIONS[0].id:null;
+    rebuildCollIndex(); renderSelect(); renderCollectionTree(); savedMsg('Deleted'); }
+  catch(e){ savedMsg('Error: '+e.message,false); } }
+let _saveTimer=null;
+function save(){ const c=curColl(); if(!c) return; renderSelect(); rebuildCollIndex();
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{ try{
+    const resp=await fetch('/collections/'+c.id,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},
+      body:JSON.stringify({title:c.title,description:c.description,items:c.items})});
+    if(!resp.ok) throw new Error('HTTP '+resp.status); savedMsg('Saved');
+  }catch(e){ savedMsg('Save failed: '+e.message,false); } }, 300); }
+
+// ── Right panel: shared viewer (admin controls + avatar + plots + details) ──────
+function selectRun(runId) {
+  activeRun = runId;
+  document.querySelectorAll('.run-row').forEach(el => el.classList.toggle('active', el.dataset.run === runId));
+  document.querySelectorAll('#tbody tr').forEach(tr => tr.classList.toggle('active', tr.dataset.run === runId));
+  const r = RUNS[runId] || { run_id: runId, prompt: '', title: '' };
+  document.getElementById('emptyMsg').style.display = 'none';
+  document.getElementById('viewer').style.display = 'flex';
+  renderAdminControls(r);
+  renderDetails(r);
+  loadSidecar(r);
+}
+function renderAdminControls(r) {
+  document.getElementById('adminHost').innerHTML = `
+    <div class="admin-bar">
+      <button class="adm-btn fav ${isFav(r)?'on':''}" id="favBtn" onclick="toggleFavorite('${r.run_id}')">${isFav(r)?'★ Favorited':'☆ Favorite'}</button>
+      <button class="adm-btn fav ${isFeatured(r)?'on':''}" id="featBtn"
+              title="Featured runs appear as curated examples on the front page (a subset of favorites)"
+              onclick="toggleFeatured('${r.run_id}')">${isFeatured(r)?'◆ Featured':'◇ Feature'}</button>
+      <button class="adm-btn" onclick="addOneToCollection('${r.run_id}')">➕ Add to collection</button>
+      <button class="adm-btn danger" onclick="deleteRun('${r.run_id}')">🗑 Delete</button>
+      <span class="adm-saved" id="admSaved"></span>
+    </div>
+    ${r.has_sidecar===false ? '<div class="adm-warn">No interactive data (older run) — no animation/plots, and favoriting will NOT show it in the gallery. Re-run it on this server to generate data.</div>' : ''}
+    <textarea class="note-box" id="noteBox" placeholder="Note / tag…">${esc(r.note||'')}</textarea>
+    <div><button class="adm-btn" onclick="saveNote('${r.run_id}')">Save note</button></div>`;
+}
+function renderDetails(r) {
+  const ok = r.looks_correct==='True' ? '✓ looks correct' : r.looks_correct==='False' ? '✗ incorrect' : '—';
+  const coll = collNames(r.run_id).map(esc).join(', ') || '—';
+  document.getElementById('detailsHost').innerHTML = `
+    <span class="lbl">Prompt</span><span class="val prompt-val">${esc(r.prompt)}</span>
+    <span class="lbl">Title</span><span class="val">${esc(r.title)}</span>
+    <span class="lbl">Collections</span><span class="val">${coll}</span>
+    <span class="lbl">Mode</span><span class="val"><span class="mode-badge mode-${r.mode}">${r.mode||'—'}</span></span>
+    <span class="lbl">Date</span><span class="val">${fmtTs(r.timestamp)}</span>
+    <span class="lbl">Timing</span><span class="val timing-val">${fmtTiming(r)}</span>
+    <span class="lbl">Version</span><span class="val">${esc(r.version)}</span>
+    <span class="lbl">Run ID</span><span class="val" style="font-family:monospace;font-size:0.68rem;color:#555">${esc(r.run_id)}</span>
+    <span class="lbl">Correct</span><span class="val">${ok}</span>
+    ${r.feedback ? `<span class="lbl">Feedback</span><span class="val feedback-val">${esc(r.feedback)}</span>` : ''}`;
+}
+async function loadSidecar(r) {
+  const narrEl = document.getElementById('narrHost');
+  narrEl.style.display = 'none'; narrEl.innerHTML = '';
+  let payload = null;
+  if (r.has_sidecar !== false) {
+    try { const resp = await fetch('/run/' + r.run_id + '/data'); if (resp.ok) payload = await resp.json(); } catch (e) {}
+  }
+  loadAvatar(payload || {});
+  renderFigure(payload);
+  const text = payload && (payload.narrative || (payload.detail && payload.detail.narrative));
+  if (text) { narrEl.innerHTML = `<div class="adm-narr-label">Narrative</div>${esc(text)}`; narrEl.style.display = 'block'; }
+}
+function renderFigure(payload) {
+  const figHost = document.getElementById('figHost');
+  figHost.innerHTML = '';
+  if (figHandle) { try { figHandle.destroy(); } catch (e) {} figHandle = null; }
+  const canInter = (typeof uPlot !== 'undefined') && window.PlotSpec && payload && payload.plot_spec;
+  if (!canInter) { figHost.innerHTML = '<div class="no-interactive">No interactive plot data for this run.</div>'; return; }
+  const host = document.createElement('div'); host.className = 'plot-host';
+  figHost.appendChild(host);
+  try { figHandle = window.PlotSpec.render(host, payload.plot_spec); }
+  catch (e) { figHost.innerHTML = '<div class="no-interactive">Could not render the interactive plots.</div>'; }
+}
+// Drive the shared 3D avatar (comparison runs → tabs), same as the gallery.
+function loadAvatar(data) {
+  const section = document.getElementById('avatar-section');
+  const tabs = document.getElementById('avatar-tabs');
+  if (!window.loadEyeTrajectory) { section.style.display = 'none'; return; }
+  if (data.eye_trajectories && data.eye_trajectories.length) {
+    section.style.display = 'block'; tabs.style.display = 'flex'; tabs.innerHTML = '';
+    data.eye_trajectories.forEach((traj, i) => {
+      const b = document.createElement('button');
+      b.className = 'avatar-tab' + (i === 0 ? ' active' : '');
+      b.textContent = traj.label || ('Scenario ' + (i + 1));
+      b.onclick = () => { tabs.querySelectorAll('.avatar-tab').forEach(x => x.classList.remove('active')); b.classList.add('active'); window.loadEyeTrajectory(traj); };
+      tabs.appendChild(b);
+    });
+    window.loadEyeTrajectory(data.eye_trajectories[0]);
+  } else if (data.eye_trajectory) {
+    section.style.display = 'block'; tabs.style.display = 'none'; tabs.innerHTML = '';
+    window.loadEyeTrajectory(data.eye_trajectory);
+  } else {
+    section.style.display = 'none';
+  }
+}
+function togglePlay() { if (window._avatarTogglePlay) window._avatarTogglePlay(); }
+function onScrub(v)   { if (window._avatarOnScrub) window._avatarOnScrub(parseInt(v)); }
+window.setPlotTime = function (t) { if (figHandle && figHandle.setTime) { try { figHandle.setTime(t); } catch (e) {} } };
+
+// ── Per-run admin actions (favorite / feature / note / delete) ──────────────────
+// RUNS[id] references the same object stored in ALL_ROWS, so one update refreshes
+// every view; we then repaint the affected row + the open controls.
+function updateRowMarks(runId) {
+  const tr = document.querySelector(`#tbody tr[data-run="${runId}"]`); if (!tr) return;
+  const r = RUNS[runId];
+  const favC = tr.querySelector('.fav-cell'); if (favC) favC.innerHTML = isFav(r)?'<span class="fav-on">★</span>':'<span class="fav-off">☆</span>';
+  const featC = tr.querySelector('.feat-cell'); if (featC) featC.innerHTML = isFeatured(r)?'<span class="feat-on">◆</span>':'<span class="feat-off">◇</span>';
+}
+async function toggleFavorite(runId) {
+  const r = RUNS[runId]; if (!r) return;
+  const fav = !isFav(r);
+  try { const resp = await adminPost('/admin/favorite', { run_id: runId, favorite: fav }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+    r.favorite = fav?'True':'';
+    const b = document.getElementById('favBtn'); if (b && activeRun===runId) { b.classList.toggle('on',fav); b.textContent = fav?'★ Favorited':'☆ Favorite'; }
+    updateRowMarks(runId); applyFilter(); admMsg(fav?'Marked favorite — will appear in the gallery':'Removed from favorites');
+  } catch (e) { admMsg('Error: '+e.message,false); }
+}
+async function toggleFeatured(runId) {
+  const r = RUNS[runId]; if (!r) return;
+  const feat = !isFeatured(r);
+  try { const resp = await adminPost('/admin/featured', { run_id: runId, featured: feat }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+    r.featured = feat?'True':'';
+    const b = document.getElementById('featBtn'); if (b && activeRun===runId) { b.classList.toggle('on',feat); b.textContent = feat?'◆ Featured':'◇ Feature'; }
+    updateRowMarks(runId); applyFilter(); admMsg(feat?'Featured — will appear as a front-page example':'Removed from front-page examples');
+  } catch (e) { admMsg('Error: '+e.message,false); }
+}
+async function saveNote(runId) {
+  const box = document.getElementById('noteBox'); if (!box) return;
+  try { const resp = await adminPost('/admin/note', { run_id: runId, note: box.value }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+    const r = RUNS[runId]; if (r) r.note = box.value; admMsg('Note saved');
+  } catch (e) { admMsg('Error: '+e.message,false); }
+}
+async function deleteRun(runId) {
+  if (!confirm('Delete this run permanently? Removes its data, figure, and log entry.')) return;
+  try { const resp = await fetch('/runs/'+runId, { method:'DELETE', headers:{'X-Admin-Token':adminToken()} }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+    ALL_ROWS = ALL_ROWS.filter(x => x.run_id !== runId); delete RUNS[runId]; selected.delete(runId);
+    if (activeRun === runId) { activeRun = null; document.getElementById('viewer').style.display='none'; document.getElementById('emptyMsg').style.display='flex'; }
+    renderList();
+  } catch (e) { alert('Delete failed: '+e.message); }
+}
+// Quick single-run "add to collection" from the viewer (mirrors the bulk flow).
+async function addOneToCollection(runId) { await addRunsToCollection([runId]); }
+
+// ── Filter (all-runs mode) ───────────────────────────────────────────────────────
+let favOnly = false, featOnly = false;
+function toggleFavFilter() { favOnly=!favOnly; document.getElementById('favFilterBtn').classList.toggle('on',favOnly); applyFilter(); }
+function toggleFeatFilter() { featOnly=!featOnly; document.getElementById('featFilterBtn').classList.toggle('on',featOnly); applyFilter(); }
+function applyFilter() {
+  if (mode !== 'all') return;
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('#tbody tr').forEach((tr) => {
+    const r = RUNS[tr.dataset.run] || {};
+    const textMatch = !q || (r.prompt||'').toLowerCase().includes(q) || (r.title||'').toLowerCase().includes(q) || (r.mode||'').toLowerCase().includes(q);
+    const match = textMatch && (!favOnly || isFav(r)) && (!featOnly || isFeatured(r));
+    tr.classList.toggle('hidden', !match);
+    if (match) visible++;
+  });
+  updateCount(`${visible} runs`);
+}
+
+// ── Multi-select + bulk (all-runs mode) ─────────────────────────────────────────
+let lastCheckedIdx = null;
+function onRowCheck(ev, idx) {
+  ev.stopPropagation();
+  const on = ev.target.checked;
+  if (ev.shiftKey && lastCheckedIdx !== null) {
+    const a=Math.min(lastCheckedIdx,idx), b=Math.max(lastCheckedIdx,idx);
+    const trs=document.querySelectorAll('#tbody tr');
+    for (let k=a;k<=b;k++){ if(trs[k] && !trs[k].classList.contains('hidden')) setRowSelected(trs[k], on); }
+  } else { setRowSelected(document.querySelectorAll('#tbody tr')[idx], on); }
+  lastCheckedIdx = idx; updateBulkBar();
+}
+function setRowSelected(tr, on) {
+  if (!tr) return; const cb = tr.querySelector('.row-check'); if (cb) cb.checked = on;
+  tr.classList.toggle('selected', on);
+  if (on) selected.add(tr.dataset.run); else selected.delete(tr.dataset.run);
+}
+function toggleSelectAll(cb) { document.querySelectorAll('#tbody tr').forEach(tr => { if(!tr.classList.contains('hidden')) setRowSelected(tr, cb.checked); }); updateBulkBar(); }
+function clearSelection() { selected.clear(); document.querySelectorAll('#tbody tr').forEach(tr => { tr.classList.remove('selected'); const cb=tr.querySelector('.row-check'); if(cb) cb.checked=false; }); const sa=document.getElementById('selAll'); if(sa) sa.checked=false; updateBulkBar(); }
+function updateBulkBar() { const n=selected.size; document.getElementById('bulkbar').classList.toggle('show', n>0 && mode==='all'); document.getElementById('bulkCount').textContent=`${n} selected`; if(!n) bulkMsg(''); }
+function bulkMsg(t) { const m=document.getElementById('bulkMsg'); if(m) m.textContent=t; }
+async function bulkFavorite(fav) {
+  const ids=[...selected]; if(!ids.length) return; bulkMsg('Working…');
+  const res=await Promise.allSettled(ids.map(async runId => { const resp=await adminPost('/admin/favorite',{run_id:runId,favorite:fav}); if(!resp.ok) throw new Error('HTTP '+resp.status); const r=RUNS[runId]; if(r) r.favorite=fav?'True':''; }));
+  const ok=res.filter(x=>x.status==='fulfilled').length; ids.forEach(updateRowMarks); applyFilter(); bulkMsg(`${fav?'Favorited':'Unfavorited'} ${ok}/${ids.length}`);
+}
+async function bulkFeatured(feat) {
+  const ids=[...selected]; if(!ids.length) return; bulkMsg('Working…');
+  const res=await Promise.allSettled(ids.map(async runId => { const resp=await adminPost('/admin/featured',{run_id:runId,featured:feat}); if(!resp.ok) throw new Error('HTTP '+resp.status); const r=RUNS[runId]; if(r) r.featured=feat?'True':''; }));
+  const ok=res.filter(x=>x.status==='fulfilled').length; ids.forEach(updateRowMarks); applyFilter(); bulkMsg(`${feat?'Featured':'Unfeatured'} ${ok}/${ids.length}`);
+}
+async function bulkDelete() {
+  const ids=[...selected]; if(!ids.length) return;
+  if(!confirm(`Delete ${ids.length} run(s) permanently? Removes their data, figures, and log entries.`)) return; bulkMsg('Deleting…');
+  const res=await Promise.allSettled(ids.map(async runId => { const resp=await fetch('/runs/'+runId,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}}); if(!resp.ok) throw new Error('HTTP '+resp.status); ALL_ROWS=ALL_ROWS.filter(x=>x.run_id!==runId); delete RUNS[runId]; }));
+  const ok=res.filter(x=>x.status==='fulfilled').length; selected.clear(); renderList();
+  document.getElementById('viewer').style.display='none'; document.getElementById('emptyMsg').style.display='flex';
+  bulkMsg(`Deleted ${ok}/${ids.length}`);
+}
+let _rerunning=false;
+async function bulkRerun(kind) {
+  if(_rerunning) return; const ids=[...selected]; if(!ids.length) return;
+  if(kind==='prompt' && ids.length>1) { if(!confirm(`Re-run the PROMPT through the LLM for ${ids.length} runs?\n\nThat makes ${ids.length} LLM API calls — this COSTS TOKENS and results may differ.\n\n"Rerun sim" re-simulates for free without the LLM.\n\nProceed?`)) return; }
+  _rerunning=true; document.querySelectorAll('#bulkbar .bulk-btn').forEach(b=>b.disabled=true);
+  const label=kind==='prompt'?'prompt+sim':'sim'; const token=adminToken(); let ok=0, fail=0;
+  for(let i=0;i<ids.length;i++){ bulkMsg(`Re-running ${label} ${i+1}/${ids.length}…`+(fail?` (${fail} failed)`:''));
+    try{ let resp;
+      if(kind==='prompt'){ const r=RUNS[ids[i]]; const prompt=r&&r.prompt; if(!prompt) throw new Error('no stored prompt');
+        resp=await fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:prompt})}); }
+      else { resp=await fetch('/rerun/'+ids[i],{method:'POST',headers:{'X-Admin-Token':token}}); }
+      if(!resp.ok) throw new Error('HTTP '+resp.status); const body=await resp.json().catch(()=>({})); if(body&&body.error) throw new Error(body.error); ok++;
+    }catch(e){ fail++; } }
+  bulkMsg(`Done: ${ok} ok${fail?', '+fail+' failed':''} — reloading…`); setTimeout(()=>window.location.reload(),1000);
+}
+async function bulkAddToCollection() { const ids=[...selected]; if(!ids.length) return; await addRunsToCollection(ids); }
+
+// Shared "add these run_ids to a collection" flow (used by bulk + single-run button).
+// Opens the modal: a Collection dropdown + Section dropdown, each with a "New…"
+// option that reveals a text field. No native prompts.
+let _atcIds = [];
+function addRunsToCollection(ids) { openAtc(ids); }
+function openAtc(ids) {
+  _atcIds = ids;
+  document.getElementById('atcCount').textContent = ids.length + ' run' + (ids.length === 1 ? '' : 's');
+  document.getElementById('atcMsg').textContent = '';
+  document.getElementById('atcAddBtn').disabled = false;
+  const cs = document.getElementById('atcColl');
+  cs.innerHTML = COLLECTIONS.map(c => `<option value="${esc(c.id)}">${esc(c.title)} (${countRuns(c)})</option>`).join('')
+    + '<option value="__new__">＋ New collection…</option>';
+  cs.value = COLLECTIONS.length ? COLLECTIONS[0].id : '__new__';
+  document.getElementById('atcNewName').value = '';
+  document.getElementById('atcNewSection').value = '';
+  atcCollChanged();
+  document.getElementById('atcOverlay').classList.add('show');
+}
+function atcCollChanged() {
+  const cid = document.getElementById('atcColl').value;
+  document.getElementById('atcNewName').style.display = cid === '__new__' ? 'block' : 'none';
+  const sel = document.getElementById('atcSection');
+  const c = COLLECTIONS.find(x => x.id === cid);
+  const secs = c ? (c.items || []).filter(it => it.type === 'section') : [];
+  sel.innerHTML = '<option value="">(top level)</option>'
+    + secs.map(s => `<option value="${esc(s.title)}">${esc(s.title)}</option>`).join('')
+    + '<option value="__new__">＋ New section…</option>';
+  sel.value = '';
+  atcSectionChanged();
+}
+function atcSectionChanged() {
+  const v = document.getElementById('atcSection').value;
+  document.getElementById('atcNewSection').style.display = v === '__new__' ? 'block' : 'none';
+}
+function closeAtc() { document.getElementById('atcOverlay').classList.remove('show'); }
+async function atcConfirm() {
+  const btn = document.getElementById('atcAddBtn'); btn.disabled = true;
+  const err = t => { document.getElementById('atcMsg').textContent = t; btn.disabled = false; };
+  try {
+    let cid = document.getElementById('atcColl').value;
+    if (cid === '__new__') {
+      const title = document.getElementById('atcNewName').value.trim();
+      if (!title) return err('Enter a name for the new collection.');
+      const resp = await fetch('/collections', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() }, body: JSON.stringify({ title }) });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      cid = (await resp.json()).id;
+    }
+    let section = document.getElementById('atcSection').value || null;
+    if (section === '__new__') section = (document.getElementById('atcNewSection').value || '').trim() || null;
+    const resp = await fetch('/collections/' + cid + '/add', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() }, body: JSON.stringify({ run_ids: _atcIds, section }) });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    try { COLLECTIONS = ((await (await fetch('/collections')).json()).collections) || []; rebuildCollIndex(); renderSelect(); } catch (e) {}
+    renderList();
+    closeAtc();
+    savedMsg(`Added ${_atcIds.length} run(s)`); bulkMsg(`Added ${_atcIds.length} run(s)`);
+  } catch (e) { err('Add failed: ' + e.message); }
+}
+
+// ── Wide-plots toggle ────────────────────────────────────────────────────────────
+function toggleWide() {
+  const lp=document.querySelector('.list-panel'); const btn=document.getElementById('wideBtn');
+  const on=lp.classList.toggle('collapsed'); btn.classList.toggle('on',on);
+  setTimeout(()=>window.dispatchEvent(new Event('resize')),180);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────────
+document.getElementById('adminToken').value = localStorage.getItem('oculomotor_admin_token') || '';
+setMode('all');
+loadAll();
+</script>
+</body>
+</html>
