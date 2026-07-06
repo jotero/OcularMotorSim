@@ -411,15 +411,22 @@ def _find_schema_entry(field_name: str) -> dict:
 
 
 def _build_patient_changes(patient) -> list[dict]:
-    """Diff the LLM-set Patient against defaults; enrich with YAML metadata.
+    """List the parameters the scenario JSON *intended* to change; enrich with metadata.
 
-    Returns a list of dicts (only changed parameters) for the avatar page to
-    render, mirroring the parameters.html column structure but with explicit
-    default→value diff so users see exactly what the LLM tweaked.
+    We iterate only the fields the LLM explicitly set (``model_fields_set``) — i.e.
+    what the JSON asked to override — NOT a diff of every field against defaults. A
+    blanket diff-against-defaults spuriously flags any model default that has since
+    changed (a healthy scenario would light up parameters the patient never touched),
+    and it depends on stored runs baking in old defaults. The intended-set is stable
+    against default drift. (``_looks_changed`` still drops any field the LLM set to the
+    current default — a no-op override.)
+
+    Returns a list of dicts (only intended, non-trivial changes) for the avatar page,
+    mirroring the parameters.html column structure with an explicit default→value diff.
     """
     default_patient = _PatientCls()
     changes = []
-    for fname in _PatientCls.model_fields:
+    for fname in patient.model_fields_set:
         try:
             value   = getattr(patient, fname)
             default = getattr(default_patient, fname)
@@ -461,6 +468,10 @@ def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0) -> R
         title  = result.title
         mode   = 'comparison'
         detail = result.model_dump()
+        # Store each scenario's patient with only its explicitly-set fields (see the
+        # single-mode note below) so /rerun keeps the intended overrides, drift-free.
+        for _i, _sc in enumerate(result.scenarios):
+            detail['scenarios'][_i]['patient'] = _sc.patient.model_dump(exclude_unset=True)
         sim_data = None    # comparison CSV download not supported yet
         # Build per-scenario trajectories with short labels for avatar tabs
         eye_trajectories = []
@@ -477,6 +488,11 @@ def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0) -> R
         title            = result.description
         mode             = 'single'
         detail           = result.model_dump()
+        # Store the patient with ONLY its explicitly-set fields so a later /rerun
+        # reconstructs the intended overrides (model_fields_set) instead of baking in
+        # whatever the defaults were at capture time — which otherwise drifts both the
+        # patient-changes list AND the re-simulation when a model default later changes.
+        detail['patient'] = result.patient.model_dump(exclude_unset=True)
         eye_trajectories = []
         patient_changes  = _build_patient_changes(result.patient)
 

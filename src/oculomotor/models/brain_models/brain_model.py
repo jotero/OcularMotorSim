@@ -660,12 +660,12 @@ class BrainParams(NamedTuple):
     # Per-eye commanded diameter = rest − cn3·(consensual light + near), where cn3
     # is the CN III nerve integrity (from g_nerve), clipped to [pupil_min, pupil_max],
     # then low-passed by the rate-asymmetric iris plant (fast constrict, slow dilate).
-    pupil_baseline:        float = 7.5    # dark (fully dilated) pupil diameter (mm); dilator/sympathetic tone folded in
-    K_pupil_light:         float = 4.5    # light-reflex constriction gain (mm per unit afferent luminance);
-                                          #   full-field light (lum≈1) → ~4.5 mm miosis: 7.5 → ~3 mm
+    pupil_baseline:        float = 8.5    # dark (fully dilated) pupil diameter (mm); dilator/sympathetic tone folded in
+    K_pupil_light:         float = 5.5    # light-reflex constriction gain (mm per unit afferent luminance);
+                                          #   full-field light (lum≈1) → ~5.5 mm miosis: 8.5 → ~3 mm
     K_pupil_near:          float = 0.4    # near-response constriction gain (mm per D of accommodation) [Myers & Stark 1990]
     pupil_min:             float = 2.0    # minimum physiological pupil diameter (mm)
-    pupil_max:             float = 8.0    # maximum physiological pupil diameter (mm)
+    pupil_max:             float = 9.0    # maximum physiological pupil diameter (mm)
     tau_pupil_constrict:   float = 0.3    # fast iris-sphincter constriction TC (s); pupil shrinking [Ellis 1981]
     tau_pupil_dilate:      float = 1.0    # slow dilation TC (s); dilator + viscoelastic recoil — pupil enlarging
                                           #   → the hallmark fast-constriction / slow-redilation asymmetry

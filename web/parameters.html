@@ -119,8 +119,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-07-03 13:01</strong> &nbsp;|&nbsp;
-      Version: <strong>880daa5-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-06 09:38</strong> &nbsp;|&nbsp;
+      Version: <strong>328bc5f-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\src\oculomotor\schema\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -1446,7 +1446,7 @@ tr:last-child { border-bottom: none; }
         <tbody>
         <tr>
           <td class="param-name">pupil_baseline</td>
-          <td><span class="default">7.5</span></td>
+          <td><span class="default">8.5</span></td>
           <td class="units">mm</td>
           <td class="range-cell"></td>
           <td class="desc-cell"><p>Dark, fully-dilated pupil diameter (both eyes). Per-eye resting size = pupil_min + g_ocular_symp·(pupil_baseline − pupil_min); light- and near-reflex constriction subtract from that. Horner miosis is modelled per eye via g_ocular_symp_{L,R} (see with_horner), not by lowering this baseline.</p><div class="refs">Loewenfeld (1993)</div></td>
@@ -1456,7 +1456,7 @@ tr:last-child { border-bottom: none; }
 
         <tr>
           <td class="param-name">K_pupil_light</td>
-          <td><span class="default">4.5</span></td>
+          <td><span class="default">5.5</span></td>
           <td class="units">mm</td>
           <td class="range-cell"></td>
           <td class="desc-cell"><p>Light-reflex constriction gain (mm per unit afferent luminance). Full-field light (lum≈1) constricts the pupil by ~this many mm (miosis).</p><div class="refs">McDougal & Gamlin (2015)</div></td>
@@ -1486,7 +1486,7 @@ tr:last-child { border-bottom: none; }
 
         <tr>
           <td class="param-name">pupil_max</td>
-          <td><span class="default">8</span></td>
+          <td><span class="default">9</span></td>
           <td class="units">mm</td>
           <td class="range-cell"></td>
           <td class="desc-cell"><p>Maximum physiological pupil diameter (dilation clip).</p></td>

@@ -447,6 +447,14 @@
     "cite": "Becker & J\u00fcrgens (1979)",
     "desc": "Smallest double-step ISI yielding a distinct 2nd saccade (A=20\u00b0)"
   },
+  "tvor_bode_fc_lo_scene_target": {
+    "lo": null,
+    "hi": null,
+    "golden_tol": 0.25,
+    "units": "Hz",
+    "cite": "Paige & Tomko (1991); Angelaki & Hess (2001)",
+    "desc": "tVOR low-side \u22123 dB corner (high-pass) \u2014 scene+target"
+  },
   "tvor_bode_gain_max_dark": {
     "lo": 0.3,
     "hi": 1.4,

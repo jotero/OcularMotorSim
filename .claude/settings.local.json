@@ -132,7 +132,17 @@
       "PowerShell(& \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\\\\.venv\\\\Scripts\\\\python.exe\" -X utf8 -m oculomotor.reports.copy_featured)",
       "Bash(find \"C:/Users/jom/.claude/projects\" -name \"*ClaudeOculomotor*\" -type d 2>/dev/null | head -5)",
       "Bash(xargs -I {} bash -c 'echo \"=== {} ===\"; grep -n \"coordinate\\\\|canal.*muscle\\\\|muscle.*canal\\\\|yaw.*pitch.*roll\\\\|cardinal\\\\|defer.*coord\\\\|future.*coord\\\\|LARP\\\\|RALP\" \"{}\"')",
-      "PowerShell(cd \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\"; Write-Output \"=== vergence bench output ===\"; Get-Content \"C:\\\\Users\\\\jom\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--OneDrive-UC-Berkeley-OMlab---JOM-Code-ClaudeOculomotorJax\\\\7fbe7a36-519e-4dda-a21a-36bbae009e8b\\\\tasks\\\\bzngp3wqv.output\"; Write-Output \"=== any failures in log ===\"; Select-String -Path scratch\\\\_verify_verg.log -Pattern \"FAIL|out of band|below band|above band|✗|Traceback|Error\" | ForEach-Object { $_.Line } | Select-Object -First 20)"
+      "PowerShell(cd \"d:\\\\OneDrive\\\\UC Berkeley\\\\OMlab - JOM\\\\Code\\\\ClaudeOculomotorJax\"; Write-Output \"=== vergence bench output ===\"; Get-Content \"C:\\\\Users\\\\jom\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--OneDrive-UC-Berkeley-OMlab---JOM-Code-ClaudeOculomotorJax\\\\7fbe7a36-519e-4dda-a21a-36bbae009e8b\\\\tasks\\\\bzngp3wqv.output\"; Write-Output \"=== any failures in log ===\"; Select-String -Path scratch\\\\_verify_verg.log -Pattern \"FAIL|out of band|below band|above band|✗|Traceback|Error\" | ForEach-Object { $_.Line } | Select-Object -First 20)",
+      "Bash(./.venv/Scripts/python.exe -X utf8 scratch/_smoke_ni_canal.py)",
+      "Bash(./.venv/Scripts/python.exe -X utf8 -m oculomotor.reports.gen_parameters)",
+      "Bash(git -c gc.auto=0 commit -F \"C:/Users/jom/AppData/Local/Temp/claude/d--OneDrive-UC-Berkeley-OMlab---JOM-Code-ClaudeOculomotorJax/7fbe7a36-519e-4dda-a21a-36bbae009e8b/scratchpad/commitmsg.txt\")",
+      "Bash(./.venv/Scripts/python.exe -X utf8 -m oculomotor.reports.run_benchmarks)",
+      "Bash(echo \"BENCH EXIT=$?\")",
+      "Bash(./.venv/Scripts/python.exe -X utf8 scratch/_migrate_rerun_db.py --dry-run)",
+      "Bash(./.venv/Scripts/python.exe -X utf8 scratch/_migrate_rerun_db.py)",
+      "Bash(echo \"MIGRATE EXIT=$?\")",
+      "Bash(./.venv/Scripts/python.exe -X utf8 -u -m oculomotor.reports.run_clinical_benchmarks)",
+      "Bash(echo \"CLINICAL EXIT=$?\")"
     ],
     "additionalDirectories": [
       "d:\\OneDrive\\UC Berkeley\\OMlab - JOM\\Code\\ClaudeOculomotorJax\\outputs"

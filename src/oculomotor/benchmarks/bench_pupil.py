@@ -83,7 +83,7 @@ def _light_reflex(show):
                  fontsize=11, fontweight='bold')
     ax.axvspan(T_ON, T_OFF, color='#fff3b0', alpha=0.5, lw=0, label='lights on')
     ax.plot(t, pupil, color=_C_L, lw=2.0, label='Pupil diameter')
-    ax_fmt(ax, ylabel='Pupil diameter (mm)', xlabel='Time (s)', ylim=(1.5, 8.0))
+    ax_fmt(ax, ylabel='Pupil diameter (mm)', xlabel='Time (s)', ylim=(1.5, 9.0))
 
     axr = ax.twinx()
     axr.plot(t, lum, color='#c0a000', lw=1.2, ls='--', label='Afferent luminance')
@@ -166,7 +166,7 @@ def _anisocoria(show):
     ax.plot(t, healthy[:, 0], color='#999999', lw=1.2, ls=':', label='Healthy (both eyes)')
     ax.plot(t, cn3[:, 0], color=_C_L, lw=2.2, label='Left pupil (CN III palsy — blown)')
     ax.plot(t, cn3[:, 1], color=_C_R, lw=2.0, ls='--', label='Right pupil (reactive)')
-    ax_fmt(ax, ylabel='Pupil diameter (mm)', xlabel='Time (s)', ylim=(1.5, 8.0))
+    ax_fmt(ax, ylabel='Pupil diameter (mm)', xlabel='Time (s)', ylim=(1.5, 9.0))
     ax.legend(fontsize=7, loc='center right')
 
     path, rp = utils.save_fig(fig, 'pupil_anisocoria_cn3', show=show,
@@ -177,8 +177,8 @@ def _anisocoria(show):
         description='A pupil-involving left oculomotor palsy: the left pupil is fixed and '
                     'dilated (parasympathetic sphincter fibres travel with CN III) while the '
                     'right pupil constricts normally to light — anisocoria.',
-        expected='Left pupil stays ~7.5 mm (blown, unreactive); right pupil constricts to '
-                 '~2.7 mm on light. Pupil-sparing palsy would keep both reactive.',
+        expected='Left pupil stays ~8.5 mm (blown, unreactive); right pupil constricts to '
+                 '~3 mm on light. Pupil-sparing palsy would keep both reactive.',
         citation='Loewenfeld (1993); Kerr & Hollowell (1964)',
     )
 
@@ -205,7 +205,7 @@ def _lesions(show):
     for label, params, color, ls in conditions:
         st = simulate(params, t, scene_present_array=scene, return_states=True, key=KEY)
         ax.plot(t, pupil_size(st)[:, 0], color=color, ls=ls, lw=1.8, label=label)
-    ax_fmt(ax, ylabel='Left pupil diameter (mm)', xlabel='Time (s)', ylim=(1.5, 8.0))
+    ax_fmt(ax, ylabel='Left pupil diameter (mm)', xlabel='Time (s)', ylim=(1.5, 9.0))
     ax.legend(fontsize=7, loc='center right', ncol=1)
 
     path, rp = utils.save_fig(fig, 'pupil_lesions', show=show, params=PARAMS,

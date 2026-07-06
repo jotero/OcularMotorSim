@@ -484,7 +484,7 @@ async function run() {
   document.querySelectorAll('input[name="looks-correct"]').forEach(r => r.checked = false);
   document.getElementById('feedback-comment').value = '';
   status.className = 'status';
-  status.innerHTML = '<span class="spinner"></span>Thinking…';
+  status.innerHTML = '<span class="spinner"></span>Thinking… this usually takes ~40 seconds (sometimes up to a minute) — thanks for your patience.';
 
   try {
     const resp = await fetch(backend + '/run', {

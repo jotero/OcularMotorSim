@@ -1,0 +1,15 @@
+D:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\src\oculomotor\benchmarks\bench_vor_okr.py:429: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+  fig.tight_layout(pad=0.4)
+
+=== VOR / OKR ===
+  1/4  Raphan Fig.9 replication …
+  VOR post-rot TC: τ = 34.5 s
+  OKAN TC: τ = 19.5 s
+  VVOR yaw gain (10–25 s): 0.808  (target > 0.85)
+  [vor_raphan_fig9] saved → vor_raphan_fig9.png
+  2/4  step response (reuses Raphan sims) …
+  [vor_okr_cascade] saved → vor_okr_cascade.png
+  3/4  VOR Bode (body rotation) …
+  [vor_bode] saved → vor_bode.png
+  4/4  OKR Bode (scene motion) …
+  [okr_bode] saved → okr_bode.png
