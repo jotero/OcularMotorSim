@@ -101,14 +101,53 @@ _ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', '').strip()
 _COLLECTIONS_FILE = _DATA_ROOT / 'collections.json'
 
 
+_FEATURED_ID = 'featured'   # reserved, undeletable "Featured" collection (its item order = carousel order)
+
+
 def _load_collections() -> list[dict]:
+    cols = []
     if _COLLECTIONS_FILE.exists():
         try:
             with open(_COLLECTIONS_FILE, encoding='utf-8') as f:
-                return json.load(f).get('collections', [])
+                cols = json.load(f).get('collections', [])
         except Exception:
-            return []
-    return []
+            cols = []
+    # Ensure the reserved "Featured" collection exists and is listed first. Its item
+    # ORDER is the front-page carousel order, so featuring + reordering the front page
+    # is done exactly like any other collection.
+    if not any(c.get('id') == _FEATURED_ID for c in cols):
+        cols.insert(0, {'id': _FEATURED_ID, 'title': 'Featured', 'reserved': True,
+                        'description': 'Front-page examples, shown in this order.', 'items': []})
+        _save_collections(cols)
+    return cols
+
+
+def _featured_collection(cols: list[dict]) -> dict:
+    """Return the reserved Featured collection from a loaded list (defensive create)."""
+    for c in cols:
+        if c.get('id') == _FEATURED_ID:
+            return c
+    c = {'id': _FEATURED_ID, 'title': 'Featured', 'reserved': True, 'items': []}
+    cols.insert(0, c)
+    return c
+
+
+def _ensure_featured_collection() -> None:
+    """Startup: seed the Featured collection with any run still flagged featured that
+    isn't already in it (migrates legacy flag-only featured runs). Newest first;
+    order is otherwise preserved and nothing is removed."""
+    cols = _load_collections()
+    feat = _featured_collection(cols)
+    present = {it.get('run_id') for it in feat.get('items', []) if it.get('type') == 'run'}
+    flagged = [rid for rid, row in _log_entries.items() if _truthy(row.get('featured'))]
+    flagged.sort(key=lambda rid: _log_entries[rid].get('timestamp', ''), reverse=True)
+    changed = False
+    for rid in flagged:
+        if rid not in present:
+            feat.setdefault('items', []).append({'type': 'run', 'run_id': rid})
+            changed = True
+    if changed:
+        _save_collections(cols)
 
 
 def _save_collections(cols: list[dict]) -> None:
@@ -220,6 +259,7 @@ async def _force_js_mime(request, call_next):
 # Load any existing log at startup, normalize it to the current columns
 # (older logs predate favorite/note/timing), and write a fresh admin page.
 _load_log()
+_ensure_featured_collection()   # reserved Featured collection + seed from legacy featured flags
 _rewrite_log()
 
 
@@ -270,9 +310,22 @@ class CollectionAdd(BaseModel):
 def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     """Downsample per-eye position arrays for web animation.
 
-    Returns a dict with 'fps', 'n_frames', 'duration_s', 'left', 'right'
-    where left/right are lists of [yaw, pitch, roll] in degrees, rounded to
-    2 decimal places.  Kept small enough to embed in the JSON response.
+    Returns a dict of per-frame arrays (rounded, kept small enough to embed in the
+    JSON response). left/right/head are lists of [yaw, pitch, roll] in degrees.
+
+    Field contract (so consumers can rely on it):
+      ALWAYS present, on every run:
+        fps, n_frames, duration_s, left, right, head, cover_L, cover_R, scene_present
+      OPTIONAL, only when that feature is active:
+        target + target_present, scene_pos, head_lin_pos, prism_L/R,
+        pupil_diameter_L/R (+ luminance)
+
+    RULE: any *state flag the viewer branches on* (e.g. scene_present, cover_*) must
+    be ALWAYS emitted with a sensible default — never gated on some other array's
+    presence (that caused the "dark backdrop never showed" bug: scene_present used to
+    be emitted only alongside scene_pos, so scene-off-in-the-dark runs omitted it).
+    Bulk optional arrays stay conditional, and the consumer treats absence as
+    "feature off" (the avatar guards scene_pos / head_lin_pos / prism / pupil that way).
     """
     if sim_data is None:
         return None
@@ -334,11 +387,17 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     # Scene angular position (integrate scene velocity) + presence flag, for the
     # world dot-cloud: it rotates with the scene (OKN) and hides when the scene
     # is off (e.g. VOR in the dark).
+    # Scene presence flag — ALWAYS emitted (not gated on scene motion) so the viewer
+    # can darken the backdrop whenever the scene is off, e.g. VOR / OKAN in the dark
+    # where there is no scene_vel at all.
+    out['scene_present'] = ((spL > 0.5) | (spR > 0.5)).astype(int)[::step].tolist()
+
+    # Scene angular position (integrate scene velocity) for the world dot-cloud —
+    # only when the scene is actually moving (OKN).
     if 'scene_vel' in sim_data and sim_data['scene_vel'] is not None:
         sv = np.array(sim_data['scene_vel'])                 # (T, 3) deg/s
         scene_pos = np.cumsum(sv * dt_orig, axis=0)[::step]  # (n, 3) deg
-        out['scene_pos']     = [[round(float(v), 2) for v in row] for row in scene_pos.tolist()]
-        out['scene_present'] = ((spL > 0.5) | (spR > 0.5)).astype(int)[::step].tolist()
+        out['scene_pos'] = [[round(float(v), 2) for v in row] for row in scene_pos.tolist()]
 
     # Head linear displacement (m, relative to start) for translational optic flow
     # of the dot-cloud as the head walks/translates through the world.
@@ -705,6 +764,19 @@ async def admin_featured(req: FeaturedRequest,
     _log_entries[req.run_id]['featured'] = 'True' if req.featured else ''
     _rewrite_log()
     _patch_run_json(req.run_id, featured=req.featured)
+    # Mirror membership in the reserved 'Featured' collection (whose order drives the
+    # front-page carousel): feature -> append to the end; unfeature -> remove.
+    cols = _load_collections()
+    feat = _featured_collection(cols)
+    items = feat.setdefault('items', [])
+    has = any(it.get('type') == 'run' and it.get('run_id') == req.run_id for it in items)
+    if req.featured and not has:
+        items.append({'type': 'run', 'run_id': req.run_id})
+        _save_collections(cols)
+    elif not req.featured and has:
+        feat['items'] = [it for it in items
+                         if not (it.get('type') == 'run' and it.get('run_id') == req.run_id)]
+        _save_collections(cols)
     return {'status': 'ok', 'featured': req.featured}
 
 
@@ -783,6 +855,9 @@ async def collections_update(cid: str, req: CollectionUpdate,
 async def collections_delete(cid: str,
                              x_admin_token: str | None = Header(default=None)):
     _check_admin(x_admin_token)
+    if cid == _FEATURED_ID:
+        raise HTTPException(status_code=400,
+                            detail='The Featured collection is reserved and cannot be deleted.')
     cols = _load_collections()
     new = [c for c in cols if c.get('id') != cid]
     if len(new) == len(cols):

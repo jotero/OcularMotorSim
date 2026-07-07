@@ -295,12 +295,13 @@
       // the cursor drifts ahead — most visibly toward the end of the trace.
       alignGantt: () => {
         const u = charts[0];
-        if (!u || !u.over) return;
-        const leftCss  = u.over.offsetLeft;                                  // plot-area left
-        const plotCss  = u.over.clientWidth;                                 // plot-area width
-        const rightCss = Math.max(0, u.root.clientWidth - leftCss - plotCss);
-        for (const { track, label } of ganttTracks) {
-          label.style.width       = leftCss + 'px';
+        if (!u || !u.over || !u.over.clientWidth) return;   // wait until the chart is laid out
+        // The gantt label is a FIXED 80px = the panels' left y-gutter (axis size:80), so the
+        // track already starts at the plot-area left — do NOT resize the label (that truncated
+        // "Scene"/"Target"). Only match the RIGHT gutter (e.g. a right y-axis) so the track
+        // spans exactly the plot area and the fixed-scale cursor stays in sync.
+        const rightCss = Math.max(0, u.root.clientWidth - (u.over.offsetLeft + u.over.clientWidth));
+        for (const { track } of ganttTracks) {
           track.style.marginRight = rightCss + 'px';
         }
       },

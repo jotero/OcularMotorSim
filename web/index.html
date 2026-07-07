@@ -695,14 +695,36 @@ let _featuredPage = 0;
 async function loadFeaturedExamples() {
   const backend  = getBackend();
   const fallback = document.getElementById('examples-fallback');
+  const hdr = { headers: { 'ngrok-skip-browser-warning': 'true' } };
   try {
-    const resp = await fetch(backend + '/runs?favorites_only=true',
-                             { headers: { 'ngrok-skip-browser-warning': 'true' } });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const runs = await resp.json();
+    // Favorites give the card set/data; the reserved "Featured" collection gives the
+    // curated ORDER for the featured cards (editable in the admin's By-collection view).
+    const [rResp, cResp] = await Promise.all([
+      fetch(backend + '/runs?favorites_only=true', hdr),
+      fetch(backend + '/collections', hdr),
+    ]);
+    if (!rResp.ok) throw new Error('HTTP ' + rResp.status);
+    const runs = await rResp.json();
     if (!runs.length) { fallback.style.display = 'flex'; return; }
-    // Featured first, then the rest — stable, so each group keeps its newest-first order.
-    _featuredRuns = [...runs.filter(r => r.featured), ...runs.filter(r => !r.featured)];
+    const byId = {}; runs.forEach(r => { byId[r.run_id] = r; });
+
+    // Featured order from the reserved collection (flatten sections too).
+    let order = [];
+    try {
+      const feat = ((await cResp.json()).collections || []).find(c => c.id === 'featured');
+      if (feat) (feat.items || []).forEach(it => {
+        if (it.type === 'run') order.push(it.run_id);
+        else if (it.type === 'section') (it.runs || []).forEach(r => order.push(r));
+      });
+    } catch (e) {}
+
+    const seen = new Set();
+    const featured = [];
+    order.forEach(rid => { if (byId[rid] && !seen.has(rid)) { featured.push(byId[rid]); seen.add(rid); } });
+    // Any run still flagged featured but missing from the collection order → keep it.
+    runs.filter(r => r.featured && !seen.has(r.run_id)).forEach(r => { featured.push(r); seen.add(r.run_id); });
+    const rest = runs.filter(r => !seen.has(r.run_id));   // remaining favorites
+    _featuredRuns = [...featured, ...rest];
     _featuredPage = 0;
     renderFeaturedPage();
     document.getElementById('examples-head').style.display = 'flex';

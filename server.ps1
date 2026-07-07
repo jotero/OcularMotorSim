@@ -20,10 +20,9 @@
  ALIASES:        start_dev=dev | start_stable=stable | make_stable=make-stable
 
  NOTES:
-   * dev and stable share ONE database (OCULOMOTOR_DATA -> ..\om-data\server_data):
-     the log, per-run data, figures, favorites/featured, and collections are identical
-     everywhere. Dev test-runs still stay out of the public gallery because it only
-     shows FAVORITES (and the carousel only FEATURED) — curation, not a separate DB.
+   * dev and stable have SEPARATE databases: each serves its own checkout's server_data/
+     (safe to run BOTH at once - no shared file to clobber). Use 'make-stable' to promote
+     curated content (featured/favorite runs + collections) from dev into stable.
    * stable runs the worktree's OWN venv, so the frozen model code is truly isolated from dev.
    * Website deploy copies the frozen web/ into ..\om-lab-website\sim, then you commit + push there.
 =====================================================================================
@@ -39,9 +38,6 @@ $mainPython      = Join-Path $root '.venv\Scripts\python.exe'
 $stableWorktree  = Join-Path (Split-Path $root -Parent) 'om-stable'
 $stablePython    = Join-Path $stableWorktree '.venv\Scripts\python.exe'
 $websiteDest     = 'D:\OneDrive\UC Berkeley\OMlab - JOM\Code\om-lab-website\sim'
-# Single shared database (log CSV, per-run sidecars, figures, collections.json) used by
-# BOTH dev and stable via OCULOMOTOR_DATA. Neutral folder, owned by neither checkout.
-$sharedData      = Join-Path (Split-Path $root -Parent) 'om-data\server_data'
 
 function Show-Usage {
     Write-Host @'
@@ -62,8 +58,8 @@ server.ps1 - Oculomotor simulator server management
   ALIASES   start_dev=dev | start_stable=stable | make_stable=make-stable
 
   NOTES
-    * dev and stable share ONE database via OCULOMOTOR_DATA (..\om-data\server_data);
-      only the CODE (frozen web/ + venv) differs for stable.
+    * dev and stable have SEPARATE databases (each checkout's server_data/) - safe to
+      run both at once. make-stable promotes featured/favorite runs + collections to stable.
     * stable uses the worktree's own venv -> its model code is frozen, isolated from dev.
     * Website deploy dest: ..\om-lab-website\sim
 
@@ -71,10 +67,7 @@ server.ps1 - Oculomotor simulator server management
 }
 
 function Start-Dev {
-    New-Item -ItemType Directory -Force -Path $sharedData | Out-Null
-    $env:OCULOMOTOR_DATA = $sharedData
-    Write-Host 'Starting DEV server (live code) on http://localhost:8001'
-    Write-Host "Shared DB: $sharedData"
+    Write-Host 'Starting DEV server (live code) on http://localhost:8001 (its own server_data)'
     & $mainPython -X utf8 -m oculomotor.server --port 8001
 }
 
@@ -88,10 +81,7 @@ function Start-Stable {
         exit 1
     }
     $ver = git -C $stableWorktree rev-parse --short HEAD
-    New-Item -ItemType Directory -Force -Path $sharedData | Out-Null
-    $env:OCULOMOTOR_DATA = $sharedData
-    Write-Host "Starting STABLE server (frozen commit $ver) on http://localhost:8000"
-    Write-Host "Shared DB: $sharedData"
+    Write-Host "Starting STABLE server (frozen commit $ver) on http://localhost:8000 (its own server_data)"
     Write-Host 'Ctrl-C to stop.'
     & $stablePython -X utf8 -m oculomotor.server --port 8000
 }
@@ -132,11 +122,21 @@ function Invoke-MakeStable {
 
     Write-Host "Run '.\server.ps1 stable' to serve the frozen snapshot on port 8000"
 
-    # 4. Data is now a SINGLE shared DB (OCULOMOTOR_DATA=$sharedData) used by both dev
-    #    and stable, so featured / favorites / collections are already identical
-    #    everywhere - nothing to copy. (copy_featured is retired.)
+    # 4. Promote curated content from dev's DB into the stable gallery. dev and stable
+    #    keep SEPARATE databases (safe to run both at once), so this copies featured /
+    #    favorite runs AND collections (with the runs they reference). Additive + idempotent.
     Write-Host ''
-    Write-Host "Shared DB in use ($sharedData) - no dev/stable data copy needed." -ForegroundColor Cyan
+    Write-Host 'Copy curated content from dev into the stable gallery?' -ForegroundColor Cyan
+    Write-Host '  [f] featured only   [b] featured + favorites   [n] none ' -NoNewline
+    $pick = (Read-Host).ToLower()
+    if ($pick -eq 'f' -or $pick -eq 'b') {
+        $cfArgs = @('-X', 'utf8', '-m', 'oculomotor.reports.copy_featured',
+                    '--from', (Join-Path $root 'server_data'),
+                    '--to',   (Join-Path $stableWorktree 'server_data'),
+                    '--collections')
+        if ($pick -eq 'b') { $cfArgs += '--favorites' }
+        & $mainPython @cfArgs
+    }
 
     # 5. Optional: deploy the frozen frontend (web/) to the public website repo.
     $publishRepo = $null

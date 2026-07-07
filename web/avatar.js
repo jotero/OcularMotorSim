@@ -31,7 +31,8 @@ const W = () => canvas.clientWidth  || 820;
 const H = () => canvas.clientHeight || 420;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeef0f4);
+const BG_LIT = 0xeef0f4, BG_DARK = 0x0a0a0f;   // backdrop: lit room vs scene-off (dark)
+scene.background = new THREE.Color(BG_LIT);
 
 // Two cameras — world view (left) and head-fixed view (right)
 const worldCam = new THREE.PerspectiveCamera(28, W() / 2 / H(), 0.001, 10000);
@@ -722,6 +723,14 @@ window._avatarOnScrub = function(val) {
 function renderViewports() {
   const w = W(), h = H();
   const fi = Math.min(Math.floor(_frame), _traj ? _traj.n_frames - 1 : 0);
+
+  // Dark room: when the visual scene is off, paint the backdrop near-black so it's
+  // obvious the lights are out (VOR / OKAN in the dark). Lit → the usual light grey.
+  const lit = !_traj || !_traj.scene_present || _traj.scene_present[fi];
+  const bg  = lit ? BG_LIT : BG_DARK;
+  scene.background.set(bg);
+  renderer.setClearColor(bg, 1);   // also drive the manual clear, so the backdrop
+                                   // shows even if the split-view background paint is skipped
 
   renderer.clear();
 

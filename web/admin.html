@@ -210,6 +210,22 @@ tbody tr.selected.active { background: #dbe6ff; }
 .adm-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
 .adm-btn.primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
 .adm-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Phone / narrow screens: stack list above viewer instead of side-by-side ── */
+@media (max-width: 760px) {
+  header { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+  header .count { margin-left: 0; }
+  header input#search { width: 100%; }
+  .token-input { width: 120px !important; }
+  .layout { flex-direction: column; }
+  .list-panel { width: 100% !important; min-width: 0; max-height: 42vh;
+    border-right: none; border-bottom: 1px solid #e3e6ec; }
+  .list-panel.collapsed { max-height: 0; border-bottom: none; }   /* "Wide" → viewer full height */
+  .figure-panel { padding: 12px; }
+  #avatar-canvas { height: 300px; }
+  .modal { width: 94vw; }
+  #bulkbar { gap: 6px; }
+}
 </style>
 <link rel="stylesheet" href="/vendor/uPlot.min.css">
 <script src="/vendor/uPlot.iife.min.js"></script>
@@ -435,13 +451,20 @@ function selectCollection(cid) { curId = cid; renderCollectionTree(); }
 function collBarHtml() {
   const opts = COLLECTIONS.map(c => `<option value="${esc(c.id)}"${c.id===curId?' selected':''}>${esc(c.title)} (${countRuns(c)})</option>`).join('')
     || '<option disabled>— no collections yet —</option>';
+  const c = curColl();
+  const reserved = c && c.reserved;
+  const delBtn = reserved
+    ? '<button class="wide-btn danger" disabled title="The Featured list is reserved and cannot be deleted">🗑 Delete list</button>'
+    : '<button class="wide-btn danger" onclick="deleteCollection()">🗑 Delete list</button>';
+  const hint = reserved ? '<span class="saved-msg" style="color:#94a3b8">reorder = front-page order</span>' : '';
   return `<div class="coll-bar">
     <select id="collSelect" class="coll-picker" onchange="selectCollection(this.value)">${opts}</select>
     <div class="coll-btns">
       <button class="wide-btn" onclick="newCollection()">+ New</button>
       <button class="wide-btn" onclick="addSection()">＋ Section</button>
       <button class="wide-btn" onclick="if(curId) window.open('/?list='+encodeURIComponent(curId),'_blank')" title="Open this collection on the public site (read-only)">▶ View</button>
-      <button class="wide-btn danger" onclick="deleteCollection()">🗑 Delete list</button>
+      ${delBtn}
+      ${hint}
       <span class="saved-msg" id="savedMsg"></span>
     </div>
   </div>`;
@@ -534,6 +557,7 @@ async function newCollection(){ const t=prompt('New collection name (e.g. “Ves
     if(!resp.ok) throw new Error('HTTP '+resp.status); const col=await resp.json(); COLLECTIONS.push(col); curId=col.id; renderSelect(); renderCollectionTree(); savedMsg('Created'); }
   catch(e){ savedMsg('Error: '+e.message,false); } }
 async function deleteCollection(){ const c=curColl(); if(!c) return;
+  if(c.reserved){ savedMsg('The Featured list is reserved — cannot delete.', false); return; }
   if(!confirm(`Delete the collection “${c.title}”? (The simulations are not deleted.)`)) return;
   try{ const resp=await fetch('/collections/'+c.id,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}});
     if(!resp.ok) throw new Error('HTTP '+resp.status); COLLECTIONS=COLLECTIONS.filter(x=>x.id!==c.id); curId=COLLECTIONS.length?COLLECTIONS[0].id:null;

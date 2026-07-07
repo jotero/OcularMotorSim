@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import shutil
 from pathlib import Path
 
@@ -60,20 +61,71 @@ def _write_log(db: Path, rows: list[dict]) -> None:
             w.writerow({k: r.get(k, '') for k in _LOG_COLUMNS})
 
 
+def _read_collections(db: Path) -> list[dict]:
+    f = db / 'collections.json'
+    if not f.exists():
+        return []
+    try:
+        with open(f, encoding='utf-8') as fh:
+            return json.load(fh).get('collections', [])
+    except Exception:
+        return []
+
+
+def _collection_run_ids(cols: list[dict]) -> list[str]:
+    ids: list[str] = []
+    for c in cols:
+        for it in c.get('items', []):
+            if it.get('type') == 'run':
+                ids.append(it.get('run_id'))
+            elif it.get('type') == 'section':
+                ids.extend(it.get('runs', []))
+    return [r for r in ids if r]
+
+
+def _merge_collections(src_cols: list[dict], dst: Path) -> int:
+    """Merge src collections into dst/collections.json by id (src wins on conflict;
+    dst-only collections are kept). Returns the total collection count."""
+    by_id = {c.get('id'): c for c in _read_collections(dst)}
+    order = list(by_id.keys())
+    for c in src_cols:
+        cid = c.get('id')
+        if cid not in by_id:
+            order.append(cid)
+        by_id[cid] = c
+    merged = [by_id[i] for i in order]
+    f = dst / 'collections.json'
+    tmp = f.with_name(f.name + '.tmp')
+    with open(tmp, 'w', encoding='utf-8') as fh:
+        json.dump({'collections': merged}, fh, ensure_ascii=False, indent=2)
+    tmp.replace(f)
+    return len(merged)
+
+
 def copy_featured(src: Path, dst: Path, include_favorites: bool = False,
-                  dry_run: bool = False) -> None:
+                  include_collections: bool = False, dry_run: bool = False) -> None:
     if not (src / 'simulation_log.csv').exists():
         raise SystemExit(f"No simulation_log.csv in source DB: {src}")
     (dst / 'data').mkdir(parents=True, exist_ok=True)
     (dst / 'server_figures').mkdir(parents=True, exist_ok=True)
 
     src_rows = _read_log(src)
-    selected = [r for r in src_rows
-                if _truthy(r.get('featured'))
-                or (include_favorites and _truthy(r.get('favorite')))]
-    if not selected:
+    src_by_id = {r['run_id']: r for r in src_rows}
+    # Featured (+ optionally favorites), deduped by run_id.
+    chosen = {r['run_id']: r for r in src_rows
+              if _truthy(r.get('featured'))
+              or (include_favorites and _truthy(r.get('favorite')))}
+    # Also carry every run referenced by a collection, so the collections resolve on
+    # the target even when those runs aren't individually featured/favorited.
+    src_cols = _read_collections(src) if include_collections else []
+    for rid in _collection_run_ids(src_cols):
+        if rid in src_by_id:
+            chosen.setdefault(rid, src_by_id[rid])
+    selected = list(chosen.values())
+    if not selected and not src_cols:
         print("Nothing to copy (no featured"
-              + ("/favorite" if include_favorites else "") + " runs in source).")
+              + ("/favorite" if include_favorites else "")
+              + ("/collection" if include_collections else "") + " runs in source).")
         return
 
     dst_rows = _read_log(dst)
@@ -120,6 +172,9 @@ def copy_featured(src: Path, dst: Path, include_favorites: bool = False,
     _write_log(dst, dst_rows)
     print(f"Copied {copied_files} run(s) → {dst}  "
           f"({new_rows} new, {updated_rows} re-flagged).")
+    if include_collections:
+        total = _merge_collections(src_cols, dst)
+        print(f"Merged collections → {dst}\\collections.json ({total} total).")
     print("Restart the target server to reload the log and rebuild admin.html.")
 
 
@@ -132,12 +187,15 @@ def main() -> None:
                     help="Target server_data dir (default: ../om-stable/server_data).")
     ap.add_argument('--favorites', action='store_true',
                     help="Also copy favorited runs, not just featured.")
+    ap.add_argument('--collections', action='store_true',
+                    help="Also copy collections.json + every run they reference.")
     ap.add_argument('--dry-run', action='store_true', help="Show what would happen.")
     args = ap.parse_args()
 
     src, dst = Path(args.src), Path(args.dst)
     print(f"Source: {src}\nTarget: {dst}\n")
-    copy_featured(src, dst, include_favorites=args.favorites, dry_run=args.dry_run)
+    copy_featured(src, dst, include_favorites=args.favorites,
+                  include_collections=args.collections, dry_run=args.dry_run)
 
 
 if __name__ == '__main__':
