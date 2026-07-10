@@ -158,7 +158,16 @@ tbody tr.selected.active { background: #dbe6ff; }
   color: #1c2230; font-size: 0.82rem; padding: 8px 10px; resize: vertical; min-height: 44px;
   outline: none; font-family: inherit; }
 .note-box:focus { border-color: #2563eb; }
+.edit-row { display: flex; gap: 8px; align-items: center; margin: 8px 0 6px; }
+.title-box { flex: 1; background: #fff; border: 1px solid #d3d7e0; border-radius: 6px;
+  color: #1c2230; font-size: 0.82rem; padding: 7px 10px; outline: none; font-family: inherit; }
+.title-box:focus { border-color: #2563eb; }
 .adm-saved { font-size: 0.72rem; color: #16a34a; }
+.src-badge { display:inline-block; font-size:0.68rem; font-weight:600; padding:1px 7px; border-radius:9px; text-transform:capitalize; }
+.src-prompt  { background:#e4ecff; color:#1d4ed8; }
+.src-builder { background:#dcfce7; color:#166534; }
+.src-rerun   { background:#f1f5f9; color:#64748b; }
+.src-unknown { background:#f1f5f9; color:#94a3b8; }
 .adm-warn { font-size: 0.72rem; color: #b45309; background: #fffbeb;
   border: 1px solid #fde68a; border-radius: 6px; padding: 6px 9px; }
 .timing-val { font-family: monospace; font-size: 0.72rem; color: #475569; }
@@ -592,10 +601,17 @@ function renderAdminControls(r) {
               title="Featured runs appear as curated examples on the front page (a subset of favorites)"
               onclick="toggleFeatured('${r.run_id}')">${isFeatured(r)?'◆ Featured':'◇ Feature'}</button>
       <button class="adm-btn" onclick="addOneToCollection('${r.run_id}')">➕ Add to collection</button>
+      <button class="adm-btn" onclick="window.open('builder.html?edit=' + encodeURIComponent('${r.run_id}'), '_blank')" title="Open this scenario in the builder to tweak and re-run — no AI, free">✎ Edit scenario</button>
+      <button class="adm-btn" onclick="copyRunLink('${r.run_id}')" title="Copy a shareable link that opens this scenario in the viewer">🔗 Copy link</button>
+      <button class="adm-btn" onclick="window.open('/?run=' + encodeURIComponent('${r.run_id}'), '_blank')" title="Open this scenario in the viewer (new tab)">↗ Open</button>
       <button class="adm-btn danger" onclick="deleteRun('${r.run_id}')">🗑 Delete</button>
       <span class="adm-saved" id="admSaved"></span>
     </div>
     ${r.has_sidecar===false ? '<div class="adm-warn">No interactive data (older run) — no animation/plots, and favoriting will NOT show it in the gallery. Re-run it on this server to generate data.</div>' : ''}
+    <div class="edit-row">
+      <input class="title-box" id="titleBox" placeholder="Title…" value="${esc(r.title||'')}">
+      <button class="adm-btn" onclick="saveTitle('${r.run_id}')">Save title</button>
+    </div>
     <textarea class="note-box" id="noteBox" placeholder="Note / tag…">${esc(r.note||'')}</textarea>
     <div><button class="adm-btn" onclick="saveNote('${r.run_id}')">Save note</button></div>`;
 }
@@ -607,6 +623,7 @@ function renderDetails(r) {
     <span class="lbl">Title</span><span class="val">${esc(r.title)}</span>
     <span class="lbl">Collections</span><span class="val">${coll}</span>
     <span class="lbl">Mode</span><span class="val"><span class="mode-badge mode-${r.mode}">${r.mode||'—'}</span></span>
+    <span class="lbl">Source</span><span class="val"><span class="src-badge src-${r.source||'unknown'}">${esc(r.source||'—')}</span></span>
     <span class="lbl">Date</span><span class="val">${fmtTs(r.timestamp)}</span>
     <span class="lbl">Timing</span><span class="val timing-val">${fmtTiming(r)}</span>
     <span class="lbl">Version</span><span class="val">${esc(r.version)}</span>
@@ -695,6 +712,19 @@ async function saveNote(runId) {
   try { const resp = await adminPost('/admin/note', { run_id: runId, note: box.value }); if (!resp.ok) throw new Error('HTTP '+resp.status);
     const r = RUNS[runId]; if (r) r.note = box.value; admMsg('Note saved');
   } catch (e) { admMsg('Error: '+e.message,false); }
+}
+async function saveTitle(runId) {
+  const box = document.getElementById('titleBox'); if (!box) return;
+  try { const resp = await adminPost('/admin/title', { run_id: runId, title: box.value }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+    const r = RUNS[runId]; if (r) r.title = box.value;
+    applyFilter();   // re-render the table so the new title shows in its column
+    admMsg('Title saved');
+  } catch (e) { admMsg('Error: '+e.message,false); }
+}
+function copyRunLink(runId) {
+  const url = location.origin + '/?run=' + encodeURIComponent(runId);
+  navigator.clipboard.writeText(url).then(() => admMsg('Link copied: ' + url))
+    .catch(() => { window.prompt('Copy this link:', url); });
 }
 async function deleteRun(runId) {
   if (!confirm('Delete this run permanently? Removes its data, figure, and log entry.')) return;

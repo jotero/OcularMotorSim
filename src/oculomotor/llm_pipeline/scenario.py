@@ -67,14 +67,19 @@ class BodySegment(BaseModel):
     Profile
     -------
     'constant'  polynomial:      pos(t) = pos₀ + vel₀·t + ½·acc·t²
-    'sinusoid'  oscillation:     rot_vel(t) = amplitude · sin(2π·freq·t)
-                                 rot_pos(t) = pos₀ + amplitude/(2π·f) · (1 − cos(2π·f·t))
-                                 amplitude = rot_*_vel field; starts at zero velocity.
+    'sinusoid'  oscillation:     ROTATION — rot_*_vel = velocity amplitude: vel(t)=A·sin(2πf·t),
+                                 pos(t)=pos₀+A/(2πf)·(1−cos 2πf·t)  (starts at rest, one-sided).
+                                 TRANSLATION — lin_*_vel = POSITION amplitude (m): pos(t)=
+                                 pos₀+A·sin(2πf·t)  (symmetric ±A about pos₀ — e.g. a pursuit
+                                 target swinging ±A). rot_*_vel shorthand on a target =
+                                 angular position amplitude (deg).
     'impulse'   vHIT gaussian:   bell-shaped velocity pulse; peak = rot_*_vel at t=ramp_dur_s,
                                  pulse spans ≈2·ramp_dur_s (~200 ms), then coasts (holds position).
 
-    The profile applies to ALL rotational DOF that have a non-zero velocity.
-    Translational DOF always use the polynomial profile.
+    The profile applies to ALL rotational DOF with a non-zero velocity, AND 'sinusoid'
+    applies to translational DOF too — so a target or head OSCILLATES in position
+    (sinusoidal smooth pursuit, sinusoidal tVOR). 'impulse' stays rotational-only; other
+    translational motion uses the polynomial (constant velocity / acceleration).
 
     Initial conditions
     ------------------
@@ -244,7 +249,7 @@ class PlotConfig(BaseModel):
         'gaze_error', 'retinal_error', 'canal_afferents',
         'velocity_storage', 'neural_integrator',
         'saccade_burst', 'pursuit_drive', 'refractory',
-        'vergence', 'pupil_diameter',
+        'vergence', 'accommodation', 'pupil_diameter',
         # Cerebellar diagnostic panels
         'cerebellum_pursuit', 'cerebellum_vor',
         # Stimulus panels
@@ -283,6 +288,8 @@ class PlotConfig(BaseModel):
             "  pursuit_drive — smooth-pursuit velocity command (integrator + phasic).\n"
             "  refractory — saccade accumulator/trigger state (reaction time, refractory period).\n"
             "  vergence — binocular vergence angle (convergence/divergence; phoria drift on cover).\n"
+            "  accommodation — lens focusing power in diopters (near response; AC/A, CA/C coupling); "
+            "add it for near-target / focus / blur-driven scenarios, usually alongside vergence.\n"
             "  cerebellum_pursuit — VPF pursuit forward-model correction + suppression gate.\n"
             "  cerebellum_vor — flocculus NI leak-cancellation + OKR/gravity-dumping corrections.\n"
             "  target_velocity — target angular speed (pursuit drive).\n"
@@ -344,6 +351,13 @@ class SimulationScenario(BaseModel):
                  {duration_s: 4.7, rot_yaw_vel: 20}]         ← shorthand: lin_x_vel≈0.349 m/s
         scene:  [{duration_s: 5}]
         visual: [{duration_s: 5}]
+
+    Sinusoidal smooth pursuit (target swings ±10° at 0.3 Hz, 10 s):
+        head:   [{duration_s: 10}]
+        target: [{duration_s: 0.3, lin_z_0: 1.0},
+                 {duration_s: 9.7, rot_profile: "sinusoid", frequency_hz: 0.3, rot_yaw_vel: 10}]
+        scene:  [{duration_s: 10}]                            ← rot_yaw_vel = angular POSITION amplitude (deg)
+        visual: [{duration_s: 10}]                            ← target swings ±10° sinusoidally
 
     VOR in the dark (5 s rotation + 15 s coast):
         head:   [{duration_s: 5, rot_yaw_vel: 60},
@@ -510,7 +524,7 @@ class SimulationComparison(BaseModel):
         'eye_position', 'eye_velocity', 'head_velocity', 'gaze_error',
         'retinal_error', 'canal_afferents', 'velocity_storage',
         'neural_integrator', 'saccade_burst', 'pursuit_drive', 'refractory',
-        'vergence', 'pupil_diameter',
+        'vergence', 'accommodation', 'pupil_diameter',
         'target_position', 'target_velocity', 'scene_velocity', 'visual_flags',
     ]] = Field(description="Panels applied to all scenarios in the comparison.")
     scenarios: list[SimulationScenario] = Field(

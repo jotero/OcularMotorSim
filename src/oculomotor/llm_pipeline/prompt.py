@@ -41,8 +41,11 @@ time to settle and provides a clear pre-stimulus reference in the figure.
 
   Profile shapes:
     'constant' — pos(t)=pos₀+vel₀·t+½acc·t²,  vel(t)=vel₀+acc·t
-    'sinusoid' — vel(t)=amplitude·sin(2πf·t);  amplitude=rot_*_vel; starts at zero vel
-    'impulse'  — gaussian bell: peak=rot_*_vel at t=ramp_dur_s, pulse spans ≈2·ramp_dur_s (~200 ms), then coasts
+    'sinusoid' — ROTATION: rot_*_vel = velocity amplitude, vel=A·sin(2πf·t) (starts at rest, 1-cos pos).
+                 TRANSLATION: lin_*_vel = POSITION amplitude (m), pos=pos₀+A·sin(2πf·t) — symmetric ±A
+                 about pos₀. Use it to make the TARGET swing ±A in position (sinusoidal pursuit) or
+                 the head translate sinusoidally.
+    'impulse'  — gaussian bell: peak=rot_*_vel at t=ramp_dur_s, pulse spans ≈2·ramp_dur_s (~200 ms), then coasts (rotation only)
 
 ### target: list of segments   — 3-D world position (metres)
 
@@ -55,6 +58,11 @@ time to settle and provides a clear pre-stimulus reference in the figure.
   lin_x_vel — lateral velocity (m/s, rightward +). For smooth pursuit.
   lin_y_vel — vertical velocity (m/s, upward +).
   lin_z_vel — approaching (+) / receding (−) velocity (m/s).
+
+  SINUSOIDAL target (e.g. sinusoidal smooth pursuit): set rot_profile: "sinusoid" +
+  frequency_hz + a POSITION amplitude — lin_x_vel in metres, or rot_yaw_vel in degrees
+  (auto-converted). The target swings ±amplitude about its centre, symmetrically —
+  do NOT approximate it with a constant ramp.
 
   Conversion from degrees to metres at a given depth z:
     lin_x_0 = tan(yaw_deg  × π/180) × z     lin_x_vel = yaw_vel_degs  × π/180 × z
@@ -174,6 +182,13 @@ time to settle and provides a clear pre-stimulus reference in the figure.
            {duration_s: 4.7, lin_x_vel: 0.349}]   # 20 deg/s × π/180 × 1 m
   scene:  [{duration_s: 5}]
   visual: [{duration_s: 5}]
+
+### Sinusoidal smooth pursuit ±10° at 0.3 Hz (10 s):
+  head:   [{duration_s: 10}]
+  target: [{duration_s: 0.3, lin_z_0: 1.0, lin_x_0: 0.0},
+           {duration_s: 9.7, rot_profile: "sinusoid", frequency_hz: 0.3, rot_yaw_vel: 10}]  # ±10° position amplitude
+  scene:  [{duration_s: 10}]
+  visual: [{duration_s: 10}]
 
 ### Sinusoidal VOR 0.5 Hz (10 s):
   head:   [{duration_s: 10, rot_yaw_vel: 30, rot_profile: "sinusoid", frequency_hz: 0.5}]
@@ -363,6 +378,8 @@ Anchors:
 - Include the internal mechanism the scenario probes (e.g. `velocity_storage` for OKAN/TC,
   `neural_integrator` for gaze-holding/GEN, `vergence` for cover/prism, `saccade_burst` for the main
   sequence, `cerebellum_*` for cerebellar lesions).
+- Add `accommodation` (lens power in diopters) for near-response / focus / blur scenarios — usually
+  paired with `vergence`, since the near triad couples them (AC/A, CA/C).
 - For ANY NYSTAGMUS (OKN/OKAN, vestibular nystagmus, GEN), use `spv` (slow-phase velocity, with
   quick phases removed) instead of `eye_velocity` — the raw velocity is dominated by quick phases.
   `spv` already overlays the driving stimulus, so DON'T also add `head_velocity`/`scene_velocity`.

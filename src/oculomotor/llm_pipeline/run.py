@@ -62,12 +62,17 @@ def _resolve_target_angular_shorthand(segments):
         if seg.rot_pitch_0 is not None and seg.lin_y_0 is None:
             updates['lin_y_0'] = math.tan(math.radians(seg.rot_pitch_0)) * z
 
-        # Velocity shorthand: rot_*_vel (deg/s) → lin_*_vel (m/s)
-        # Use small-angle approximation: Δ(tan θ)/Δt ≈ (dθ/dt)·(π/180) for small θ
+        # Velocity shorthand: rot_*_vel (deg/s) → lin_*_vel (m/s), small-angle
+        # (Δ(tan θ)/Δt ≈ (dθ/dt)·(π/180)). EXCEPT for a 'sinusoid' target, where lin_*_vel
+        # is a POSITION amplitude and rot_*_vel is the angular position amplitude (deg) →
+        # lin_*_vel = tan(deg)·z.
+        _sin = getattr(seg, 'rot_profile', 'constant') == 'sinusoid'
         if seg.rot_yaw_vel is not None and seg.lin_x_vel is None:
-            updates['lin_x_vel'] = seg.rot_yaw_vel * (math.pi / 180.0) * z
+            updates['lin_x_vel'] = (math.tan(math.radians(seg.rot_yaw_vel)) * z if _sin
+                                    else seg.rot_yaw_vel * (math.pi / 180.0) * z)
         if seg.rot_pitch_vel is not None and seg.lin_y_vel is None:
-            updates['lin_y_vel'] = seg.rot_pitch_vel * (math.pi / 180.0) * z
+            updates['lin_y_vel'] = (math.tan(math.radians(seg.rot_pitch_vel)) * z if _sin
+                                    else seg.rot_pitch_vel * (math.pi / 180.0) * z)
 
         resolved.append(seg.model_copy(update=updates) if updates else seg)
 
@@ -178,6 +183,9 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
 
     # Vergence integrator (yaw component, signed)
     x_verg = np.array(va_st.verg_fast)            # (T, 3) full vergence integrator state
+    # Accommodation = lens plant state (a top-level SimState field, not part of va) in diopters.
+    _acc = np.asarray(states.acc_plant)           # (T, 1) lens power (D)
+    accommodation = _acc[:, 0] if _acc.ndim > 1 else _acc   # (T,) accommodation / lens power (diopters)
 
     # Pursuit NET signed signal (T, 3) — push-pull difference
     x_pursuit = np.array(pu_st.R - pu_st.L)        # (T, 3) NET
@@ -242,6 +250,7 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
         vergence       = vergence,         # L − R (deg); positive = converged
         ipd            = float(params.sensory.ipd),   # m — for binocular zero-referencing
         x_verg         = x_verg,           # vergence integrator state
+        accommodation  = accommodation,    # (T,) accommodation / lens power (diopters)
         eye_vel        = w_eye,
         w_est          = w_est,
         x_ni           = x_ni,
@@ -334,11 +343,15 @@ def _binocular_display(sig: dict, stim_kw: dict, tonic_verg: float) -> dict:
         zero_dist = (ipd / 2.0) / np.tan(np.radians(tonic_verg / 2.0))
     zero_label = f'0 = {_fmt_zero(zero_dist)}'
 
+    # Accommodative demand = dioptric distance to the target (1/metres); the lens
+    # should match this in the near response.
+    acc_demand = 1.0 / depth
+
     # displayed = raw + off ; L gets −vc/2, R gets +vc/2 → both land on version.
     return dict(off_L=-vc / 2.0, off_R=+vc / 2.0,
                 target_yaw=target_yaw, target_pitch=target_pitch,
-                verg_required=verg_required, zero_label=zero_label,
-                present=present)
+                verg_required=verg_required, acc_demand=acc_demand,
+                zero_label=zero_label, present=present)
 
 
 # ── Plotting ──────────────────────────────────────────────────────────────────
@@ -385,6 +398,7 @@ _PANEL_LABELS = {
     'pursuit_drive':     'Pursuit integrator (deg/s)',
     'refractory':        'Accumulator / trigger IBN',
     'vergence':          'Vergence angle (deg)',
+    'accommodation':     'Accommodation (D)',
     'pupil_diameter':    'Pupil diameter (mm)',
     # cerebellar diagnostic panels
     'cerebellum_pursuit': 'Cerebellum — pursuit (deg/s)',
@@ -404,7 +418,7 @@ _PANEL_ORDER = [
     # Visual-context strip leads (timeline of scene / target / cover / prism)
     'visual_flags',
     # Core readouts (fixed order)
-    'eye_position', 'eye_velocity', 'vergence', 'pupil_diameter', 'spv',
+    'eye_position', 'eye_velocity', 'vergence', 'accommodation', 'pupil_diameter', 'spv',
     # Stimulus
     'head_velocity', 'target_position', 'target_velocity', 'scene_velocity',
     # Internal mechanism (chosen by relevance to the scenario)
@@ -600,6 +614,16 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
                        label=f'Tonic verg ({tonic_val:+.1f}°)')
         ax.legend(fontsize=6, loc='upper right')
         ax.set_ylabel('Vergence angle (deg)', fontsize=8)
+
+    elif panel_name == 'accommodation':
+        ax.plot(t, sig['accommodation'], color='#8a5a2b', lw=1.5, label='Accommodation (lens)')
+        if (tp_combined > 0.5).any():
+            cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+            if 'acc_demand' in cal:
+                ax.plot(t, np.where(tp_combined > 0.5, cal['acc_demand'], np.nan),
+                        color='#ff8c00', lw=1.0, ls='--', label='Demand (target)')
+        ax.legend(fontsize=6, loc='upper right')
+        ax.set_ylabel('Accommodation (D)', fontsize=8)
 
     # ── Cerebellar diagnostic panels ──────────────────────────────────────────
 
@@ -1072,6 +1096,17 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
                                    'color': '#ff8c00', 'style': ':',
                                    'label': f'Tonic verg ({tonic_val:+.1f}°)'})
 
+    elif panel == 'accommodation':
+        spec['ylabel'] = 'Accommodation (D)'
+        tr('Accommodation (lens)', '#8a5a2b', sig['accommodation'])
+        # Dioptric demand of the current target (1/distance) — the lens should track
+        # it in the near response; the gap is the accommodative lag/lead.
+        if (tp_combined > 0.5).any():
+            cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+            if 'acc_demand' in cal:
+                tr('Demand (target)', '#ff8c00',
+                   np.where(tp_combined > 0.5, cal['acc_demand'], np.nan), style='--')
+
     elif panel == 'pupil_diameter':
         spec['ylabel'] = 'Pupil diameter (mm)'
         pup = sig['pupil_diameter']   # (T, 2) [L, R]
@@ -1313,6 +1348,9 @@ def _build_comparison_figure(
             elif panel == 'vergence':
                 ax.plot(t, sig['vergence'][:, 0], color=color, ls=ls, lw=1.5, label=label)
 
+            elif panel == 'accommodation':
+                ax.plot(t, sig['accommodation'], color=color, ls=ls, lw=1.5, label=label)
+
             elif panel == 'pupil_diameter':
                 pup = sig['pupil_diameter']   # (T, 2) [L, R]
                 ax.plot(t, pup[:, 0], color=color, ls='-',  lw=1.5, label=f'{label} L'.strip())
@@ -1407,6 +1445,8 @@ def _build_comparison_spec(
                 add(label, sig['z_acc'])
             elif panel == 'vergence':
                 add(label, sig['vergence'][:, 0])
+            elif panel == 'accommodation':
+                add(label, sig['accommodation'])
             elif panel == 'pupil_diameter':
                 # Comparison overlays many scenarios — use the mean pupil (both eyes)
                 # as a single representative trace per scenario.

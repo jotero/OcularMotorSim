@@ -506,7 +506,14 @@ def build_kinematics_from_segments(
             rot_pos_c[i].append(pos.astype(np.float32))
             rot_vel_c[i].append(vel.astype(np.float32))
 
-        # ── Linear DOFs (always polynomial) ──────────────────────────────────
+        # ── Linear DOFs ──────────────────────────────────────────────────────
+        # Polynomial by default; 'sinusoid' oscillates the translation SYMMETRICALLY about
+        # the segment's start position: pos = pos0 + A·sin(2πf·t), with A = lin_*_vel read as
+        # a POSITION amplitude (metres). This differs from the rotational sinusoid (velocity
+        # amplitude, 1-cos): for a pursuit target / tVOR the natural spec is HOW FAR it
+        # swings, symmetric ±A about the centre. 'impulse' stays polynomial here — the
+        # gaussian pulse is a rotational / vHIT construct, and translational steps use
+        # profile='constant' with lin_*_acc.
         for i, (ax, p0f, v0f, accf) in enumerate(_LIN):
             carry_pos, carry_vel = lin_carry[ax]
             p0  = getattr(seg, p0f,  None)
@@ -516,9 +523,17 @@ def build_kinematics_from_segments(
             if p0 is not None: carry_pos = float(p0)
             if v0 is not None: carry_vel = float(v0)
 
-            pos     = carry_pos + carry_vel * t_s + 0.5 * acc * t_s**2
-            vel     = carry_vel + acc * t_s
-            acc_arr = np.full(T, float(acc), dtype=np.float32)
+            if profile == 'sinusoid':
+                A = carry_vel                       # POSITION amplitude (metres)
+                w = 2.0 * np.pi * getattr(seg, 'frequency_hz', 0.0)
+                pos     = carry_pos + A * np.sin(w * t_s)
+                vel     = A * w * np.cos(w * t_s)
+                acc_arr = (-A * w * w * np.sin(w * t_s)).astype(np.float32)
+                carry_pos = float(pos[-1]); carry_vel = float(vel[-1])
+            else:   # 'constant' / polynomial (and 'impulse', which is rotational-only)
+                pos     = carry_pos + carry_vel * t_s + 0.5 * acc * t_s**2
+                vel     = carry_vel + acc * t_s
+                acc_arr = np.full(T, float(acc), dtype=np.float32)
 
             lin_carry[ax] = [float(pos[-1]), float(vel[-1])]
             lin_pos_c[i].append(pos.astype(np.float32))

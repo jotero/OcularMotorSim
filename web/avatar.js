@@ -41,8 +41,106 @@ const headCam  = new THREE.PerspectiveCamera(28, W() / 2 / H(), 0.001, 10000);
 // 0+1; head-fixed close-up sees only layer 0 (no clutter over the eyeballs).
 worldCam.layers.enable(1);
 
+// ── Retina view (bottom of the right column) ──────────────────────────────────
+// A camera sitting AT the eye, looking along gaze — what the eye sees. Fovea crosshair +
+// reference rings are a screen-space overlay. Cycle L / R / both with the 'e' key.
+const RETINA_HALF_FOV = 20;               // vertical half-FOV (deg); camera fov = 2x this
+const RETINA_RING_DEG = [20, 2];          // reference-ring eccentricities (deg): field edge + fovea
+const retinaCam = new THREE.PerspectiveCamera(2 * RETINA_HALF_FOV, 1, 0.0001, 10000);
+retinaCam.layers.enable(2);
+let _reticle = null;
+let _retinaEye = 'B';                 // 'L' | 'R' | 'B' (both eyes overlaid, natural colour) — default both
+// L+R combined view: render each eye to its own target, then average the two on a quad
+// (natural colour, no anaglyph) so binocular disparity shows up as doubling.
+const _rtL = new THREE.WebGLRenderTarget(2, 2), _rtR = new THREE.WebGLRenderTarget(2, 2);
+const _compScene = new THREE.Scene();
+const _compCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+_compScene.add(
+  new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
+    new THREE.MeshBasicMaterial({ map: _rtL.texture, depthTest: false, depthWrite: false, toneMapped: false })),
+  new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
+    new THREE.MeshBasicMaterial({ map: _rtR.texture, transparent: true, opacity: 0.5, depthTest: false, depthWrite: false, toneMapped: false }))
+);
+let _retinaLabel = null;
+function _ensureRetinaLabel() {
+  if (_retinaLabel) return;
+  const wrap = document.querySelector('.avatar-wrap'); if (!wrap) return;
+  const el = document.createElement('span');
+  el.style.cssText = 'position:absolute; left:85%; top:62%; transform:translateX(-50%); z-index:2;'
+    + ' pointer-events:none; text-align:center; font-size:0.7rem; color:#7c8a9c;'
+    + ' text-transform:uppercase; letter-spacing:0.08em;';
+  wrap.appendChild(el); _retinaLabel = el;
+}
+function _updateRetinaLabel() { if (_retinaLabel) _retinaLabel.textContent = 'Retina (' + (_retinaEye === 'B' ? 'L+R' : _retinaEye) + ')'; }
+
+// Retina reticle = screen-space HTML overlay over the retina panel: a full-span fovea
+// crosshair + a 20° reference ring, dead-centre and readable on any backdrop (white
+// core + dark halo). The retinal IMAGE (the 3D render) rotates under it with torsion.
+let _retinaOverlay = null, _retinaRings = [], _retinaCrossH = null, _retinaCrossV = null;
+function _retinaColor() {   // match this eye's gaze ray; grey when both eyes are shown
+  return _retinaEye === 'R' ? '#d6604d' : _retinaEye === 'B' ? '#8a94a6' : '#2166ac';
+}
+function _ensureRetinaOverlay() {
+  if (_retinaOverlay) return;
+  const wrap = document.querySelector('.avatar-wrap'); if (!wrap) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:absolute; left:70%; top:60%; width:30%; height:40%;'
+    + ' pointer-events:none; z-index:2; overflow:hidden;';
+  const c = _retinaColor();
+  const h = document.createElement('div');   // horizontal fovea line — full width, faint single line
+  h.style.cssText = 'position:absolute; left:0; right:0; top:50%; height:1px; opacity:.5;'
+    + ' background:' + c + '; transform:translateY(-50%);';
+  const v = document.createElement('div');   // vertical fovea line — full height
+  v.style.cssText = 'position:absolute; top:0; bottom:0; left:50%; width:1px; opacity:.5;'
+    + ' background:' + c + '; transform:translateX(-50%);';
+  ov.append(h, v);
+  _retinaRings = RETINA_RING_DEG.map(deg => {   // one reference ring per eccentricity
+    const ring = document.createElement('div');
+    ring.style.cssText = 'position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);'
+      + ' border:1px solid ' + c + '; opacity:.5; border-radius:50%;';
+    ov.appendChild(ring);
+    return { el: ring, deg };
+  });
+  wrap.appendChild(ov);
+  _retinaOverlay = ov; _retinaCrossH = h; _retinaCrossV = v;
+  _sizeRetinaRing();
+}
+function _updateRetinaOverlayColor() {
+  const c = _retinaColor();
+  if (_retinaCrossH) _retinaCrossH.style.background = c;
+  if (_retinaCrossV) _retinaCrossV.style.background = c;
+  for (const r of _retinaRings) r.el.style.borderColor = c;
+  if (_retinaLabel)  _retinaLabel.style.color = c;
+}
+function _sizeRetinaRing() {
+  // ring radius for eccentricity e at half-FOV F: tan(e)/tan(F) of the panel half-height.
+  const panelH = (canvas.clientHeight || 420) * 0.40, halfH = panelH / 2;
+  const tanF = Math.tan(RETINA_HALF_FOV * Math.PI / 180);
+  for (const r of _retinaRings) {
+    const dia = 2 * (Math.tan(r.deg * Math.PI / 180) / tanF) * halfH;
+    r.el.style.width = r.el.style.height = dia + 'px';
+  }
+}
+
+// View-chrome CSS (injected once): a horizontal divider between the world (top 60%) and
+// retina (bottom 40%) panels matching the head divider, plus label colours — the
+// head-fixed label sits on the (now bright) forehead so it needs dark text; the rest
+// stay a slightly-darker grey that still reads on the dark scene.
+(function injectAvatarChrome() {
+  if (document.getElementById('avatar-chrome-css')) return;
+  const s = document.createElement('style');
+  s.id = 'avatar-chrome-css';
+  s.textContent =
+    '.avatar-wrap::before{content:"";position:absolute;left:70%;right:0;top:60%;height:1px;'
+    + 'background:#d3d7e0;pointer-events:none;z-index:1;}'
+    + '.avatar-labels span:first-child{color:#334155;}'
+    + '.avatar-labels span{color:#7c8a9c;}';
+  document.head.appendChild(s);
+})();
+
 function resize() {
   renderer.setSize(W(), H(), false);
+  _sizeRetinaRing();   // keep the 20° ring sized to the retina panel
   // Camera aspect ratios are set per-frame in renderViewports() (fixed 70/30 split)
 }
 new ResizeObserver(resize).observe(canvas);
@@ -74,6 +172,15 @@ let sceneDots = null;               // low-contrast world surround group (rotate
 let _dotLayers = null, _dotH = 1;   // per-size dot layers {geom, base} + half-extent (wrap flow)
 let _restEyeMid  = null;            // world eye-mid at rest (for the world-fixed target)
 let _gazeAxisL   = null, _gazeAxisR = null;  // eye-local axis that points along gaze
+let _upAxisL     = null, _upAxisR   = null;  // eye-local "up" axis (drives retinal torsion)
+let _restEyeWorldL = null, _restEyeWorldR = null;  // per-eye REST world position
+let _restEyeMidWorld = null;                       // eye-midpoint REST world position (re-pivot target)
+let _eyeMidLocal = null;                           // eye midpoint in MODEL-local coords (re-pivot source).
+                                                   // The rig rotates the model about its LOCAL origin =
+                                                   // the FEET, so the head swings on a big arc; the SIM
+                                                   // rotates about the inter-eye axis. We shift the model
+                                                   // each frame to pin the eye midpoint, re-pivoting the
+                                                   // whole avatar onto the eyes (fixes head/world/retina).
 let _headLocalFwd = null;           // head-local "forward" (for head-fixed cover offset)
 let _modelUnit   = 1;               // world units per metre (from eye separation)
 let _hasTarget   = false, _hasScene = false, _hasLocomotion = false, _showWorld = false;
@@ -217,6 +324,12 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   const qR0 = rightEyeBone.getWorldQuaternion(new THREE.Quaternion());
   _gazeAxisL = new THREE.Vector3(0, 0, 1).applyQuaternion(qL0.clone().invert());
   _gazeAxisR = new THREE.Vector3(0, 0, 1).applyQuaternion(qR0.clone().invert());
+  _upAxisL   = new THREE.Vector3(0, 1, 0).applyQuaternion(qL0.clone().invert());
+  _upAxisR   = new THREE.Vector3(0, 1, 0).applyQuaternion(qR0.clone().invert());
+  _restEyeWorldL = leftEyeBone.getWorldPosition(new THREE.Vector3());
+  _restEyeWorldR = rightEyeBone.getWorldPosition(new THREE.Vector3());
+  _restEyeMidWorld = _restEyeWorldL.clone().add(_restEyeWorldR).multiplyScalar(0.5);
+  _eyeMidLocal = headBone.worldToLocal(_restEyeMidWorld.clone());       // eye mid in model-local frame
   // World forward at rest is +Z; store it in the head bone's local frame so the
   // (head-fixed) cover patch can sit in front of the eye along HEAD forward,
   // independent of where the eye is pointing.
@@ -238,6 +351,9 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   targetSphere = prop(new THREE.Mesh(new THREE.SphereGeometry(0.022 * _modelUnit, 48, 32), overlay(0xe23b3b)));
   gazeRayL = prop(new THREE.Mesh(new THREE.CylinderGeometry(0.004 * _modelUnit, 0.004 * _modelUnit, 1, 32), overlay(0x2166ac)));   // left  — blue (matches plots)
   gazeRayR = prop(new THREE.Mesh(new THREE.CylinderGeometry(0.004 * _modelUnit, 0.004 * _modelUnit, 1, 32), overlay(0xd6604d)));   // right — red  (matches plots)
+
+  // (The retina reticle is now a screen-space HTML overlay — see _ensureRetinaOverlay —
+  //  so it's guaranteed dead-centre on the retina panel and reads on any backdrop.)
 
   // ── World dot-cloud (visual surround) ─────────────────────────────────────
   // A low-contrast box of dots around the eye. World-fixed (added to scene, not
@@ -305,7 +421,7 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   // (opacity 0.45) so the eye behind it stays visible.
   const coverGeo = new THREE.SphereGeometry(0.025 * _modelUnit, 48, 32);
   const coverMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true,
-    opacity: 0.45, depthWrite: false, toneMapped: false });   // black but see-through
+    opacity: 0.85, depthWrite: false, toneMapped: false });   // black, nearly opaque (eye only barely hinted)
   coverMeshL = new THREE.Mesh(coverGeo, coverMat);
   coverMeshR = new THREE.Mesh(coverGeo, coverMat);
   coverMeshL.frustumCulled = false; coverMeshR.frustumCulled = false;
@@ -350,6 +466,7 @@ function setPupilDiameter(mm) { setPupil((mm / 2 - 1.54) / 4.35); }
 // so the avatar looks alive even when paused). Advanced from animate(ts).
 let _blink = 0;
 let _nextBlinkTs = 0;
+let _lidCloseL = 0, _lidCloseR = 0;   // current per-eye lid closure (0 open..1 shut); retina goes dark when shut
 function updateBlink(ts) {
   if (_nextBlinkTs === 0) { _nextBlinkTs = ts + 2000 + Math.random() * 3500; return; }
   const since = ts - _nextBlinkTs;      // >= 0 once the blink has started
@@ -367,6 +484,7 @@ function updateBlink(ts) {
   // the trajectory carries eyelid data, else a local blink+downgaze), and pausing
   // simply stops calling applyFrame, so the lids freeze (pause pauses blinking).
   if (faceMesh && !_traj) {
+    _lidCloseL = _lidCloseR = _blink;
     setMorph('eyeBlinkLeft',  _blink);
     setMorph('eyeBlinkRight', _blink);
   }
@@ -375,6 +493,7 @@ function updateBlink(ts) {
 // ── Bone application ──────────────────────────────────────────────────────────
 const DEG = Math.PI / 180;
 const _UP = new THREE.Vector3(0, 1, 0);
+const _pivA = new THREE.Vector3(), _pivB = new THREE.Vector3();   // head re-pivot temps
 
 // Map a sim target (metres, world Cartesian: x=right, y=up, z=forward) to a world
 // offset from the eye. TRUE distance (no compression) so the two per-eye gaze
@@ -384,18 +503,15 @@ function targetWorld(p) {
   return new THREE.Vector3(-p[0], p[1], p[2]).multiplyScalar(_modelUnit).add(_restEyeMid);
 }
 
-// Eye-centre world position + gaze dir. The avatar is one skinned mesh; the
-// rendered skin sits at the model's LOCAL coords (glTF quirk) and the whole rig
-// spins about the world origin, so the rendered eye = boneWorld − model world
-// origin. Subtract the model's WORLD origin (getWorldPosition, ~[-2,1,1]); this
-// tracks the head during VOR. (faceMesh.worldToLocal also stripped the rotation →
-// a constant, pinning origins to rest.)
+// Eye position expressed in the SCENE's local frame — the frame gaze rays and props live
+// in (a scene child placed here renders exactly on the eye). We reduce through the SCENE
+// transform (a fixed [-2,1,1] translation), NOT the model's world origin: the model now
+// re-pivots each frame (its origin shifts to keep the eyes fixed), so subtracting the
+// model origin would drag the ray off the eye. At rest the two are identical.
 const _rQ = new THREE.Quaternion();
-const _moTmp = new THREE.Vector3();
 function eyeWorldPos(bone, out) {
   bone.getWorldPosition(out);
-  if (headBone) { headBone.getWorldPosition(_moTmp); return out.sub(_moTmp); }
-  return faceMesh.worldToLocal(out);
+  return scene.worldToLocal(out);
 }
 function eyeGazeDir(bone, axis) {
   bone.getWorldQuaternion(_rQ);
@@ -503,6 +619,18 @@ function applyFrame(fi) {
       restHead.y - Hd[0] * DEG,   // yaw
       restHead.z - Hd[2] * DEG    // roll
     );
+    // Re-pivot onto the eyes: the rotation above spins the model about its LOCAL origin
+    // (the feet, ~1.7 below the eyes) so the head swings on a big arc, but the SIM rotates
+    // about the inter-eye axis. Shift the model by (rest - current) rotation applied to the
+    // eye-midpoint offset from the model origin, so the eye midpoint doesn't move. Using the
+    // rotation DIFFERENCE (not a captured world point) makes scene.position cancel out — the
+    // earlier captured-world-point version double-subtracted it and dumped the eye at origin.
+    if (_eyeMidLocal) {
+      _pivA.copy(_eyeMidLocal).applyEuler(restHead);          // eye offset at REST rotation
+      _pivB.copy(_eyeMidLocal).applyEuler(headBone.rotation); // eye offset at CURRENT rotation
+      headBone.position.copy(_pivA).sub(_pivB);
+      headBone.updateMatrixWorld(true);
+    }
   }
 
   // Cover patches: a near-black sphere over a covered eye. Set visibility here
@@ -543,8 +671,9 @@ function applyFrame(fi) {
     // the eye/pupil is visible. Toggled from the UI button that appears only when
     // the lids are detected as closed for most of the run.
     if (_holdLidsOpen) { closeL = 0; closeR = 0; }
-    setMorph('eyeBlinkLeft',  Math.min(1, closeL));
-    setMorph('eyeBlinkRight', Math.min(1, closeR));
+    _lidCloseL = Math.min(1, closeL); _lidCloseR = Math.min(1, closeR);   // drives retina blink-dark
+    setMorph('eyeBlinkLeft',  _lidCloseL);
+    setMorph('eyeBlinkRight', _lidCloseR);
     setMorph('eyeWideLeft',  Math.min(0.5, upL) * (1 - closeL));
     setMorph('eyeWideRight', Math.min(0.5, upR) * (1 - closeR));
   }
@@ -741,7 +870,9 @@ function renderViewports() {
   // Left — head-fixed view: head bone at rest, eyes unchanged. Hide the
   // world-only props (target + rays) so they don't clutter the eyeball close-up.
   applyFrame(fi);
-  if (headBone && restHead) headBone.rotation.copy(restHead);
+  if (headBone && restHead) {   // head-fixed close-up: rest pose (undo rotation AND the re-pivot shift)
+    headBone.rotation.copy(restHead); headBone.position.set(0, 0, 0); headBone.updateMatrixWorld(true);
+  }
   anchorCovers();   // re-anchor covers/prisms to the rest-head eyeball
   anchorPrisms();
   [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
@@ -751,16 +882,93 @@ function renderViewports() {
   renderer.setScissorTest(true);
   renderer.render(scene, headCam);
 
-  // Right — world view: re-apply the rotated head (also restores props/rays).
+  // Right column splits: world view on top (60%), retina view below (40%).
+  const retH   = Math.round(h * 0.40);
+  const worldH = h - retH;
+
+  // Right-top — world view: re-apply the rotated head (also restores props/rays).
   applyFrame(fi);
-  worldCam.aspect = worldW / h;
+  worldCam.aspect = worldW / worldH;
   if (_needWorldFit && _camRefEye && leftEyeBone) {   // wait for the rig to load
     fitWorldCamera(); _needWorldFit = false;
   }
   setWorldView();                       // place camera (aspect-correct) every frame
-  renderer.setViewport(headW, 0, worldW, h);
-  renderer.setScissor(headW, 0, worldW, h);
+  renderer.setViewport(headW, retH, worldW, worldH);   // top part (WebGL y=0 is the bottom)
+  renderer.setScissor(headW, retH, worldW, worldH);
   renderer.render(scene, worldCam);
+
+  // Right-bottom — retina view (what the selected eye sees).
+  if (leftEyeBone && rightEyeBone) renderRetina(fi, headW, 0, worldW, retH);
+}
+
+// Render the eye's-eye-view: camera AT the eye, looking along gaze. Hide the avatar +
+// rays + covers (we're inside the eye); keep the world dot-cloud + target; overlay the
+// reticle. scene.background clears it to the ambient backdrop (grey lit / near-black dark).
+const _reyePos = new THREE.Vector3(), _reyeDir = new THREE.Vector3(), _reyeTgt = new THREE.Vector3();
+function renderRetina(fi, vx, vy, vw, vh) {
+  const fm = faceMesh; if (!fm) return;
+  _ensureRetinaOverlay();
+  if (!_retinaLabel) { _ensureRetinaLabel(); _updateRetinaLabel(); _updateRetinaOverlayColor(); }
+  applyFrame(fi);
+  // Camera is INSIDE the eye — hide the avatar + gaze rays. KEEP the cover disc (so a
+  // covered eye's retina correctly shows the occlusion) and the dot-cloud + target.
+  const wasModel = headBone ? headBone.visible : true;
+  if (headBone) headBone.visible = false;
+  const wrL = gazeRayL && gazeRayL.visible, wrR = gazeRayR && gazeRayR.visible;
+  if (gazeRayL) gazeRayL.visible = false;
+  if (gazeRayR) gazeRayR.visible = false;
+
+  renderer.setViewport(vx, vy, vw, vh);
+  renderer.setScissor(vx, vy, vw, vh);
+  renderer.setScissorTest(true);
+
+  const closedL = _lidCloseL >= 0.5, closedR = _lidCloseR >= 0.5;   // eyelid shut -> that eye dark
+
+  if (_retinaEye === 'B') {
+    // Both eyes overlaid in natural colour: render each eye to a target, then average them
+    // on a quad (a shut eye contributes black). Disparity shows as doubling.
+    const dpr = renderer.getPixelRatio();
+    const pw = Math.max(1, Math.round(vw * dpr)), ph = Math.max(1, Math.round(vh * dpr));
+    if (_rtL.width !== pw || _rtL.height !== ph) { _rtL.setSize(pw, ph); _rtR.setSize(pw, ph); }
+    const savedAC = renderer.autoClear; renderer.autoClear = true;
+    renderer.setScissorTest(false);
+    renderer.setRenderTarget(_rtL);
+    if (closedL) { renderer.setClearColor(0x000000, 1); renderer.clear(); }
+    else { _aimRetinaCam(leftEyeBone,  _gazeAxisL, _upAxisL, vw, vh); renderer.render(scene, retinaCam); }
+    renderer.setRenderTarget(_rtR);
+    if (closedR) { renderer.setClearColor(0x000000, 1); renderer.clear(); }
+    else { _aimRetinaCam(rightEyeBone, _gazeAxisR, _upAxisR, vw, vh); renderer.render(scene, retinaCam); }
+    renderer.autoClear = savedAC;
+    renderer.setRenderTarget(null);
+    renderer.setViewport(vx, vy, vw, vh); renderer.setScissor(vx, vy, vw, vh); renderer.setScissorTest(true);
+    renderer.render(_compScene, _compCam);
+  } else if (_retinaEye === 'R' ? closedR : closedL) {
+    renderer.setClearColor(0x000000, 1);                               // eyelid shut -> retina goes dark
+    renderer.clear(true, true, false);
+  } else {
+    _aimRetinaCam(_retinaEye === 'R' ? rightEyeBone : leftEyeBone,
+                  _retinaEye === 'R' ? _gazeAxisR   : _gazeAxisL,
+                  _retinaEye === 'R' ? _upAxisR     : _upAxisL, vw, vh);
+    renderer.render(scene, retinaCam);
+  }
+
+  if (headBone) headBone.visible = wasModel;            // restore (covers left as applyFrame set them)
+  if (gazeRayL) gazeRayL.visible = wrL;
+  if (gazeRayR) gazeRayR.visible = wrR;
+}
+
+// Aim the shared retina camera at one eye: nodal point = eye world position, forward = gaze,
+// up = the eye's own up (retinal torsion). The rig re-pivots onto the eyes, so head rotation
+// no longer translates the eyeball — position is steady, only orientation tracks.
+function _aimRetinaCam(bone, axis, upAx, vw, vh) {
+  bone.getWorldPosition(_reyePos);
+  _reyeDir.copy(eyeGazeDir(bone, axis));
+  retinaCam.position.copy(_reyePos);
+  if (upAx) retinaCam.up.copy(eyeGazeDir(bone, upAx));
+  else      retinaCam.up.set(0, 1, 0);
+  retinaCam.lookAt(_reyeTgt.copy(_reyePos).add(_reyeDir));
+  retinaCam.aspect = vw / vh;
+  retinaCam.updateProjectionMatrix();
 }
 
 function animate(ts) {
@@ -797,4 +1005,6 @@ window.addEventListener('keydown', (e) => {
   else if (k === 't') setWorldView('top');
   else if (k === 'l') setWorldView('left');
   else if (k === 'r') setWorldView('right');
+  else if (k === 'e') { _retinaEye = _retinaEye === 'L' ? 'R' : _retinaEye === 'R' ? 'B' : 'L';
+                        _ensureRetinaLabel(); _updateRetinaLabel(); _updateRetinaOverlayColor(); }
 });

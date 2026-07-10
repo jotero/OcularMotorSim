@@ -86,6 +86,7 @@ _LOG_COLUMNS = [
     'figure_file', 'looks_correct', 'feedback',
     'favorite', 'featured', 'note',        # admin: gallery (favorite) + front-page examples (featured) + tag
     'ms_total', 'ms_llm', 'ms_sim',        # timing (debug): whole request / LLM / sim
+    'source',                              # how it was created: 'prompt' | 'builder' | 'rerun'
 ]
 
 # Optional shared secret guarding the admin mutation endpoints (delete / favorite
@@ -193,6 +194,34 @@ def _rewrite_log() -> None:
     _gen_admin(list(_log_entries.values()))
 
 
+def _backfill_source() -> None:
+    """One-time: tag runs that predate the 'source' field. Infer from the LLM time —
+    nonzero ms_llm = an LLM 'prompt' run; zero = a no-LLM run ('rerun'; the scenario
+    builder is newer than every such legacy run). Mirror into each sidecar too.
+    Idempotent: rows/sidecars that already have a source are skipped, so the sidecar
+    reads only happen on the first startup after this change."""
+    for rid, row in _log_entries.items():
+        if row.get('source'):
+            continue
+        try:
+            ms = float(row.get('ms_llm') or 0)
+        except (TypeError, ValueError):
+            ms = 0.0
+        src = 'prompt' if ms > 0 else 'rerun'
+        row['source'] = src
+        p = _data_path(rid)
+        if p.exists():
+            try:
+                with open(p, encoding='utf-8') as f:
+                    payload = json.load(f)
+                if not payload.get('source'):
+                    payload['source'] = src
+                    with open(p, 'w', encoding='utf-8') as f:
+                        json.dump(payload, f, ensure_ascii=False)
+            except Exception:
+                pass
+
+
 # ── Per-run JSON sidecars (metadata + plot spec) ──────────────────────────────
 
 def _data_path(run_id: str) -> Path:
@@ -259,6 +288,7 @@ async def _force_js_mime(request, call_next):
 # Load any existing log at startup, normalize it to the current columns
 # (older logs predate favorite/note/timing), and write a fresh admin page.
 _load_log()
+_backfill_source()              # tag legacy runs (prompt vs rerun) from the recorded LLM time
 _ensure_featured_collection()   # reserved Featured collection + seed from legacy featured flags
 _rewrite_log()
 
@@ -267,7 +297,7 @@ _rewrite_log()
 
 class RunRequest(BaseModel):
     description: str
-    model: str = 'claude-opus-4-8'
+    model: str = 'claude-sonnet-5'   # cheaper/faster than opus for structured scenario extraction
 
 
 class RunResponse(BaseModel):
@@ -515,9 +545,12 @@ async def version_endpoint():
     return JSONResponse({'version': _SIM_VERSION})
 
 
-def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0) -> RunResponse:
+def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0,
+                     source: str = 'prompt') -> RunResponse:
     """Run an already-interpreted scenario/comparison, persist it as a run, and
-    return the RunResponse. Shared by /run (LLM -> result) and /rerun (stored result).
+    return the RunResponse. Shared by /run (LLM -> result), /run_scenario (builder)
+    and /rerun (stored result). ``source`` records how the run was created:
+    'prompt' | 'builder' | 'rerun'.
     """
     _t1 = time.perf_counter()
 
@@ -589,6 +622,7 @@ def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0) -> R
         'featured':        False,
         'note':            '',
         'timing':          timing,
+        'source':          source,
         'patient_changes': patient_changes,
         'eye_trajectory':  eye_traj,
         'eye_trajectories': eye_trajectories if mode == 'comparison' else None,
@@ -614,6 +648,7 @@ def _run_and_persist(run_id: str, prompt: str, result, ms_llm: float = 0.0) -> R
         'ms_total':    timing['total_ms'],
         'ms_llm':      timing['llm_ms'],
         'ms_sim':      timing['sim_ms'],
+        'source':      source,
     })
 
     return RunResponse(
@@ -637,7 +672,7 @@ async def run_endpoint(req: RunRequest):
         _t0 = time.perf_counter()
         result = call_llm(req.description, model=req.model)
         ms_llm = (time.perf_counter() - _t0) * 1000.0
-        return _run_and_persist(run_id, req.description, result, ms_llm)
+        return _run_and_persist(run_id, req.description, result, ms_llm, source='prompt')
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(status_code=500, content={'error': str(e)})
@@ -661,10 +696,49 @@ async def rerun_endpoint(run_id: str, x_admin_token: str | None = Header(default
             result = SimulationComparison(**detail)
         else:
             result = SimulationScenario(**detail)
-        return _run_and_persist(str(uuid.uuid4()), payload.get('prompt', ''), result, ms_llm=0.0)
+        return _run_and_persist(str(uuid.uuid4()), payload.get('prompt', ''), result, ms_llm=0.0, source='rerun')
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(status_code=500, content={'error': str(e)})
+
+
+@app.post('/run_scenario', response_model=RunResponse)
+async def run_scenario_endpoint(scenario: SimulationScenario):
+    """Run a scenario built directly (scenario-builder page) — NO LLM, so it costs nothing.
+
+    FastAPI/Pydantic validates the incoming JSON against SimulationScenario, then we reuse
+    the same run+persist path as /run and /rerun. Result renders in the normal viewer via
+    /?run=<run_id>.
+    """
+    try:
+        # No prompt for a builder run: an edited/built scenario no longer matches any
+        # natural-language prompt. The title still comes from scenario.description.
+        return _run_and_persist(str(uuid.uuid4()), '', scenario, ms_llm=0.0, source='builder')
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={'error': str(e)})
+
+
+@app.get('/scenario_schema')
+async def scenario_schema_endpoint():
+    """Field metadata for the builder form: tunable patient parameters + available plot
+    panels, pulled straight from the Pydantic schema so the form never drifts."""
+    props = _PatientCls.model_json_schema().get('properties', {})
+    patient = [{
+        'name': name,
+        'default': spec.get('default'),
+        'description': spec.get('description', ''),
+        'minimum': spec.get('minimum'),
+        'maximum': spec.get('maximum'),
+        'is_array': isinstance(spec.get('default'), list),
+    } for name, spec in props.items()]
+    try:
+        from typing import get_args as _ga
+        from oculomotor.llm_pipeline.scenario import PlotConfig as _PC
+        panels = list(_ga(_ga(_PC.model_fields['panels'].annotation)[0]))
+    except Exception:
+        panels = ['eye_position', 'eye_velocity', 'spv', 'head_velocity', 'visual_flags']
+    return {'patient': patient, 'panels': panels}
 
 
 @app.post('/runs/{run_id}/figure')
@@ -718,6 +792,11 @@ class FeaturedRequest(BaseModel):
 class NoteRequest(BaseModel):
     run_id: str
     note:   str = ''
+
+
+class TitleRequest(BaseModel):
+    run_id: str
+    title:  str = ''
 
 
 def _check_admin(token: str | None) -> None:
@@ -791,6 +870,20 @@ async def admin_note(req: NoteRequest,
     _rewrite_log()
     _patch_run_json(req.run_id, note=req.note)
     return {'status': 'ok', 'note': req.note}
+
+
+@app.post('/admin/title')
+async def admin_title(req: TitleRequest,
+                      x_admin_token: str | None = Header(default=None)):
+    """Edit a run's display TITLE (independent of the prompt). Updates the log (so the
+    gallery/admin show it) and the sidecar (so the viewer shows it)."""
+    _check_admin(x_admin_token)
+    if req.run_id not in _log_entries:
+        raise HTTPException(status_code=404, detail='run_id not found')
+    _log_entries[req.run_id]['title'] = req.title
+    _rewrite_log()
+    _patch_run_json(req.run_id, title=req.title)
+    return {'status': 'ok', 'title': req.title}
 
 
 @app.delete('/runs/{run_id}')
@@ -939,6 +1032,7 @@ async def runs_index_endpoint(correct_only: bool = False, favorites_only: bool =
             'ms_total':      row.get('ms_total', ''),
             'ms_llm':        row.get('ms_llm', ''),
             'ms_sim':        row.get('ms_sim', ''),
+            'source':        row.get('source', ''),
             'has_sidecar':   has_sidecar,
         })
     rows.sort(key=lambda r: r['timestamp'], reverse=True)

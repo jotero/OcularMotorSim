@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario builder — ViSiOMlab</title>
+<style>
+  :root { --bg:#f4f6fa; --card:#fff; --line:#dfe3ea; --ink:#243040; --muted:#6b7684;
+          --accent:#2166ac; --accent-d:#184a80; --warn:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:14px 20px; background:var(--card); border-bottom:1px solid var(--line);
+           display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:1.05rem; margin:0; font-weight:650; }
+  header .sub { color:var(--muted); font-size:.85rem; }
+  header a { color:var(--accent); text-decoration:none; margin-left:auto; font-size:.9rem; }
+  .wrap { display:grid; grid-template-columns:1fr 380px; gap:18px; padding:18px 20px; align-items:start; }
+  @media (max-width:960px){ .wrap{ grid-template-columns:1fr; } .side{ position:static !important; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .card h2 { font-size:.95rem; margin:0 0 4px; }
+  .card h2 .hint { font-weight:400; color:var(--muted); font-size:.8rem; margin-left:6px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:flex-end; }
+  .fld { display:flex; flex-direction:column; gap:3px; }
+  .fld label { font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+  .fld input[type=number], .fld input[type=text], .fld select {
+    width:82px; padding:4px 6px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fdfdff; }
+  .fld input[type=text].wide { width:132px; }
+  .fld.chk { flex-direction:row; align-items:center; gap:5px; }
+  .fld.chk label { text-transform:none; letter-spacing:0; font-size:.8rem; color:var(--ink); }
+  .phase { border:1px solid var(--line); border-radius:9px; padding:8px 12px 10px; margin:10px 0; background:#fbfcfe; }
+  .phasehead { display:flex; align-items:flex-end; gap:12px; border-bottom:1px solid #eef1f6; padding-bottom:7px; margin-bottom:2px; }
+  .phasehead b { font-size:.9rem; }
+  .phasehead .btns { margin-left:auto; display:flex; gap:2px; }
+  .iconbtn { border:none; background:none; cursor:pointer; font-size:.95rem; padding:1px 5px; line-height:1; color:var(--muted); }
+  .iconbtn:hover { color:var(--ink); } .iconbtn.rm:hover { color:var(--warn); }
+  .chanrow { display:flex; align-items:flex-start; gap:12px; padding:7px 0; border-bottom:1px dashed #eef1f6; }
+  .chanrow:last-child { border-bottom:none; }
+  .clab { flex:0 0 50px; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; padding-top:17px; letter-spacing:.03em; }
+  .chanrow .row { flex:1; }
+  .overview { margin-bottom:14px; }
+  .ovstrip { margin-bottom:7px; }
+  .ovlab { font-size:.72rem; color:var(--muted); margin-bottom:2px; }
+  .ovrange { color:#9aa4b2; }
+  .ovleg { margin-left:8px; font-size:.7rem; color:var(--ink); }
+  .ovleg b { font-weight:400; margin-right:5px; }
+  .ovsvg { width:100%; height:46px; display:block; border:1px solid #e6e9f0; border-radius:5px; background:#fff; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:7px; padding:5px 11px; cursor:pointer; font:inherit; }
+  .btn:hover { background:#f0f3f8; }
+  .btn.add { font-size:.82rem; padding:4px 11px; margin-top:6px; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; padding:9px 16px; }
+  .btn.primary:hover { background:var(--accent-d); }
+  .btn.primary[disabled]{ opacity:.55; cursor:default; }
+  .side { position:sticky; top:18px; }
+  #json { width:100%; height:320px; font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;
+          border:1px solid var(--line); border-radius:8px; padding:10px; background:#fbfcfe; resize:vertical; white-space:pre; }
+  #status { margin-top:10px; font-size:.85rem; min-height:1.2em; }
+  #status.err { color:var(--warn); } #status.ok { color:#1f7a3d; }
+  .panels { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:2px 10px; }
+  .panels label { font-size:.8rem; display:flex; gap:5px; align-items:center; }
+  .presets { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pfield { padding:5px 7px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fdfdff; }
+  .ptrow { display:flex; align-items:center; gap:8px; padding:3px 0; border-bottom:1px solid #eef1f6; }
+  .ptrow .pn { font:12px ui-monospace,monospace; min-width:120px; }
+  .ptrow input { width:120px; padding:3px 6px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  .ptrow .pdefault { color:#9aa4b2; font-size:.72rem; min-width:88px; white-space:nowrap; }
+  .ptrow .pd { color:var(--muted); font-size:.74rem; flex:1; }
+  .ptrow.pthead { border-bottom:2px solid #e2e7ef; }
+  .ptrow.pthead span { color:#6b7684; font-size:.67rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+  .ptrow .pinspace { flex:0 0 120px; }
+  .ptrow.changed { background:#eef4fb; border-radius:5px; }
+  .ptrow.changed .pn { color:#184a80; font-weight:600; }
+  .ptrow.changed input { border-color:var(--accent); background:#fbfdff; }
+  .ptrow.changed .pdefault { color:#5f7896; }
+  .note { color:var(--muted); font-size:.8rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Scenario builder</h1>
+  <span class="sub">construct a simulation directly — no LLM, no API cost</span>
+  <a href="/">← back to simulator</a>
+</header>
+
+<div class="wrap">
+  <div class="main">
+    <div class="card">
+      <div class="presets">
+        <strong style="font-size:.85rem">Start from:</strong>
+        <select id="preset" class="pfield">
+          <option value="">— preset —</option>
+          <option value="saccade">Saccade 20° right</option>
+          <option value="pursuit">Smooth pursuit 20°/s</option>
+          <option value="sinpursuit">Sinusoidal pursuit</option>
+          <option value="vhit">vHIT (head impulse)</option>
+          <option value="headroll">Sinusoidal head roll</option>
+          <option value="okn">OKN 30°/s + OKAN</option>
+          <option value="vordark">VOR in the dark</option>
+          <option value="cover">Cover test</option>
+        </select>
+        <span class="note">fills the timeline; then tweak anything</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="fld" style="flex:1">
+          <label>description (figure title)</label>
+          <input type="text" id="desc" style="width:100%" placeholder="e.g. 20° rightward saccade">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Timeline <span class="hint">a sequence of phases; each phase sets what the head, target, scene move &amp; what's visible during it</span></h2>
+      <div id="overview" class="overview"></div>
+      <div id="phases"></div>
+    </div>
+
+    <div class="card">
+      <h2>Patient <span class="hint">overrides vs. healthy defaults — leave blank to keep default</span></h2>
+      <div id="patient"><span class="note">loading parameters…</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Plot panels</h2>
+      <div class="panels" id="panels"></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>Scenario JSON <span class="hint">editable — this is what runs</span></h2>
+      <textarea id="json" spellcheck="false"></textarea>
+      <div style="display:flex; gap:10px; align-items:center; margin-top:10px">
+        <button class="btn primary" id="run">Run simulation</button>
+        <button class="btn" id="copy">Copy JSON</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const backend = () => (localStorage.getItem('oculomotor_backend') || window.location.origin).replace(/\/$/, '');
+const el = (t, cls, html) => { const e=document.createElement(t); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; };
+const num = (v, d) => (v==null || v==='') ? d : Number(v);
+
+const MOVERS = ['head','target','scene'];
+const CHAN = {
+  head:   { types:['constant','ramp','sinusoid','impulse'] },
+  target: { types:['constant','ramp','sinusoid'] },
+  scene:  { types:['constant','ramp','sinusoid'] },
+};
+function valueFields(ch, type) {
+  if (ch === 'target') {
+    const f = [['x','x (m)'],['y','y (m)'],['z','z / depth (m)']];
+    if (type === 'ramp')     f.push(['xv','x vel (m/s)'],['yv','y vel'],['zv','z vel']);
+    if (type === 'sinusoid') f.push(['xv','x amp (m)'],['yv','y amp'],['zv','z amp'],['freq','freq (Hz)']);
+    return f;
+  }
+  const vl = type==='sinusoid' ? 'amp' : type==='impulse' ? 'peak' : 'vel';
+  const f = [['yaw',`yaw ${vl} (°/s)`],['pitch',`pitch ${vl}`],['roll',`roll ${vl}`]];
+  if (type === 'ramp')     f.push(['yaw_acc','yaw acc (°/s²)'],['pitch_acc','pitch acc'],['roll_acc','roll acc']);
+  if (type === 'sinusoid') f.push(['freq','freq (Hz)']);
+  if (type === 'impulse')  f.push(['ramp_dur','ramp (s)']);
+  if (ch === 'head')       f.push(['xv','x vel (m/s)'],['yv','y vel'],['zv','z vel']);
+  return f;
+}
+const VISUAL_BOOLS = [['scene_present','scene present',true],['target_present','target present',true],
+                      ['cover_L','cover L',false],['cover_R','cover R',false],['target_strobed','strobed',false]];
+
+// ── State: ONE timeline of phases; each phase carries every channel ──
+const newPhase = () => ({ duration_s:1, head:{type:'constant'}, target:{type:'constant'}, scene:{type:'constant'}, visual:{} });
+let state = { description:'', phases:[newPhase()], patient:{}, panels:[] };
+let PATIENT_META = [], PANEL_LIST = [];
+
+// ── Presets (shared-phase form) ──
+const PRESETS = {
+  saccade: { description:'20° rightward saccade',
+    phases:[ {duration_s:0.3, target:{type:'constant',z:1.0,x:0.0}},
+             {duration_s:1.7, target:{type:'constant',x:0.364}} ],
+    panels:['visual_flags','eye_position','eye_velocity','saccade_burst'] },
+  pursuit: { description:'Smooth pursuit 20°/s',
+    phases:[ {duration_s:0.3, target:{type:'constant',z:1.0}},
+             {duration_s:4.7, target:{type:'ramp',xv:0.349}} ],
+    panels:['visual_flags','eye_position','eye_velocity','pursuit_drive'] },
+  sinpursuit: { description:'Sinusoidal smooth pursuit (±10° at 0.3 Hz)',
+    phases:[ {duration_s:10, target:{type:'sinusoid', z:1.0, xv:0.18, freq:0.3}} ],
+    panels:['visual_flags','eye_position','eye_velocity','pursuit_drive'] },
+  vhit: { description:'Rightward vHIT',
+    phases:[ {duration_s:2.5, head:{type:'impulse',yaw:200,ramp_dur:0.1}, target:{type:'constant',z:1.0},
+              visual:{scene_present:false,target_present:true}} ],
+    panels:['visual_flags','eye_position','eye_velocity','head_velocity'] },
+  headroll: { description:'Sinusoidal head roll (torsional VOR)',
+    phases:[ {duration_s:11, head:{type:'sinusoid',roll:20,freq:0.3}, target:{type:'constant',z:1.0},
+              visual:{scene_present:false,target_present:true}} ],
+    panels:['visual_flags','eye_position','eye_velocity'] },
+  okn: { description:'OKN 30°/s then OKAN',
+    phases:[ {duration_s:20, scene:{type:'constant',yaw:30}, target:{type:'constant',z:1.0}, visual:{target_present:false}},
+             {duration_s:40, target:{type:'constant',z:1.0}, visual:{target_present:false}} ],
+    panels:['visual_flags','spv','eye_position','velocity_storage'] },
+  vordark: { description:'VOR in the dark',
+    phases:[ {duration_s:5,  head:{type:'constant',yaw:60}, target:{type:'constant',z:1.0}, visual:{scene_present:false,target_present:false}},
+             {duration_s:15, head:{type:'constant',yaw:0},  target:{type:'constant',z:1.0}, visual:{scene_present:false,target_present:false}} ],
+    panels:['visual_flags','spv','eye_position','velocity_storage'] },
+  cover: { description:'Cover test (R eye covered 3–18 s)',
+    phases:[ {duration_s:3,  target:{type:'constant',z:2.0}},
+             {duration_s:15, target:{type:'constant',z:2.0}, visual:{cover_R:true}},
+             {duration_s:7,  target:{type:'constant',z:2.0}} ],
+    patient:{tonic_verg:8.0}, panels:['visual_flags','eye_position','vergence'] },
+};
+
+// ── Whole-timeline stimulus preview ──
+function computeStim() {
+  const P = state.phases.map(p => ({ dur:Math.max(1e-3,num(p.duration_s,1)),
+    head:p.head||{}, scene:p.scene||{}, target:p.target||{}, visual:p.visual||{} }));
+  let acc=0; const spans=P.map(p=>{ const s={t0:acc,t1:acc+p.dur,p}; acc+=p.dur; return s; }); const total=acc||1;
+  const vel = (seg, axis, tau) => {           // angular velocity of one rotational axis at local time tau
+    const type=seg.type||'constant', A=num(seg[axis],0);
+    if (type==='ramp')     return A + num(seg[axis+'_acc'],0)*tau;
+    if (type==='sinusoid') return A*Math.sin(2*Math.PI*num(seg.freq,1)*tau);
+    if (type==='impulse')  { const rd=num(seg.ramp_dur,0.1), s=rd/3||0.03; return A*Math.exp(-0.5*((tau-rd)/s)**2); }
+    return A;
+  };
+  let pos={x:0,y:0,z:1};                       // target position carries across phases
+  const S={t:[],hy:[],hp:[],hr:[],sy:[],sp:[],sr:[],ah:[],av:[],dz:[]};
+  for (const sp of spans) {
+    const ts=sp.p.target, sinT=ts.type==='sinusoid', w=2*Math.PI*num(ts.freq,1);
+    const p0={x:num(ts.x,pos.x), y:num(ts.y,pos.y), z:num(ts.z,pos.z)};
+    const amp={x:num(ts.xv,0), y:num(ts.yv,0), z:num(ts.zv,0)};       // sinusoid velocity amplitude
+    const tv=(ts.type==='ramp')?{x:num(ts.xv,0),y:num(ts.yv,0),z:num(ts.zv,0)}:{x:0,y:0,z:0};
+    const tp=(base,vlin,A,tau)=> sinT ? base + A*Math.sin(w*tau) : base + vlin*tau;   // position sinusoid: symmetric ±A
+    const M=Math.max(2, Math.round(240*sp.p.dur/total));
+    for (let i=0;i<=M;i++) {
+      const tau=sp.p.dur*i/M; S.t.push(sp.t0+tau);
+      S.hy.push(vel(sp.p.head,'yaw',tau)); S.hp.push(vel(sp.p.head,'pitch',tau)); S.hr.push(vel(sp.p.head,'roll',tau));
+      S.sy.push(vel(sp.p.scene,'yaw',tau)); S.sp.push(vel(sp.p.scene,'pitch',tau)); S.sr.push(vel(sp.p.scene,'roll',tau));
+      const x=tp(p0.x,tv.x,amp.x,tau), y=tp(p0.y,tv.y,amp.y,tau), z=(tp(p0.z,tv.z,amp.z,tau))||1;
+      S.ah.push(Math.atan2(x,z)*180/Math.PI); S.av.push(Math.atan2(y,z)*180/Math.PI); S.dz.push(z);
+    }
+    pos={x:tp(p0.x,tv.x,amp.x,sp.p.dur), y:tp(p0.y,tv.y,amp.y,sp.p.dur), z:tp(p0.z,tv.z,amp.z,sp.p.dur)};
+  }
+  return {S, spans, total};
+}
+function ovStrip(title, t, lines, total, bnds) {
+  const W=1000,H=46,pad=5, act=lines.filter(l=>l.ys.some(v=>Math.abs(v)>1e-9));
+  const allY=[0,...act.flatMap(l=>l.ys)]; let lo=Math.min(...allY), hi=Math.max(...allY); if(hi-lo<1e-6){hi=1;lo=-1;}
+  const sx=v=>pad+(W-2*pad)*(v/total), sy=v=>H-pad-(H-2*pad)*((v-lo)/(hi-lo));
+  let g=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="ovsvg">`;
+  for(const b of bnds) g+=`<line x1="${sx(b).toFixed(1)}" y1="0" x2="${sx(b).toFixed(1)}" y2="${H}" stroke="#eef1f6" vector-effect="non-scaling-stroke"/>`;
+  g+=`<line x1="${pad}" y1="${sy(0).toFixed(1)}" x2="${W-pad}" y2="${sy(0).toFixed(1)}" stroke="#dde2ea" vector-effect="non-scaling-stroke"/>`;
+  for(const l of act){ const pts=t.map((tt,i)=>`${sx(tt).toFixed(1)},${sy(l.ys[i]).toFixed(1)}`).join(' ');
+    g+=`<polyline points="${pts}" fill="none" stroke="${l.color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`; }
+  g+='</svg>';
+  const leg = act.length>1 ? '<span class="ovleg">'+act.map(l=>`<b style="color:${l.color}">■ ${l.label}</b>`).join('')+'</span>' : '';
+  const rng = act.length ? `<span class="ovrange">[${lo.toFixed(1)}, ${hi.toFixed(1)}]</span>` : '<span class="ovrange">— none</span>';
+  return `<div class="ovstrip"><div class="ovlab">${title} ${rng}${leg}</div>${g}</div>`;
+}
+function ovGantt(spans, total) {
+  const W=1000,H=46,pad=5, sx=v=>pad+(W-2*pad)*(v/total);
+  const rows=[{label:'scene',on:v=>v.scene_present==null?true:!!v.scene_present,c:'#9cc0e6'},
+              {label:'target',on:v=>v.target_present==null?true:!!v.target_present,c:'#8fce93'},
+              {label:'cover',on:v=>!!(v.cover_L||v.cover_R),c:'#e0a0a0'}];
+  const rh=(H-2*pad)/rows.length; let g=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="ovsvg">`;
+  rows.forEach((r,ri)=>{ const y=pad+ri*rh; for(const s of spans) if(r.on(s.p.visual||{}))
+    g+=`<rect x="${sx(s.t0).toFixed(1)}" y="${(y+1).toFixed(1)}" width="${(sx(s.t1)-sx(s.t0)).toFixed(1)}" height="${(rh-2).toFixed(1)}" fill="${r.c}"/>`; });
+  for(let i=1;i<spans.length;i++) g+=`<line x1="${sx(spans[i].t0).toFixed(1)}" y1="0" x2="${sx(spans[i].t0).toFixed(1)}" y2="${H}" stroke="#fff" vector-effect="non-scaling-stroke"/>`;
+  g+='</svg>';
+  const leg='<span class="ovleg">'+rows.map(r=>`<b style="color:${r.c}">■ ${r.label}</b>`).join('')+'</span>';
+  return `<div class="ovstrip"><div class="ovlab">visible ${leg}</div>${g}</div>`;
+}
+function drawOverview() {
+  const host=document.getElementById('overview'); if(!host) return;
+  const {S,spans,total}=computeStim(); const bnds=spans.slice(0,-1).map(s=>s.t1);
+  host.innerHTML =
+    ovStrip('head velocity (°/s)', S.t, [{ys:S.hy,color:'#2166ac',label:'yaw'},{ys:S.hp,color:'#3aa35a',label:'pitch'},{ys:S.hr,color:'#d98a2b',label:'roll'}], total, bnds)
+  + ovStrip('target angle (°)',   S.t, [{ys:S.ah,color:'#2166ac',label:'horiz'},{ys:S.av,color:'#d98a2b',label:'vert'}], total, bnds)
+  + ovStrip('target depth (m)',   S.t, [{ys:S.dz,color:'#7a5aa8',label:'z'}], total, bnds)
+  + ovStrip('scene velocity (°/s)', S.t, [{ys:S.sy,color:'#2166ac',label:'yaw'},{ys:S.sp,color:'#3aa35a',label:'pitch'},{ys:S.sr,color:'#d98a2b',label:'roll'}], total, bnds)
+  + ovGantt(spans, total)
+  + `<div class="note" style="margin-top:2px">total ${total.toFixed(2)} s · ${spans.length} phase${spans.length>1?'s':''}</div>`;
+}
+
+// ── Rendering ──
+function renderPhases() {
+  const host = document.getElementById('phases'); host.innerHTML='';
+  state.phases.forEach((ph,i)=> host.append(renderPhase(ph,i)));
+  const add = el('button','btn add','+ phase');
+  add.onclick = () => { state.phases.push(newPhase()); renderPhases(); sync(); };
+  host.append(add);
+}
+
+function renderPhase(ph, i) {
+  const card = el('div','phase');
+  const hd = el('div','phasehead');
+  hd.append(el('b',null,'Phase '+(i+1)));
+  const df = el('div','fld'); df.append(el('label',null,'duration (s)'));
+  const dinp = el('input'); dinp.type='number'; dinp.step='any'; dinp.value = ph.duration_s ?? '';
+  dinp.oninput = () => { const v=dinp.value.trim(); ph.duration_s = v===''?1:Number(v); sync(); };
+  df.append(dinp); hd.append(df);
+  const btns = el('div','btns');
+  const dup = el('button','iconbtn','⧉'); dup.title='duplicate phase';
+  dup.onclick = () => { state.phases.splice(i+1,0, JSON.parse(JSON.stringify(ph))); renderPhases(); sync(); };
+  btns.append(dup);
+  if (state.phases.length > 1) {
+    const rm = el('button','iconbtn rm','✕'); rm.title='remove phase';
+    rm.onclick = () => { state.phases.splice(i,1); renderPhases(); sync(); };
+    btns.append(rm);
+  }
+  hd.append(btns); card.append(hd);
+  for (const ch of MOVERS) card.append(renderChanRow(ch, ph));
+  card.append(renderVisualRow(ph));
+  return card;
+}
+
+function renderChanRow(ch, ph) {
+  const rowc = el('div','chanrow'); rowc.append(el('span','clab',ch));
+  const seg = ph[ch] || (ph[ch] = {type:'constant'});
+  const fields = el('div','row');
+  const tf = el('div','fld'); tf.append(el('label',null,'type'));
+  const sel = el('select');
+  for (const t of CHAN[ch].types){ const o=el('option',null,t); o.value=t; if((seg.type||'constant')===t)o.selected=true; sel.append(o); }
+  sel.onchange = () => { seg.type=sel.value; renderPhases(); sync(); };
+  tf.append(sel); fields.append(tf);
+  for (const [k,label] of valueFields(ch, seg.type||'constant')) fields.append(numField(seg,k,label));
+  rowc.append(fields);
+  return rowc;
+}
+
+function renderVisualRow(ph) {
+  const rowc = el('div','chanrow'); rowc.append(el('span','clab','visible'));
+  const seg = ph.visual || (ph.visual = {});
+  const fields = el('div','row');
+  for (const [k,label,def] of VISUAL_BOOLS) {
+    const f = el('div','fld chk'); const cb=el('input'); cb.type='checkbox';
+    cb.checked = (k in seg)? !!seg[k] : def;
+    cb.onchange = () => { seg[k]=cb.checked; sync(); };
+    f.append(cb, el('label',null,label)); fields.append(f);
+  }
+  fields.append(vec3Field(seg,'prism_L','prism L [y,p,r]'), vec3Field(seg,'prism_R','prism R [y,p,r]'));
+  rowc.append(fields);
+  return rowc;
+}
+
+function numField(seg, key, label, onChange) {
+  const f = el('div','fld'); f.append(el('label',null,label));
+  const inp = el('input'); inp.type='number'; inp.step='any';
+  inp.value = (seg[key]==null)?'':seg[key];
+  inp.oninput = () => { const v=inp.value.trim(); if(v==='')delete seg[key]; else seg[key]=Number(v); if(onChange)onChange(); sync(); };
+  f.append(inp); return f;
+}
+function vec3Field(seg, key, label) {
+  const f = el('div','fld'); f.append(el('label',null,label));
+  const inp = el('input'); inp.type='text'; inp.className='wide'; inp.placeholder='0,0,0';
+  inp.value = Array.isArray(seg[key]) ? seg[key].join(',') : '';
+  inp.oninput = () => { const v=inp.value.trim(); if(v==='')delete seg[key]; else seg[key]=v.split(/[,\s]+/).map(Number); sync(); };
+  f.append(inp); return f;
+}
+
+function renderPatient() {
+  const host = document.getElementById('patient'); host.innerHTML='';
+  host.append(el('div','note','Highlighted rows differ from the healthy default; only edited fields are sent. Arrays (e.g. g_nerve) take comma-separated values.'));
+  const hdr = el('div','ptrow pthead');
+  hdr.append(el('span','pn','parameter'), el('span','pinspace'), el('span','pdefault','default'), el('span','pd','description'));
+  host.append(hdr);
+  for (const p of PATIENT_META) {
+    const rw = el('div','ptrow');
+    const defStr = (p.default==null) ? '' : (Array.isArray(p.default)?p.default.join(','):String(p.default));
+    rw.append(el('span','pn',p.name));
+    const inp = el('input'); inp.type='text'; inp.placeholder = defStr;
+    inp.value = (p.name in state.patient) ? (Array.isArray(state.patient[p.name])?state.patient[p.name].join(','):state.patient[p.name]) : '';
+    const changed = () => {
+      if (!(p.name in state.patient)) return false;
+      const v=state.patient[p.name], d=p.default;
+      if (Array.isArray(d)||Array.isArray(v)) return JSON.stringify(d)!==JSON.stringify(v);
+      return Number(v)!==Number(d);
+    };
+    const mark = () => rw.classList.toggle('changed', changed());
+    inp.oninput = () => {
+      const v=inp.value.trim();
+      if (v==='') delete state.patient[p.name];
+      else if (p.is_array) state.patient[p.name]=v.split(/[,\s]+/).map(Number);
+      else state.patient[p.name]=Number(v);
+      mark(); sync();
+    };
+    rw.append(inp, el('span','pdefault', defStr), el('span','pd',p.description||''));
+    mark();
+    host.append(rw);
+  }
+}
+function renderPanels() {
+  const host = document.getElementById('panels'); host.innerHTML='';
+  for (const p of PANEL_LIST) {
+    const lb = el('label'); const cb=el('input'); cb.type='checkbox'; cb.checked=state.panels.includes(p);
+    cb.onchange = () => { if(cb.checked){ if(!state.panels.includes(p))state.panels.push(p);} else state.panels=state.panels.filter(x=>x!==p); sync(); };
+    lb.append(cb, document.createTextNode(' '+p)); host.append(lb);
+  }
+}
+
+// ── Assemble the 4-channel JSON from the shared phases ──
+function segToJson(ch, dur, seg) {
+  const o = { duration_s: num(dur,1) };
+  if (ch === 'target') {
+    if (seg.x!=null) o.lin_x_0=seg.x; if (seg.y!=null) o.lin_y_0=seg.y; if (seg.z!=null) o.lin_z_0=seg.z;
+    if (seg.type==='ramp' || seg.type==='sinusoid') { if(seg.xv!=null)o.lin_x_vel=seg.xv; if(seg.yv!=null)o.lin_y_vel=seg.yv; if(seg.zv!=null)o.lin_z_vel=seg.zv; }
+    if (seg.type==='sinusoid') { o.rot_profile='sinusoid'; if(seg.freq!=null)o.frequency_hz=seg.freq; }
+    return o;
+  }
+  const t = seg.type||'constant';
+  if (t==='sinusoid' || t==='impulse') o.rot_profile = t;
+  if (seg.yaw!=null) o.rot_yaw_vel=seg.yaw; if (seg.pitch!=null) o.rot_pitch_vel=seg.pitch; if (seg.roll!=null) o.rot_roll_vel=seg.roll;
+  if (t==='ramp') { if(seg.yaw_acc!=null)o.rot_yaw_acc=seg.yaw_acc; if(seg.pitch_acc!=null)o.rot_pitch_acc=seg.pitch_acc; if(seg.roll_acc!=null)o.rot_roll_acc=seg.roll_acc; }
+  if (t==='sinusoid' && seg.freq!=null) o.frequency_hz=seg.freq;
+  if (t==='impulse' && seg.ramp_dur!=null) o.ramp_dur_s=seg.ramp_dur;
+  if (ch==='head') { if(seg.xv!=null)o.lin_x_vel=seg.xv; if(seg.yv!=null)o.lin_y_vel=seg.yv; if(seg.zv!=null)o.lin_z_vel=seg.zv; }
+  return o;
+}
+function visualToJson(dur, seg) {
+  const o = { duration_s:num(dur,1) };
+  o.scene_present  = (seg.scene_present==null)?true:!!seg.scene_present;
+  o.target_present = (seg.target_present==null)?true:!!seg.target_present;
+  if (seg.cover_L) o.cover_L=true; if (seg.cover_R) o.cover_R=true; if (seg.target_strobed) o.target_strobed=true;
+  if (Array.isArray(seg.prism_L)&&seg.prism_L.length===3&&seg.prism_L.some(x=>x)) o.prism_L=seg.prism_L;
+  if (Array.isArray(seg.prism_R)&&seg.prism_R.length===3&&seg.prism_R.some(x=>x)) o.prism_R=seg.prism_R;
+  return o;
+}
+function buildScenario() {
+  const P = state.phases;
+  const sc = {
+    description: state.description || 'Scenario built using the scenario builder',
+    head:   P.map(p => segToJson('head',   p.duration_s, p.head   || {})),
+    target: P.map(p => segToJson('target', p.duration_s, p.target || {})),
+    scene:  P.map(p => segToJson('scene',  p.duration_s, p.scene  || {})),
+    visual: P.map(p => visualToJson(p.duration_s, p.visual || {})),
+    plot:   { panels: state.panels.length ? state.panels : ['visual_flags','eye_position','eye_velocity'] },
+  };
+  if (Object.keys(state.patient).length) sc.patient = { ...state.patient };
+  return sc;
+}
+function sync() {
+  state.description = document.getElementById('desc').value;
+  document.getElementById('json').value = JSON.stringify(buildScenario(), null, 2);
+  drawOverview();
+}
+function applyPreset(p) {
+  state = { description:p.description||'', phases:[], patient:p.patient?{...p.patient}:{}, panels:[...(p.panels||[])] };
+  state.phases = (p.phases||[{}]).map(ph => ({
+    duration_s: ph.duration_s!=null ? ph.duration_s : 1,
+    head:   {type:'constant', ...(ph.head||{})},
+    target: {type:'constant', ...(ph.target||{})},
+    scene:  {type:'constant', ...(ph.scene||{})},
+    visual: {...(ph.visual||{})},
+  }));
+  document.getElementById('desc').value = state.description;
+  renderPhases(); renderPatient(); renderPanels(); sync();
+}
+
+// ── Load an existing 4-channel scenario back into the shared-phase form ──
+const _rnd = x => Math.round(x*1e6)/1e6;
+function schemaSegToModel(ch, seg) {
+  if (ch === 'target') {
+    const m = {type:'constant'};
+    if (seg.lin_z_0!=null) m.z=seg.lin_z_0;
+    if (seg.lin_x_0!=null) m.x=seg.lin_x_0; if (seg.lin_y_0!=null) m.y=seg.lin_y_0;
+    if (seg.rot_yaw_0!=null && seg.lin_x_0==null)   m.x = Math.tan(seg.rot_yaw_0*Math.PI/180)*(m.z??1);   // angular shorthand
+    if (seg.rot_pitch_0!=null && seg.lin_y_0==null) m.y = Math.tan(seg.rot_pitch_0*Math.PI/180)*(m.z??1);
+    const hasVel = seg.lin_x_vel!=null||seg.lin_y_vel!=null||seg.lin_z_vel!=null||seg.rot_yaw_vel!=null;
+    if (seg.rot_profile==='sinusoid') { m.type='sinusoid'; if(seg.frequency_hz!=null)m.freq=seg.frequency_hz; }
+    else if (hasVel) m.type='ramp';
+    if (m.type==='ramp' || m.type==='sinusoid') {
+      if (seg.lin_x_vel!=null) m.xv=seg.lin_x_vel; if (seg.lin_y_vel!=null) m.yv=seg.lin_y_vel; if (seg.lin_z_vel!=null) m.zv=seg.lin_z_vel;
+      if (seg.rot_yaw_vel!=null && seg.lin_x_vel==null) m.xv = seg.rot_yaw_vel*(Math.PI/180)*(m.z??1);
+    }
+    return m;
+  }
+  const prof = seg.rot_profile || 'constant';
+  const hasAcc = seg.rot_yaw_acc||seg.rot_pitch_acc||seg.rot_roll_acc;
+  const m = { type: (prof==='constant' && hasAcc) ? 'ramp' : prof };
+  if (seg.rot_yaw_vel!=null) m.yaw=seg.rot_yaw_vel; if (seg.rot_pitch_vel!=null) m.pitch=seg.rot_pitch_vel; if (seg.rot_roll_vel!=null) m.roll=seg.rot_roll_vel;
+  if (m.type==='ramp'){ if(seg.rot_yaw_acc!=null)m.yaw_acc=seg.rot_yaw_acc; if(seg.rot_pitch_acc!=null)m.pitch_acc=seg.rot_pitch_acc; if(seg.rot_roll_acc!=null)m.roll_acc=seg.rot_roll_acc; }
+  if (prof==='sinusoid' && seg.frequency_hz!=null) m.freq=seg.frequency_hz;
+  if (prof==='impulse'  && seg.ramp_dur_s!=null)   m.ramp_dur=seg.ramp_dur_s;
+  if (ch==='head'){ if(seg.lin_x_vel!=null)m.xv=seg.lin_x_vel; if(seg.lin_y_vel!=null)m.yv=seg.lin_y_vel; if(seg.lin_z_vel!=null)m.zv=seg.lin_z_vel; }
+  return m;
+}
+function schemaVisualToModel(seg) {
+  const m={};
+  for (const k of ['scene_present','target_present','cover_L','cover_R','target_strobed']) if (k in seg) m[k]=seg[k];
+  if (Array.isArray(seg.prism_L)) m.prism_L=seg.prism_L; if (Array.isArray(seg.prism_R)) m.prism_R=seg.prism_R;
+  return m;
+}
+function scenarioToPhases(sc) {
+  const chans = ['head','target','scene','visual'];
+  const spans = {};
+  for (const ch of chans) { let acc=0; spans[ch]=(sc[ch]||[]).map(s=>{const o={t0:acc,t1:acc+(s.duration_s||0),seg:s}; acc+=(s.duration_s||0); return o;}); }
+  const times = new Set([0]);
+  for (const ch of chans) for (const s of spans[ch]) times.add(_rnd(s.t1));
+  const sorted = [...times].sort((a,b)=>a-b);
+  const phases = [];
+  for (let i=0;i<sorted.length-1;i++) {
+    const a=sorted[i], b=sorted[i+1]; if (b-a < 1e-6) continue;
+    const mid=(a+b)/2, ph={ duration_s:_rnd(b-a) };
+    for (const ch of MOVERS) { const c=spans[ch].find(x=> mid>=x.t0-1e-9 && mid<x.t1+1e-9); ph[ch]=c?schemaSegToModel(ch,c.seg):{type:'constant'}; }
+    const v=spans.visual.find(x=> mid>=x.t0-1e-9 && mid<x.t1+1e-9); ph.visual=v?schemaVisualToModel(v.seg):{};
+    phases.push(ph);
+  }
+  return phases.length ? phases : [newPhase()];
+}
+function loadScenario(sc) {
+  state.phases = scenarioToPhases(sc);
+  state.panels = (sc.plot && sc.plot.panels) ? [...sc.plot.panels] : [];
+  // patient: keep only overrides that differ from the healthy default
+  state.patient = {};
+  const def = Object.fromEntries(PATIENT_META.map(p=>[p.name,p.default]));
+  for (const [k,val] of Object.entries(sc.patient||{})) {
+    const d = def[k];
+    const same = (Array.isArray(d)&&Array.isArray(val)) ? JSON.stringify(d)===JSON.stringify(val) : d===val;
+    if (PATIENT_META.length && same) continue;
+    state.patient[k]=val;
+  }
+  state.description = sc.description || '';
+  document.getElementById('desc').value = state.description;
+  renderPhases(); renderPatient(); renderPanels(); sync();
+}
+async function loadRunForEdit(id) {
+  const st=document.getElementById('status');
+  try {
+    const r = await fetch(backend()+'/run/'+encodeURIComponent(id)+'/data');
+    if (!r.ok) throw new Error('run not found ('+r.status+')');
+    const d = await r.json();
+    let sc = d.detail || d.detail_json;
+    if (d.mode==='comparison' && sc && Array.isArray(sc.scenarios)) sc = sc.scenarios[0];
+    if (!sc || !sc.head) throw new Error('this run has no editable scenario');
+    loadScenario(sc);
+    if (st){ st.className='ok'; st.textContent='Loaded scenario from run '+id.slice(0,8)+(d.mode==='comparison'?' (first of comparison)':'')+' — edit & run (free).'; }
+  } catch (e) { if (st){ st.className='err'; st.textContent='Could not load run: '+e.message; } }
+}
+
+// ── Run ──
+async function run() {
+  const btn=document.getElementById('run'), st=document.getElementById('status');
+  let scenario;
+  try { scenario = JSON.parse(document.getElementById('json').value); }
+  catch (e) { st.className='err'; st.textContent='JSON parse error: '+e.message; return; }
+  btn.disabled=true; st.className=''; st.textContent='Running simulation…';
+  try {
+    const r = await fetch(backend()+'/run_scenario', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(scenario) });
+    const j = await r.json();
+    if (!r.ok || j.error) { st.className='err'; st.textContent='Error: '+(j.error||j.detail||r.status); btn.disabled=false; return; }
+    st.className='ok'; st.textContent='Done — opening viewer…';
+    window.location.href = backend()+'/?run='+encodeURIComponent(j.run_id);
+  } catch (e) { st.className='err'; st.textContent='Request failed: '+e.message; btn.disabled=false; }
+}
+
+// ── Init ──
+document.getElementById('desc').oninput = sync;
+document.getElementById('preset').onchange = e => { const p=PRESETS[e.target.value]; if(p) applyPreset(p); };
+document.getElementById('run').onclick = run;
+document.getElementById('copy').onclick = () => {
+  navigator.clipboard.writeText(document.getElementById('json').value);
+  const st=document.getElementById('status'); st.className='ok'; st.textContent='JSON copied.';
+};
+
+renderPhases();
+sync();
+const _editId = new URLSearchParams(location.search).get('edit');
+fetch(backend()+'/scenario_schema').then(r=>r.json()).then(d => {
+  PATIENT_META=d.patient||[]; PANEL_LIST=d.panels||[]; renderPatient(); renderPanels();
+  if (_editId) loadRunForEdit(_editId); else sync();
+}).catch(() => {
+  document.getElementById('patient').innerHTML='<span class="note">Could not load parameter schema — patient editing unavailable (stimulus still works).</span>';
+  PANEL_LIST=['visual_flags','eye_position','eye_velocity','spv','head_velocity','velocity_storage','neural_integrator','saccade_burst','pursuit_drive','vergence','accommodation','pupil_diameter'];
+  renderPanels();
+  if (_editId) loadRunForEdit(_editId); else sync();
+});
+</script>
+</body>
+</html>

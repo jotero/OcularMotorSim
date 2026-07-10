@@ -586,7 +586,8 @@ corresponding `elif panel_name == '...'` branch in `oculomotor/llm_pipeline/run.
 ### API key
 
 Set `ANTHROPIC_API_KEY` in your shell or `.env` before running `simulate.py`.
-The model defaults to `claude-opus-4-6`; use `--model claude-sonnet-4-6` for faster/cheaper calls.
+The model defaults to `claude-sonnet-5` (cheaper/faster, and plenty for structured scenario
+extraction); pass `--model claude-opus-4-8` when you want the top model.
 
 ## Tech stack
 

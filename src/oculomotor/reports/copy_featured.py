@@ -35,6 +35,7 @@ _LOG_COLUMNS = [
     'figure_file', 'looks_correct', 'feedback',
     'favorite', 'featured', 'note',
     'ms_total', 'ms_llm', 'ms_sim',
+    'source',
 ]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]   # reports → oculomotor → src → repo
