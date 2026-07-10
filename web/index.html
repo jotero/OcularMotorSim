@@ -578,7 +578,7 @@ function showResult(data, live = false) {
 // ── Featured examples + gallery drawer ────────────────────────────────────────
 // Click a featured/gallery card → load its STORED result instantly (no LLM, no sim),
 // and prefill the prompt so the user can tweak + re-run.
-async function loadFeatured(runId, prompt) {
+async function loadFeatured(runId, prompt, opts = {}) {
   const backend = getBackend();
   const status  = document.getElementById('status');
   if (prompt) set(prompt);
@@ -588,6 +588,11 @@ async function loadFeatured(runId, prompt) {
   try {
     const resp = await fetch(backend + '/run/' + runId + '/data',
                              { headers: { 'ngrok-skip-browser-warning': 'true' } });
+    if (resp.status === 404 && opts.onMissing) {   // run no longer exists (e.g. removed by admin)
+      status.className = 'status'; status.innerHTML = '';   // no error — just drop it
+      opts.onMissing();
+      return;
+    }
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     if (!prompt && data.prompt) set(data.prompt);   // deep-link path: prefill from the stored prompt
@@ -827,6 +832,15 @@ function openHistory() {
   _drawerMode('My simulations', 'Filter my simulations…', v => renderHistory(v));
   renderHistory('');
 }
+// Load a run from history; if it's gone (admin removed it), silently drop it from the
+// list instead of showing a load error.
+function loadHistoryRun(runId, prompt) {
+  loadFeatured(runId, prompt, { onMissing: () => {
+    _saveHistory(_loadHistory().filter(e => e.run_id !== runId));
+    updateHistoryLink();
+    renderHistory(document.getElementById('drawer-search').value);   // row vanishes from the list
+  }});
+}
 function renderHistory(query) {
   const body = document.getElementById('drawer-body');
   const h = _loadHistory();
@@ -839,7 +853,11 @@ function renderHistory(query) {
   const rows = q ? h.filter(e => ((e.title || '') + ' ' + (e.prompt || '')).toLowerCase().includes(q)) : h;
   body.innerHTML = '';
   if (!rows.length) { body.innerHTML = '<div class="drawer-loading">No matches.</div>'; return; }
-  rows.forEach(e => body.appendChild(_drawerRow(e)));
+  rows.forEach(e => {
+    const row = _drawerRow(e);
+    row.onclick = () => loadHistoryRun(e.run_id, e.prompt);   // history rows self-prune if the run is gone
+    body.appendChild(row);
+  });
   // Footer: clear this browser's history.
   const clr = document.createElement('div'); clr.className = 'drawer-clear';
   clr.innerHTML = '<a>Clear my simulations</a>';
