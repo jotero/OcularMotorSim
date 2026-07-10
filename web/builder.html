@@ -533,6 +533,18 @@ async function loadRunForEdit(id) {
   } catch (e) { if (st){ st.className='err'; st.textContent='Could not load run: '+e.message; } }
 }
 
+// Record a run into THIS browser's "My simulations" history (same localStorage key +
+// shape as index.html). Builder runs redirect to /?run=<id>, which the viewer loads
+// as a (non-live) deep link and so would NOT auto-record — so we stamp it here first.
+function _recordBuilderRun(run_id, title, mode) {
+  if (!run_id) return;
+  const KEY = 'oculomotor_history', CAP = 100;
+  let h; try { h = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { h = []; }
+  h = h.filter(e => e.run_id !== run_id);
+  h.unshift({ run_id, title: title || 'Scenario', mode: mode || 'single', prompt: '', ts: Date.now() });
+  try { localStorage.setItem(KEY, JSON.stringify(h.slice(0, CAP))); } catch (e) {}
+}
+
 // ── Run ──
 async function run() {
   const btn=document.getElementById('run'), st=document.getElementById('status');
@@ -545,6 +557,7 @@ async function run() {
     const j = await r.json();
     if (!r.ok || j.error) { st.className='err'; st.textContent='Error: '+(j.error||j.detail||r.status); btn.disabled=false; return; }
     st.className='ok'; st.textContent='Done — opening viewer…';
+    _recordBuilderRun(j.run_id, j.title || scenario.description || (scenario.plot && scenario.plot.title), j.mode);
     window.location.href = backend()+'/?run='+encodeURIComponent(j.run_id);
   } catch (e) { st.className='err'; st.textContent='Request failed: '+e.message; btn.disabled=false; }
 }

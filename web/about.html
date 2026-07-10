@@ -55,19 +55,29 @@
     <a href="https://omlab.berkeley.edu/" target="_blank" rel="noopener">Ocular Motor lab</a>
     at UC&nbsp;Berkeley — is a biophysically grounded computational model of how the brain controls
     eye movements. It simulates the full oculomotor pathway (semicircular canals, velocity storage,
-    the neural integrator, saccades, smooth pursuit, vergence, and the eye plant) and renders the
-    predicted eye movements as interactive plots and a 3-D avatar.
+    the neural integrator, saccades, smooth pursuit, vergence and accommodation, the pupils and
+    eyelids, and the eye plant) and renders the predicted eye movements as interactive plots and a
+    3-D avatar you can watch from the outside — or from behind each retina.
   </p>
 
   <h2>What you can do</h2>
   <ul>
-    <li>Describe a scenario in plain English — a patient, a clinical test, or a head- and
-        target-motion sequence — and see the predicted eye movements.</li>
-    <li>Model disorders by adjusting physiological parameters (e.g. vestibular, cerebellar,
-        nerve/nucleus palsies) and watch how the eye movements change.</li>
-    <li>Compare two scenarios side by side.</li>
-    <li>Inspect the model's
-        <a href="parameters.html">parameters</a> and
+    <li><strong>Describe a scenario in plain English</strong> — a patient, a clinical test, or a
+        head- and target-motion sequence — and see the predicted eye movements.</li>
+    <li><strong>Or build it visually</strong> with the <a href="builder.html">scenario builder</a>:
+        lay out timed segments of head, target, and scene motion, choose what's visible during each,
+        and adjust patient parameters — no prose or JSON required. Any scenario — whether it came from
+        a prompt or the gallery — can be opened in the builder, tweaked, and re-run.</li>
+    <li><strong>Model disorders</strong> by adjusting physiological parameters (e.g. vestibular,
+        cerebellar, nerve / nucleus / MLF palsies) and watch how the eye movements change.</li>
+    <li><strong>Watch a 3-D avatar</strong> of the eyes and head — from the outside (a head-fixed and a
+        world view) or from behind each eye (a <em>retina view</em> of what the fovea sees, going dark
+        on a blink) — with pupils, eyelids, eye patches, and prisms rendered in place.</li>
+    <li><strong>Compare</strong> two or more scenarios side by side.</li>
+    <li><strong>Keep a history</strong> — every run you make is listed under <em>my simulations</em>
+        so you can jump straight back to it. It lives only in your browser; nothing identifying you is
+        stored on the server.</li>
+    <li><strong>Explore the model</strong>: inspect its <a href="parameters.html">parameters</a> and
         <a href="states.html">states &amp; activations</a>, and browse validation
         <a href="benchmarks">benchmarks</a> and a <a href="gallery.html">gallery</a> of examples.</li>
   </ul>
@@ -76,9 +86,10 @@
   <p>
     The model is a differentiable state-space simulation built in JAX: each subsystem is a small
     dynamical model wired together in the signal-flow order of the real oculomotor system. A
-    plain-English description is turned into a stimulus and parameter set, the dynamics are
-    integrated, and the resulting eye, head, target, and scene signals are drawn as zoomable,
-    cursor-synced plots alongside a head-fixed and world view of an avatar.
+    plain-English description (or a scenario built by hand) is turned into a stimulus and parameter
+    set, the dynamics are integrated, and the resulting eye, head, target, and scene signals are drawn
+    as zoomable, cursor-synced plots alongside a 3-D avatar you can view head-fixed, in the world, or
+    from behind each retina.
   </p>
 
   <h2>Simulation inputs</h2>
@@ -136,8 +147,9 @@
   <h3>Plot</h3>
   <p>
     Which signal panels to show. Core readouts (eye position, eye velocity, vergence) lead; for
-    nystagmus add slow-phase velocity; then the driving stimulus and the internal-mechanism panel the
-    test probes. The underlying signals are documented on the
+    nystagmus add slow-phase velocity; near-response tests can add accommodation (lens power, in
+    diopters) and pupil diameter; then the driving stimulus and the internal-mechanism panel the test
+    probes. The underlying signals are documented on the
     <a href="states.html">states &amp; activations</a> page.
   </p>
   <p>
@@ -177,6 +189,8 @@
 
 <div class="site-footer">
   <a href="index.html">Home</a>
+  <span class="sep">·</span>
+  <a href="builder.html">Scenario builder</a>
   <span class="sep">·</span>
   <a href="gallery.html">Gallery</a>
   <span class="sep">·</span>

@@ -48,7 +48,7 @@
   /* Featured example cards (curated; click → instant output) */
   .prompt-q { font-size: 1.02rem; font-weight: 600; color: #1c2230; margin: 0 0 3px; }
   .builder-hint { margin: 0 2px 10px; font-size: 0.78rem; color: #64748b; }
-  .builder-hint a { color: #2563eb; text-decoration: none; }
+  .builder-hint a { color: #2563eb; text-decoration: none; cursor: pointer; }
   .builder-hint a:hover { text-decoration: underline; }
   .examples-head { display: flex; align-items: baseline; justify-content: space-between;
     margin: 18px 0 6px; font-size: 0.85rem; color: #64748b; }
@@ -89,6 +89,9 @@
   .drawer-search input:focus { outline: none; border-color: #2563eb; }
   .drawer-body { padding: 12px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
   .drawer-loading { color: #64748b; font-size: .85rem; padding: 20px; text-align: center; }
+  .drawer-clear { text-align: center; padding: 10px 0 4px; }
+  .drawer-clear a { font-size: .78rem; color: #94a3b8; cursor: pointer; }
+  .drawer-clear a:hover { color: #dc2626; text-decoration: underline; }
   @media (max-width: 820px) {
     body.gallery-open { padding-left: 0; }   /* small screens: panel overlays instead of pushing */
     .drawer { width: 86vw; box-shadow: 4px 0 24px rgba(0,0,0,.25); }
@@ -328,7 +331,7 @@
        Paginated like a shop carousel: featured runs first, then the rest of the gallery
        favorites; the arrows rotate through pages (wrap around at the ends). -->
   <div class="examples-head" id="examples-head" style="display:none;">
-    <span>Explore some examples <a onclick="openGallery()">(more …)</a></span>
+    <span>Explore some examples (<a onclick="openGallery()">more examples …</a>, <a onclick="openHistory()">my simulations<span id="myruns-count"></span></a>)</span>
     <span class="examples-nav">
       <span class="ex-page" id="ex-page"></span>
       <button class="ex-arrow" id="ex-prev" onclick="pageFeatured(-1)" title="Previous" aria-label="Previous examples">‹</button>
@@ -567,6 +570,7 @@ function showResult(data, live = false) {
   // Live run: once the plot has laid out, snapshot it and upload as this run's
   // figure so the gallery / featured / admin thumbnails have an image.
   if (live && data.run_id) {
+    recordHistory(data);   // remember it in THIS browser's local history (no server-side identity)
     requestAnimationFrame(() => requestAnimationFrame(() => uploadPlotSnapshot(data.run_id)));
   }
 }
@@ -765,6 +769,7 @@ let _galleryRuns = [];
 async function openGallery() {
   document.getElementById('gallery-drawer').classList.add('open');
   document.body.classList.add('gallery-open');   // docks the panel: shifts content right
+  _drawerMode('Gallery', 'Search examples…', v => renderGallery(v));
   const body = document.getElementById('drawer-body');
   body.innerHTML = '<div class="drawer-loading">Loading…</div>';
   try {
@@ -776,6 +781,74 @@ async function openGallery() {
   } catch (e) {
     body.innerHTML = '<div class="drawer-loading">Could not reach the backend.</div>';
   }
+}
+
+// Reset the shared drawer to a given mode: title, search placeholder + handler, and
+// make sure the Hide button is showing (list mode hides it). Called by every opener.
+function _drawerMode(title, placeholder, onInput) {
+  document.getElementById('drawer-title').textContent = title;
+  const search = document.getElementById('drawer-search');
+  if (search) { search.placeholder = placeholder; search.value = ''; search.oninput = () => onInput(search.value); }
+  const hideBtn = document.querySelector('#gallery-drawer .drawer-hide');
+  if (hideBtn) hideBtn.style.display = '';
+}
+
+// ── My simulations — per-browser history (localStorage only; no server identity) ──
+// Every live run is remembered here by run_id. The run data itself already lives on
+// the server (keyed by run_id), so this stores just a lightweight pointer list.
+const HIST_KEY = 'oculomotor_history', HIST_CAP = 100;
+
+function _loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) { return []; }
+}
+function _saveHistory(a) {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(a)); } catch (e) {}
+}
+function recordHistory(data) {
+  if (!data || !data.run_id) return;
+  const detail = data.detail_json || data.detail || {};
+  const title  = data.title || (detail && detail.description) || 'Scenario';
+  const prompt = data.prompt || (detail && detail.description) || '';
+  const entry  = { run_id: data.run_id, title, mode: data.mode || 'single', prompt, ts: Date.now() };
+  const h = _loadHistory().filter(e => e.run_id !== entry.run_id);   // dedup: newest wins
+  h.unshift(entry);
+  _saveHistory(h.slice(0, HIST_CAP));
+  updateHistoryLink();
+}
+function updateHistoryLink() {
+  const c = document.getElementById('myruns-count'); if (!c) return;
+  const n = _loadHistory().length;
+  c.textContent = n ? ` (${n})` : '';   // "my simulations" → "my simulations (3)"
+}
+
+function openHistory() {
+  document.getElementById('gallery-drawer').classList.add('open');
+  document.body.classList.add('gallery-open');
+  _drawerMode('My simulations', 'Filter my simulations…', v => renderHistory(v));
+  renderHistory('');
+}
+function renderHistory(query) {
+  const body = document.getElementById('drawer-body');
+  const h = _loadHistory();
+  if (!h.length) {
+    body.innerHTML = '<div class="drawer-loading">No simulations yet — run one above and it will show up here '
+                   + '(saved in this browser only).</div>';
+    return;
+  }
+  const q = (query || '').trim().toLowerCase();
+  const rows = q ? h.filter(e => ((e.title || '') + ' ' + (e.prompt || '')).toLowerCase().includes(q)) : h;
+  body.innerHTML = '';
+  if (!rows.length) { body.innerHTML = '<div class="drawer-loading">No matches.</div>'; return; }
+  rows.forEach(e => body.appendChild(_drawerRow(e)));
+  // Footer: clear this browser's history.
+  const clr = document.createElement('div'); clr.className = 'drawer-clear';
+  clr.innerHTML = '<a>Clear my simulations</a>';
+  clr.firstChild.onclick = () => {
+    if (confirm('Clear the simulation history stored in this browser? (The runs themselves stay on the server.)')) {
+      _saveHistory([]); updateHistoryLink(); renderHistory('');
+    }
+  };
+  body.appendChild(clr);
 }
 
 function renderGallery(query) {
@@ -798,6 +871,7 @@ function closeGallery() {
 // On load: normally show the featured examples; but if ?list=<id> is present,
 // hide the examples and show that collection in the side panel instead.
 document.addEventListener('DOMContentLoaded', () => {
+  updateHistoryLink();   // reveal "My simulations" if this browser has past runs
   const p = new URLSearchParams(location.search);
   const listId = p.get('list');
   const runId  = p.get('run');
