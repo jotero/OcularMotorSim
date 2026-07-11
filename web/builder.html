@@ -33,6 +33,7 @@
   .phasehead .btns { margin-left:auto; display:flex; gap:2px; }
   .iconbtn { border:none; background:none; cursor:pointer; font-size:.95rem; padding:1px 5px; line-height:1; color:var(--muted); }
   .iconbtn:hover { color:var(--ink); } .iconbtn.rm:hover { color:var(--warn); }
+  .iconbtn:disabled { opacity:.28; cursor:default; }
   .chanrow { display:flex; align-items:flex-start; gap:12px; padding:7px 0; border-bottom:1px dashed #eef1f6; }
   .chanrow:last-child { border-bottom:none; }
   .clab { flex:0 0 50px; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; padding-top:17px; letter-spacing:.03em; }
@@ -139,6 +140,9 @@
 
 <script>
 const backend = () => (localStorage.getItem('oculomotor_backend') || window.location.origin).replace(/\/$/, '');
+// Sent on every fetch so ngrok (public site) serves the API response instead of its
+// browser-warning interstitial — index.html does the same; without it edit-preload fails.
+const HDR = { 'ngrok-skip-browser-warning': 'true' };
 const el = (t, cls, html) => { const e=document.createElement(t); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; };
 const num = (v, d) => (v==null || v==='') ? d : Number(v);
 
@@ -296,9 +300,15 @@ function renderPhase(ph, i) {
   dinp.oninput = () => { const v=dinp.value.trim(); ph.duration_s = v===''?1:Number(v); sync(); };
   df.append(dinp); hd.append(df);
   const btns = el('div','btns');
+  const move = (from,to) => { if(to<0||to>=state.phases.length) return;
+    const [p]=state.phases.splice(from,1); state.phases.splice(to,0,p); renderPhases(); sync(); };
+  const up = el('button','iconbtn','↑'); up.title='move phase earlier'; up.disabled = i===0;
+  up.onclick = () => move(i,i-1);
+  const down = el('button','iconbtn','↓'); down.title='move phase later'; down.disabled = i===state.phases.length-1;
+  down.onclick = () => move(i,i+1);
   const dup = el('button','iconbtn','⧉'); dup.title='duplicate phase';
   dup.onclick = () => { state.phases.splice(i+1,0, JSON.parse(JSON.stringify(ph))); renderPhases(); sync(); };
-  btns.append(dup);
+  btns.append(up, down, dup);
   if (state.phases.length > 1) {
     const rm = el('button','iconbtn rm','✕'); rm.title='remove phase';
     rm.onclick = () => { state.phases.splice(i,1); renderPhases(); sync(); };
@@ -522,7 +532,7 @@ function loadScenario(sc) {
 async function loadRunForEdit(id) {
   const st=document.getElementById('status');
   try {
-    const r = await fetch(backend()+'/run/'+encodeURIComponent(id)+'/data');
+    const r = await fetch(backend()+'/run/'+encodeURIComponent(id)+'/data', { headers: HDR });
     if (!r.ok) throw new Error('run not found ('+r.status+')');
     const d = await r.json();
     let sc = d.detail || d.detail_json;
@@ -553,7 +563,7 @@ async function run() {
   catch (e) { st.className='err'; st.textContent='JSON parse error: '+e.message; return; }
   btn.disabled=true; st.className=''; st.textContent='Running simulation…';
   try {
-    const r = await fetch(backend()+'/run_scenario', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(scenario) });
+    const r = await fetch(backend()+'/run_scenario', { method:'POST', headers:{'Content-Type':'application/json', ...HDR}, body:JSON.stringify(scenario) });
     const j = await r.json();
     if (!r.ok || j.error) { st.className='err'; st.textContent='Error: '+(j.error||j.detail||r.status); btn.disabled=false; return; }
     st.className='ok'; st.textContent='Done — opening viewer…';
@@ -574,7 +584,7 @@ document.getElementById('copy').onclick = () => {
 renderPhases();
 sync();
 const _editId = new URLSearchParams(location.search).get('edit');
-fetch(backend()+'/scenario_schema').then(r=>r.json()).then(d => {
+fetch(backend()+'/scenario_schema', { headers: HDR }).then(r=>r.json()).then(d => {
   PATIENT_META=d.patient||[]; PANEL_LIST=d.panels||[]; renderPatient(); renderPanels();
   if (_editId) loadRunForEdit(_editId); else sync();
 }).catch(() => {
