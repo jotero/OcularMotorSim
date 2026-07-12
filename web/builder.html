@@ -138,6 +138,7 @@
   </div>
 </div>
 
+<script src="config.js"></script>
 <script>
 // Same resolution as index.html/gallery.html: ?backend= → localStorage → (local dev = origin,
 // else the deployed backend). On the static public host (omlab.berkeley.edu) window.location.origin
@@ -148,7 +149,8 @@ const backend = () => {
   const stored = localStorage.getItem('oculomotor_backend');
   if (stored) return stored.replace(/\/$/, '');
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  return (isLocal ? window.location.origin : 'https://giggling-confused-thriving.ngrok-free.dev').replace(/\/$/, '');
+  if (isLocal) return window.location.origin;
+  return (window.OCULOMOTOR_BACKEND || window.location.origin).replace(/\/$/, '');
 };
 // Sent on every fetch so ngrok (public site) serves the API response instead of its
 // browser-warning interstitial — index.html does the same; without it edit-preload fails.
@@ -229,7 +231,7 @@ function computeStim() {
   const vel = (seg, axis, tau) => {           // angular velocity of one rotational axis at local time tau
     const type=seg.type||'constant', A=num(seg[axis],0);
     if (type==='ramp')     return A + num(seg[axis+'_acc'],0)*tau;
-    if (type==='sinusoid') return A*Math.sin(2*Math.PI*num(seg.freq,1)*tau);
+    if (type==='sinusoid') return A*Math.cos(2*Math.PI*num(seg.freq,1)*tau);  // pos=sin ⇒ vel=A·cos (symmetric, continuous)
     if (type==='impulse')  { const rd=num(seg.ramp_dur,0.1), s=rd/3||0.03; return A*Math.exp(-0.5*((tau-rd)/s)**2); }
     return A;
   };

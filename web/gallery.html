@@ -163,6 +163,7 @@
   </div>
 </div>
 
+<script src="config.js"></script>
 <script>
 // ── Backend URL (same auto-detect as the simulator page) ──────────────────────
 function getBackend() {
@@ -171,9 +172,8 @@ function getBackend() {
   const stored = localStorage.getItem('oculomotor_backend');
   if (stored) return stored;
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  return isLocal
-    ? window.location.origin
-    : 'https://giggling-confused-thriving.ngrok-free.dev';
+  if (isLocal) return window.location.origin;
+  return (window.OCULOMOTOR_BACKEND || window.location.origin).replace(/\/$/, '');
 }
 const BACKEND = getBackend();
 // ngrok's free tier injects an HTML interstitial on browser GET requests; this
