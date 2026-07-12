@@ -450,11 +450,11 @@ function getBackend() {
   if (param) return param.replace(/\/$/, '');
   const stored = localStorage.getItem('oculomotor_backend');
   if (stored) return stored;
-  // Auto-detect: local dev vs remote (GitHub Pages / shared link)
+  // Local dev → same origin. Otherwise the configured backend (config.js), falling back to
+  // same origin when the app is served by the backend itself (e.g. via the tunnel).
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  return isLocal
-    ? window.location.origin
-    : 'https://giggling-confused-thriving.ngrok-free.dev';
+  if (isLocal) return window.location.origin;
+  return (window.OCULOMOTOR_BACKEND || window.location.origin).replace(/\/$/, '');
 }
 
 // ── Simulation ────────────────────────────────────────────────────────────────
