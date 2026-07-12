@@ -477,10 +477,14 @@ def build_kinematics_from_segments(
             if v0 is not None: carry_vel = float(v0)
 
             if profile == 'sinusoid':
-                A = carry_vel
+                A = carry_vel                                    # velocity amplitude (deg/s)
                 w = 2.0 * np.pi * getattr(seg, 'frequency_hz', 0.0)
-                vel = A * np.sin(w * t_s)
-                pos = carry_pos + (A / w * (1.0 - np.cos(w * t_s)) if w > 0 else np.zeros(T))
+                vel = A * np.sin(w * t_s)                        # centred velocity, starts at 0 (warmup-safe)
+                # Position swings SYMMETRICALLY about carry_pos by ±A/w (not the one-sided
+                # 1-cos, which only turned to one side). Starting from rest it therefore
+                # begins at the −A/w extreme. Velocity is unchanged, so it still matches the
+                # sine the builder plots.
+                pos = carry_pos - (A / w * np.cos(w * t_s) if w > 0 else np.zeros(T))
                 carry_pos = float(pos[-1]); carry_vel = float(vel[-1])
 
             elif profile == 'impulse':

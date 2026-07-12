@@ -67,8 +67,10 @@ class BodySegment(BaseModel):
     Profile
     -------
     'constant'  polynomial:      pos(t) = pos₀ + vel₀·t + ½·acc·t²
-    'sinusoid'  oscillation:     ROTATION — rot_*_vel = velocity amplitude: vel(t)=A·sin(2πf·t),
-                                 pos(t)=pos₀+A/(2πf)·(1−cos 2πf·t)  (starts at rest, one-sided).
+    'sinusoid'  oscillation:     ROTATION — rot_*_vel = velocity amplitude: vel(t)=A·sin(2πf·t)
+                                 (centred, starts at rest); position swings SYMMETRICALLY about
+                                 pos₀ by ±A/(2πf): pos(t)=pos₀−A/(2πf)·cos(2πf·t) (begins at the
+                                 −A/(2πf) extreme, not the one-sided 1−cos).
                                  TRANSLATION — lin_*_vel = POSITION amplitude (m): pos(t)=
                                  pos₀+A·sin(2πf·t)  (symmetric ±A about pos₀ — e.g. a pursuit
                                  target swinging ±A). rot_*_vel shorthand on a target =

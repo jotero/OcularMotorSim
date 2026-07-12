@@ -79,7 +79,7 @@
 <header>
   <h1>Scenario builder</h1>
   <span class="sub">construct a simulation directly — no LLM, no API cost</span>
-  <a href="/">← back to simulator</a>
+  <a href="index.html">← back to simulator</a>
 </header>
 
 <div class="wrap">
@@ -139,7 +139,17 @@
 </div>
 
 <script>
-const backend = () => (localStorage.getItem('oculomotor_backend') || window.location.origin).replace(/\/$/, '');
+// Same resolution as index.html/gallery.html: ?backend= → localStorage → (local dev = origin,
+// else the deployed backend). On the static public host (omlab.berkeley.edu) window.location.origin
+// has NO API, so we must fall back to the backend URL here too — otherwise fetches 404 to an HTML page.
+const backend = () => {
+  const param = new URLSearchParams(window.location.search).get('backend');
+  if (param) return param.replace(/\/$/, '');
+  const stored = localStorage.getItem('oculomotor_backend');
+  if (stored) return stored.replace(/\/$/, '');
+  const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  return (isLocal ? window.location.origin : 'https://giggling-confused-thriving.ngrok-free.dev').replace(/\/$/, '');
+};
 // Sent on every fetch so ngrok (public site) serves the API response instead of its
 // browser-warning interstitial — index.html does the same; without it edit-preload fails.
 const HDR = { 'ngrok-skip-browser-warning': 'true' };
@@ -568,7 +578,7 @@ async function run() {
     if (!r.ok || j.error) { st.className='err'; st.textContent='Error: '+(j.error||j.detail||r.status); btn.disabled=false; return; }
     st.className='ok'; st.textContent='Done — opening viewer…';
     _recordBuilderRun(j.run_id, j.title || scenario.description || (scenario.plot && scenario.plot.title), j.mode);
-    window.location.href = backend()+'/?run='+encodeURIComponent(j.run_id);
+    window.location.href = 'index.html?run='+encodeURIComponent(j.run_id);   // relative — stays on this host
   } catch (e) { st.className='err'; st.textContent='Request failed: '+e.message; btn.disabled=false; }
 }
 
