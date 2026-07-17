@@ -544,7 +544,7 @@ def _vor_bode(show, low_f=False):
                     'Eye velocity (SPV) ÷ head velocity in dark, light, light+target.',
         expected='Light gain ≈ 1 across frequency (VVOR); dark gain rolls off (high-pass) '
                  'below ~0.01 Hz — visible only with low_f=True.',
-        citation='Cohen, Matsuo & Raphan (1977); Raphan et al. (1979)',
+        citation='Cohen, Matsuo & Raphan (1977); Raphan et al. (1979); Paige (1994) Exp Brain Res 98:355',
         fig_type='behavior')
     fm['metrics'] = metrics
     return fm
@@ -611,7 +611,7 @@ def _okr_bode(show):
                     'Eye velocity (SPV) ÷ scene velocity for scene-only and scene+target. '
                     'OKR is low-pass — gain rolls off above ~0.5 Hz; a stationary target suppresses it.',
         expected='Gain ≈ 1 at low f, rolls off above ~0.5 Hz.',
-        citation='Cohen, Matsuo & Raphan (1977) J Neurophysiol',
+        citation='Cohen, Matsuo & Raphan (1977) J Neurophysiol; Paige (1994) Exp Brain Res 98:355',
         fig_type='behavior')
     fm['metrics'] = metrics
     return fm

@@ -217,7 +217,7 @@ def _bode(show):
         description='Sinusoidal target-velocity sweep (0.1–2 Hz, 10 deg/s peak), NOISELESS. '
                     'Gain = eye-velocity (SPV) ÷ target-velocity; phase lag vs frequency.',
         expected='Gain ≈ 1 at low f, −3 dB near ~1 Hz; phase lag grows with frequency.',
-        citation='Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol',
+        citation='Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol; Paige (1994) Exp Brain Res 98:355',
         fig_type='behavior')
     fm['metrics'] = metrics
     return fm

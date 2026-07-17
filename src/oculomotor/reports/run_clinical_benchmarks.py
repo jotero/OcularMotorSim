@@ -32,6 +32,7 @@ MODULES = [
     'bench_clinical_cn_palsies',
     'bench_clinical_saccades',
     'bench_clinical_vergence',
+    'bench_clinical_pupil',
 ]
 
 

@@ -45,6 +45,7 @@ acceptance band depends on it) · ○ context / supporting (not a band source).
 |---|---|---|
 | ★ Raphan, Matsuo & Cohen (1979) *Exp Brain Res* 35:229 — velocity storage | `vor_okr_okan_tc`, `vor_okr_postrot_tc`, `vor_okr_okn_ss_gain`, `vor_okr_okr_ss_gain`, `vor_okr_vvor_gain` | ✓ `Raphan_1979_VelocityStorage.pdf` |
 | ★ Cohen, Matsuo & Raphan (1977) *J Physiol* 270:321 — VS time constant | `vor_bode_gain_*`, `vor_bode_phase_*`, `okr_bode_*` | ✗ MISSING |
+| ★ Paige (1994) *Exp Brain Res* 98:355 — **human** VOR/OKR Bode (gain + phase vs frequency, with aging) | `vor_bode_*`, `okr_bode_*` | ✓ `Paige_1994_VisualVestibularSenescence.pdf` |
 | ★ Robinson (1975) — VOR direct gain (see §1) | `vor_okr_vor_direct_gain` | ✗ MISSING |
 | ○ Wilson & Melvill Jones (1979) *Mammalian Vestibular Physiology* — canal/otolith sensors | sensory model | ✓ `Wilson_MelvillJones_1979_VestibularPhysiology.pdf` |
 
@@ -66,6 +67,7 @@ acceptance band depends on it) · ○ context / supporting (not a band source).
 |---|---|---|
 | ★ Lisberger & Westbrook (1985) *J Neurosci* 5:1662 — pursuit steady-state gain | `pursuit_ss_gain_5degs`, `pursuit_ss_gain_10degs` | ✗ MISSING |
 | ★ Lisberger, Evinger, Johanson & Fuchs (1981) *J Neurophysiol* 46:229 — pursuit dynamics/Bode | `pursuit_bode_gain_low`, `pursuit_bode_bw_hz`, `pursuit_bode_phase_0p5hz` | ✗ MISSING |
+| ★ Paige (1994) *Exp Brain Res* 98:355 — **human** smooth-pursuit Bode (gain + phase vs frequency, with aging) | `pursuit_bode_*` | ✓ `Paige_1994_VisualVestibularSenescence.pdf` |
 | ★ Rashbass (1961) *J Physiol* 159:326 — step-ramp; pursuit latency | `pursuit_latency_ms` | ✗ MISSING |
 | ★ Carl & Gellman (1987) *J Neurophysiol* 57:1446 — pursuit initiation latency | `pursuit_latency_ms` | ✗ MISSING |
 | ○ Krauzlis & Lisberger (1994) — pursuit model | pursuit design | ✓ `Krauzlis_Lisberger_1994_PursuitModel.pdf` |

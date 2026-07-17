@@ -1,6 +1,6 @@
 {
-  "generated": "2026-07-04 23:33",
-  "version": "328bc5f-dirty",
+  "generated": "2026-07-17 14:09",
+  "version": "a275ef8-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -118,9 +118,9 @@
       "id": "vor_okr",
       "title": "2. VOR / OKR",
       "description": "Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip \u2192 VS goes through K_vor_direct\u00b7(saccadically-gated slip) + K_cereb_okr\u00b7(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.",
-      "runtime_s": 1287.97,
-      "version": "328bc5f-dirty.fbedcf8",
-      "generated": "2026-07-04 23:00",
+      "runtime_s": 1373.98,
+      "version": "a275ef8-dirty.989eb76",
+      "generated": "2026-07-17 12:19",
       "figures": [
         {
           "rel": "figures/vor_raphan_fig9.png",
@@ -131,7 +131,7 @@
           "type": "behavior",
           "ref_rel": "reference/vor_raphan_fig9.png",
           "diff_status": "changed",
-          "diff": 0.00915736984461546,
+          "diff": 0.009149040095508099,
           "metrics": [
             {
               "name": "vor_okr_vvor_gain",
@@ -164,7 +164,7 @@
           "type": "cascade",
           "ref_rel": "reference/vor_okr_cascade.png",
           "diff_status": "changed",
-          "diff": 0.012591531500220299,
+          "diff": 0.012585717253386974,
           "metrics": []
         },
         {
@@ -172,11 +172,11 @@
           "title": "VOR \u2014 Bode (body rotation)",
           "description": "Sinusoidal head yaw sweep (\u226430 deg/s, peak position capped at 20\u00b0 so the target stays in range), NOISELESS. Eye velocity (SPV) \u00f7 head velocity in dark, light, light+target.",
           "expected": "Light gain \u2248 1 across frequency (VVOR); dark gain rolls off (high-pass) below ~0.01 Hz \u2014 visible only with low_f=True.",
-          "citation": "Cohen, Matsuo & Raphan (1977); Raphan et al. (1979)",
+          "citation": "Cohen, Matsuo & Raphan (1977); Raphan et al. (1979); Paige (1994) Exp Brain Res 98:355",
           "type": "behavior",
           "ref_rel": "reference/vor_bode.png",
           "diff_status": "changed",
-          "diff": 0.036530714482069016,
+          "diff": 0.03650110960006714,
           "metrics": [
             {
               "name": "vor_bode_gain_max_dark",
@@ -210,11 +210,11 @@
           "title": "OKR \u2014 Bode (full-field scene motion)",
           "description": "Sinusoidal scene-velocity sweep (0.05\u201320 Hz, 20 deg/s), NOISELESS. Eye velocity (SPV) \u00f7 scene velocity for scene-only and scene+target. OKR is low-pass \u2014 gain rolls off above ~0.5 Hz; a stationary target suppresses it.",
           "expected": "Gain \u2248 1 at low f, rolls off above ~0.5 Hz.",
-          "citation": "Cohen, Matsuo & Raphan (1977) J Neurophysiol",
+          "citation": "Cohen, Matsuo & Raphan (1977) J Neurophysiol; Paige (1994) Exp Brain Res 98:355",
           "type": "behavior",
           "ref_rel": "reference/okr_bode.png",
           "diff_status": "changed",
-          "diff": 0.03050347976386547,
+          "diff": 0.030487271025776863,
           "metrics": [
             {
               "name": "okr_bode_gain_max_scene",
@@ -457,9 +457,9 @@
       "id": "pursuit",
       "title": "4. Smooth Pursuit",
       "description": "Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct\u00b7(saccadically-gated retinal slip) + K_cereb_pu\u00b7(cerebellar EC correction); the closed-loop pursuit memory \u03c4_eff \u2248 1.45 s (Smith predictor) despite the long pop-leak \u03c4_pursuit = 40 s.",
-      "runtime_s": 272.06,
-      "version": "328bc5f-dirty.fbedcf8",
-      "generated": "2026-07-04 23:20",
+      "runtime_s": 317.28,
+      "version": "a275ef8-dirty.989eb76",
+      "generated": "2026-07-17 12:24",
       "figures": [
         {
           "rel": "figures/pursuit_velocity_range.png",
@@ -470,7 +470,7 @@
           "type": "behavior",
           "ref_rel": "reference/pursuit_velocity_range.png",
           "diff_status": "changed",
-          "diff": 0.02279253490269184,
+          "diff": 0.02277800813317299,
           "metrics": [
             {
               "name": "pursuit_ss_gain_5degs",
@@ -494,11 +494,11 @@
           "title": "Smooth Pursuit \u2014 Bode (frequency response)",
           "description": "Sinusoidal target-velocity sweep (0.1\u20132 Hz, 10 deg/s peak), NOISELESS. Gain = eye-velocity (SPV) \u00f7 target-velocity; phase lag vs frequency.",
           "expected": "Gain \u2248 1 at low f, \u22123 dB near ~1 Hz; phase lag grows with frequency.",
-          "citation": "Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol",
+          "citation": "Lisberger, Evinger, Johanson & Fuchs (1981) J Neurophysiol; Paige (1994) Exp Brain Res 98:355",
           "type": "behavior",
           "ref_rel": "reference/pursuit_bode.png",
           "diff_status": "changed",
-          "diff": 0.00899273157119751,
+          "diff": 0.008972416631877422,
           "metrics": [
             {
               "name": "pursuit_bode_gain_max",
@@ -521,7 +521,7 @@
           "type": "cascade",
           "ref_rel": "reference/pursuit_cascade.png",
           "diff_status": "changed",
-          "diff": 0.030171163380146027,
+          "diff": 0.030173925682902336,
           "metrics": []
         }
       ]
@@ -897,10 +897,10 @@
     {
       "id": "pupil",
       "title": "9. Pupil",
-      "description": "Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance \u2192 pretectum \u2192 both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). Lesions: CN III (blown pupil, per eye \u2192 anisocoria; shared with the eye-muscle palsy), afferent (RAPD), pretectal (light-near dissociation), and sympathetic (Horner).",
-      "runtime_s": 98.54,
-      "version": "328bc5f-dirty.fbedcf8",
-      "generated": "2026-07-04 23:33",
+      "description": "Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance \u2192 pretectum \u2192 both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). (Pupil lesions \u2014 CN III / RAPD / Argyll Robertson / Horner \u2014 are in the clinical benchmarks, section F.)",
+      "runtime_s": 55.65,
+      "version": "a275ef8-dirty.37e9885",
+      "generated": "2026-07-17 14:09",
       "figures": [
         {
           "rel": "figures/pupil_light_reflex.png",
@@ -920,30 +920,6 @@
           "description": "Target far\u2192near. Accommodation rises (right axis) and the pupil constricts with it \u2014 the near-triad pupil miosis.",
           "expected": "Pupil constricts ~1 mm as accommodation rises to ~3 D.",
           "citation": "Myers & Stark (1990)",
-          "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
-          "metrics": []
-        },
-        {
-          "rel": "figures/pupil_anisocoria_cn3.png",
-          "title": "Anisocoria \u2014 left CN III palsy",
-          "description": "A pupil-involving left oculomotor palsy: the left pupil is fixed and dilated (parasympathetic sphincter fibres travel with CN III) while the right pupil constricts normally to light \u2014 anisocoria.",
-          "expected": "Left pupil stays ~7.5 mm (blown, unreactive); right pupil constricts to ~2.7 mm on light. Pupil-sparing palsy would keep both reactive.",
-          "citation": "Loewenfeld (1993); Kerr & Hollowell (1964)",
-          "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
-          "metrics": []
-        },
-        {
-          "rel": "figures/pupil_lesions.png",
-          "title": "Pupil lesion survey",
-          "description": "Left pupil across healthy, CN III palsy (blown), RAPD, Argyll Robertson (light-near dissociation), and Horner (sympathetic miosis).",
-          "expected": "Healthy constricts; CN III blown + Argyll Robertson stay dilated (no light reflex); RAPD constricts weakly; Horner sits at a small baseline but reacts.",
-          "citation": "Loewenfeld (1993); McDougal & Gamlin (2015)",
           "type": "behavior",
           "ref_rel": "",
           "diff_status": "no-ref",

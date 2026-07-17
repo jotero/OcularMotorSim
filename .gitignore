@@ -16,6 +16,8 @@ outputs/*.png
 outputs/*.csv
 outputs/server_figures/
 server_data/
+# archived request-DB snapshots (dirs rotated out to *.old)
+server_data.old/
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
