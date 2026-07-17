@@ -39,6 +39,12 @@ $stableWorktree  = Join-Path (Split-Path $root -Parent) 'om-stable'
 $stablePython    = Join-Path $stableWorktree '.venv\Scripts\python.exe'
 $websiteDest     = 'D:\OneDrive\UC Berkeley\OMlab - JOM\Code\om-lab-website\sim'
 
+# Data dirs are PINNED here so every launch reads the same place (no more moving it
+# around). Both live under om-data\ : stable-data = public runs, dev-data = throwaway
+# dev testing. Set OCULOMOTOR_DATA before launching so it never depends on the CWD.
+$dataStable      = 'D:\OneDrive\UC Berkeley\OMlab - JOM\Code\om-data\stable-data'
+$dataDev         = 'D:\OneDrive\UC Berkeley\OMlab - JOM\Code\om-data\dev-data'
+
 function Show-Usage {
     Write-Host @'
 
@@ -58,8 +64,10 @@ server.ps1 - Oculomotor simulator server management
   ALIASES   start_dev=dev | start_stable=stable | make_stable=make-stable
 
   NOTES
-    * dev and stable have SEPARATE databases (each checkout's server_data/) - safe to
-      run both at once. make-stable promotes featured/favorite runs + collections to stable.
+    * dev and stable have SEPARATE databases, both PINNED under om-data\ (dev-data and
+      stable-data) via OCULOMOTOR_DATA - safe to run both at once, and never depends on
+      the launch folder. make-stable promotes featured/favorite runs + collections
+      from dev-data to stable-data.
     * stable uses the worktree's own venv -> its model code is frozen, isolated from dev.
     * Website deploy dest: ..\om-lab-website\sim
 
@@ -67,7 +75,9 @@ server.ps1 - Oculomotor simulator server management
 }
 
 function Start-Dev {
-    Write-Host 'Starting DEV server (live code) on http://localhost:8001 (its own server_data)'
+    $env:OCULOMOTOR_DATA = $dataDev
+    Write-Host 'Starting DEV server (live code) on http://localhost:8001'
+    Write-Host "  data: $dataDev"
     & $mainPython -X utf8 -m oculomotor.server --port 8001
 }
 
@@ -80,8 +90,10 @@ function Start-Stable {
         Write-Host "Stable worktree venv missing. Run '.\server.ps1 make-stable' first." -ForegroundColor Yellow
         exit 1
     }
+    $env:OCULOMOTOR_DATA = $dataStable
     $ver = git -C $stableWorktree rev-parse --short HEAD
-    Write-Host "Starting STABLE server (frozen commit $ver) on http://localhost:8000 (its own server_data)"
+    Write-Host "Starting STABLE server (frozen commit $ver) on http://localhost:8000"
+    Write-Host "  data: $dataStable"
     Write-Host 'Ctrl-C to stop.'
     & $stablePython -X utf8 -m oculomotor.server --port 8000
 }
@@ -131,8 +143,8 @@ function Invoke-MakeStable {
     $pick = (Read-Host).ToLower()
     if ($pick -eq 'f' -or $pick -eq 'b') {
         $cfArgs = @('-X', 'utf8', '-m', 'oculomotor.reports.copy_featured',
-                    '--from', (Join-Path $root 'server_data'),
-                    '--to',   (Join-Path $stableWorktree 'server_data'),
+                    '--from', $dataDev,
+                    '--to',   $dataStable,
                     '--collections')
         if ($pick -eq 'b') { $cfArgs += '--favorites' }
         & $mainPython @cfArgs

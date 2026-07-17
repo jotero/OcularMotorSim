@@ -598,6 +598,14 @@ async function loadFeatured(runId, prompt, opts = {}) {
     const data = await resp.json();
     if (!prompt && data.prompt) set(data.prompt);   // deep-link path: prefill from the stored prompt
     showResult(data);
+    // Builder / edited runs land here (not a "live" run), so the plot-snapshot that
+    // makes a thumbnail never fired on creation. When the builder redirects with
+    // ?snapshot=1, take it now once the plot has laid out — then strip the flag so a
+    // reload or shared link doesn't re-upload.
+    if (opts.snapshot && data.run_id) {
+      requestAnimationFrame(() => requestAnimationFrame(() => uploadPlotSnapshot(data.run_id)));
+      try { const u = new URL(location.href); u.searchParams.delete('snapshot'); history.replaceState(null, '', u); } catch (e) {}
+    }
     // (no auto-scroll — keep the viewport where it is when loading an example)
   } catch (e) {
     status.className = 'status error';
@@ -897,7 +905,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (listId) { initListMode(listId, runId); }
   else {
     loadFeaturedExamples();
-    if (runId) loadFeatured(runId);   // ?run=<id> deep link (shareable)
+    // ?snapshot=1 (builder redirect) → capture a thumbnail after the plot renders.
+    if (runId) loadFeatured(runId, null, { snapshot: p.get('snapshot') === '1' });
   }
 });
 

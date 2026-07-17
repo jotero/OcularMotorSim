@@ -580,7 +580,9 @@ async function run() {
     if (!r.ok || j.error) { st.className='err'; st.textContent='Error: '+(j.error||j.detail||r.status); btn.disabled=false; return; }
     st.className='ok'; st.textContent='Done — opening viewer…';
     _recordBuilderRun(j.run_id, j.title || scenario.description || (scenario.plot && scenario.plot.title), j.mode);
-    window.location.href = 'index.html?run='+encodeURIComponent(j.run_id);   // relative — stays on this host
+    // relative — stays on this host. snapshot=1 → the viewer captures a plot thumbnail
+    // once it renders (builder runs aren't "live", so they'd otherwise have no thumbnail).
+    window.location.href = 'index.html?run='+encodeURIComponent(j.run_id)+'&snapshot=1';
   } catch (e) { st.className='err'; st.textContent='Request failed: '+e.message; btn.disabled=false; }
 }
 
