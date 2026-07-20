@@ -70,7 +70,6 @@ from oculomotor.models.sensory_models.sensory_model import SensoryParams
 from oculomotor.models.sensory_models               import canal     as _canal
 from oculomotor.models.sensory_models               import otolith   as _otolith
 from oculomotor.models.sensory_models               import retina    as _retina
-from oculomotor.models.sensory_models               import luminance as _luminance
 from oculomotor.models.brain_models.brain_model    import BrainParams
 from oculomotor.models.plant_models.plant_model_first_order import PlantParams
 from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLANT_EYE_R
@@ -85,8 +84,8 @@ from oculomotor.sim                    import eyelid                 as eyelid_g
 
 
 # ── Swappable brain step ────────────────────────────────────────────────────
-# Default: brain_model.step. Set via set_brain_step() to test alternatives
-# (e.g. unified_brain.step). Must have the same I/O signature.
+# Default: brain_model.step. Set via set_brain_step() to test an alternative
+# brain implementation. Must have the same I/O signature.
 _BRAIN_STEP = brain_model.step
 
 
@@ -94,8 +93,8 @@ def set_brain_step(fn):
     """Swap the brain step function used by simulate().
 
     Pass any callable with the same signature as brain_model.step:
-        fn(x_brain, sensory_out, brain_params, noise_acc) ->
-            (dx_brain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil)
+        fn(x_brain, sensory_out, brain_params, noise_acc, blink_drive) ->
+            (dx_brain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid)
 
     Call set_brain_step(brain_model.step) to restore the default.
     """
@@ -504,7 +503,7 @@ def ODE_ocular_motor(t, state, args):
     lens_R           = lens_R_interp.evaluate(t)
 
     # ── Sensory: read delayed cascade outputs ────────────────────────────────
-    sensory_out = sensory_model.read_outputs(state.sensory, theta.sensory, q_head, a_head)
+    sensory_out = sensory_model.read_outputs(state.sensory, theta.sensory)
 
     # ── Sensory noise ─────────────────────────────────────────────────────────
     # Canal noise → afferent rates (cyclopean already at this stage).
@@ -530,8 +529,9 @@ def ODE_ocular_motor(t, state, args):
     )
 
     # ── Brain: VS + NI + SG + pursuit + vergence + accommodation + pupil ──────
-    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil = _BRAIN_STEP(
-        state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t))
+    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid = _BRAIN_STEP(
+        state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t),
+        blink_drive_interp.evaluate(t))
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
     dx_m_L, dx_p_L, q_eye_L, w_eye_L = plant_model.step(
@@ -553,11 +553,9 @@ def ODE_ocular_motor(t, state, args):
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
     # ── Eyelid plants — per eye [L, R] ───────────────────────────────────────────
-    # Commanded lid closure = posture (levator + Müller) − blink (orbicularis) +
-    # downgaze lid-follow, using the fresh eye pitch. blink_drive is the pre-
-    # generated central blink schedule. Each lid low-passes it (fast close/slow open).
-    u_lid = eyelid_ctrl.command(
-        blink_drive_interp.evaluate(t), q_eye_L[1], q_eye_R[1], theta.brain)
+    # u_lid = (2,) commanded lid closure, now computed IN the brain
+    # (brain_model.step: posture + blink + downgaze lid-follow off the vertical-gaze
+    # efference) alongside u_pupil. Each lid low-passes it (fast close / slow open).
     dx_eyelid_plant, _ = eyelid_plant_mod.step(state.eyelid_plant, u_lid)
 
     # ── Optical interventions — applied after plant, before sensory step ─────
@@ -864,9 +862,8 @@ def simulate(
     sensory_x0 = sensory_model.State(
         canal    = _canal.rest_state(),
         otolith  = _otolith.rest_state(),   # both sides settled to gravity
-        retina_L = _retina.rest_state(),
+        retina_L = _retina.rest_state(),   # incl. luminance register (dark → 0)
         retina_R = _retina.rest_state(),
-        lum      = _luminance.rest_state(), # dark (zero afferent luminance)
     )
     brain_x0 = brain_model.make_x0(params.brain)
     plant_x0 = plant_model.rest_state()

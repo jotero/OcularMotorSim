@@ -152,9 +152,9 @@ tr:last-child { border-bottom: none; }
           <td class="units">normalised</td>
           <td><div class="encodes-cell">per-eye afferent retinal luminance (pupillary light reflex input)</div><div class="frame-cell">frame: per eye [L, R]</div></td>
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state  (afferent luminance, normalised ~[0,1])</div></td>
-          <td class="desc-cell"><p>Per-eye first-order low-pass of physical retinal luminance (from each eye's scene / target presence). The two eyes are separate afferents so a monocular defect (RAPD) can be modelled; the consensual combination happens downstream in brain_models.pupil. Distinct from the image-forming retina cascade; afferent latency set by tau_lum (~0.3 s).</p><div class="population">Luminance afferents (light-reflex pathway), one per eye</div><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
+          <td class="desc-cell"><p>Per-eye first-order low-pass of physical retinal luminance (from each eye's scene / target presence). The two eyes are separate afferents so a monocular defect (RAPD) can be modelled; the consensual combination happens downstream in brain_models.pupil. Now colocated with the image-forming retina as the `luminance` register of each eye's retina.State (one optic nerve per eye); afferent latency set by tau_lum (~0.3 s).</p><div class="population">Luminance afferents (light-reflex pathway), one per eye</div><div class="refs">Ellis (1981) · McDougal & Gamlin (2015)</div></td>
           <td class="anatomy-cell">Retina photoreceptors → pretectal olivary nucleus (retinotectal), per eye</td>
-          <td><span class="computation">sensory.lum</span></td>
+          <td><span class="computation">sensory.retina_L.luminance / sensory.retina_R.luminance</span></td>
         </tr>
         </tbody>
       </table>
@@ -194,9 +194,9 @@ tr:last-child { border-bottom: none; }
           <td class="units">—</td>
           <td><div class="encodes-cell">cupula deflection + inertia (internal Steinhausen state)</div><div class="frame-cell">frame: per-canal</div></td>
           <td><span class="repr-tag repr-bookkeeping">scalar-bookkeeping</span><div class="activation-cell">activation: n/a — internal Steinhausen pendulum; afferent rate computed externally</div></td>
-          <td class="desc-cell"><p>Two-state SSM per canal: x1 = cupula deflection, x2 = inertia state. Internal model state — usually plot the rectified afferent (canal_afferents) instead.</p></td>
+          <td class="desc-cell"><p>Two-state SSM per canal: x1 = cupula deflection, x2 = inertia state. The afferent output nonlinearity reads x2 only. Internal model state — usually plot the rectified afferent (canal_afferents) instead.</p></td>
           <td class="anatomy-cell">Cupula mechanics (Steinhausen pendulum, per canal)</td>
-          <td><span class="computation">sensory[_IDX_C]</span></td>
+          <td><span class="computation">sensory.canal</span></td>
         </tr>
 
         <tr>
@@ -204,11 +204,11 @@ tr:last-child { border-bottom: none; }
           <td class="shape-cell">(6)</td>
           <td class="axes-cell">L_x1, L_x2, L_x3, R_x1, R_x2, R_x3</td>
           <td class="units">m/s²</td>
-          <td><div class="encodes-cell">specific force (linear acceleration + gravity, LP-adapted)</div><div class="frame-cell">frame: head</div></td>
-          <td><span class="repr-tag repr-rectified">rectified-firing-rate</span><div class="activation-cell">activation: state  (LP-adapter output, already non-negative for compressive force range)</div></td>
-          <td class="desc-cell"><p>Bilateral linear-acceleration afferents (specific force in head frame). LP-adapter dynamics; output drives gravity / heading observers.</p><div class="population">Otolithic primary afferents</div><div class="refs">Fernandez & Goldberg (1976)</div></td>
+          <td><div class="encodes-cell">specific force (linear acceleration + gravity), running estimate</div><div class="frame-cell">frame: head</div></td>
+          <td><span class="repr-tag repr-rectified">rectified-firing-rate</span><div class="activation-cell">activation: state  (running GIA estimate, already non-negative for compressive force range)</div></td>
+          <td class="desc-cell"><p>Bilateral linear-acceleration afferents (specific force in head frame). Each side runs a short-TC (tau_oto) low-pass that TRACKS the GIA — a running estimate, not a slow adaptation. The bilateral average is the GIA the gravity / heading observers read (sensory.otolith output).</p><div class="population">Otolithic primary afferents</div><div class="refs">Fernandez & Goldberg (1976)</div></td>
           <td class="anatomy-cell">Utricular + saccular afferents (CN VIII)</td>
-          <td><span class="computation">sensory[_IDX_OTO]</span></td>
+          <td><span class="computation">sensory.otolith</span></td>
         </tr>
         </tbody>
       </table>

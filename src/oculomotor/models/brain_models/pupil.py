@@ -14,8 +14,10 @@ Each pupil's constriction subtracts from a per-eye resting (dark) diameter:
      nuclei, so the light DRIVE is identical for the two pupils.  A monocular
      afferent lesion (RAPD) therefore does NOT cause anisocoria; it shows up as
      a weak response when only the affected eye is lit (swinging-flashlight).
-     ``lum_afferent`` is the (2,) per-eye low-passed luminance from
-     ``sensory_models.luminance``; per-eye afferent gains model RAPD.
+     ``light_drive`` is the scalar consensual drive — the pretectal binocular sum
+     (with the per-eye afferent gains / RAPD already applied) computed in
+     ``perception_cyclopean`` (cyc.light_drive), from each eye's retinal
+     luminance afferent (retina.State.luminance).
 
   2. Pupillary near response — central, symmetric (near triad, accommodation-
      linked; Myers & Stark 1990).  Same drive to both pupils.
@@ -66,17 +68,19 @@ N_STATES  = 0   # stateless — the dynamics live in the iris plants (pupil_plan
 N_OUTPUTS = 2   # commanded pupil diameter (mm), per eye [L, R]
 
 
-def command(lum_afferent, accom_level, brain_params):
+def command(light_drive, accom_level, brain_params):
     """Commanded per-eye pupil diameter (mm) from light reflex + near response.
 
     Args:
-        lum_afferent: (2,)    per-eye afferent luminance [L, R] (normalised) —
-                              from sensory_out.luminance (PLR-latency low-passed)
+        light_drive:  scalar  consensual pretectal light drive (~[0,1]) — the
+                              binocular afferent sum (with the monocular afferent
+                              gains / RAPD already applied), from
+                              perception_cyclopean (cyc.light_drive)
         accom_level:  scalar  accommodation level (D) — acts.va.acc_fast + acc_slow
         brain_params: BrainParams (reads pupil_baseline, K_pupil_light,
                                    K_pupil_near, pupil_min, pupil_max, g_nerve
-                                   (CN III efferent), g_pupil_afferent_{L,R},
-                                   g_ocular_symp_{L,R}, g_pupil_light_reflex)
+                                   (CN III efferent), g_ocular_symp_{L,R},
+                                   g_pupil_light_reflex)
 
     Returns:
         u_pupil: (2,)  commanded pupil diameter (mm) [L, R] → iris plant low-pass
@@ -89,14 +93,11 @@ def command(lum_afferent, accom_level, brain_params):
     cn3_L, cn3_R = cn3_nerve_integrity(bp.g_nerve)
 
     # ── Consensual light drive (shared by both pupils) ────────────────────────
-    # Bilateral pretectum sums the two eyes' afferents (each scaled by its
-    # afferent-limb integrity → RAPD) then projects to BOTH EW nuclei. Clip the
-    # summed drive so a single fully-lit intact eye already saturates the reflex
-    # (monocular ≈ binocular constriction); a monocular afferent defect only
-    # shows when THAT eye is the one being lit (swinging-flashlight).
-    lum_sum = (bp.g_pupil_afferent_L * lum_afferent[0]
-               + bp.g_pupil_afferent_R * lum_afferent[1])
-    light = bp.g_pupil_light_reflex * bp.K_pupil_light * jnp.clip(lum_sum, 0.0, 1.0)
+    # The binocular afferent sum (with RAPD gains) is the pretectal combination,
+    # now computed in perception_cyclopean (cyc.light_drive). Here we only apply
+    # the central pretectal-relay integrity (g_pupil_light_reflex — Argyll Robertson
+    # when 0) and the constriction gain; the drive is shared by BOTH pupils.
+    light = bp.g_pupil_light_reflex * bp.K_pupil_light * light_drive
 
     # ── Near drive (central, symmetric) ───────────────────────────────────────
     near = bp.K_pupil_near * accom_level

@@ -92,7 +92,7 @@ _offset = 0
 for name, N, n in _RETINA_PER_EYE_LAYOUT:
     _RETINA_PER_EYE_OFFSETS[name] = _offset
     _offset += _RETINA_PER_EYE_SIZES[name]
-N_STATES_PER_EYE = _offset   # 90 — sharp cascade states per eye
+N_STATES_PER_EYE = _offset + 1   # 90 sharp-cascade states + 1 luminance LP register
 
 # Per-channel offsets / lengths still useful for the State NamedTuple field
 # sizes (rest_state, etc.); the `_RET_END_*` slice ends are no longer needed
@@ -104,10 +104,14 @@ from typing import NamedTuple
 
 
 class State(NamedTuple):
-    """Per-eye retina state — sharp gamma cascades for 7 signal channels.
+    """Per-eye retina state — sharp gamma cascades for 7 signal channels,
+    plus a 1-pole luminance afferent register for the pupillary light reflex.
 
     Each cascade buffer is N=_N_STAGES_OTHER stages × n_axes.  The cascade
-    output (delayed signal) is the last n_axes elements.
+    output (delayed signal) is the last n_axes elements.  `luminance` is a
+    single-pole light-adaptation LP (τ_lum), NOT a sharp cascade — it lives here
+    because retinal illumination is a per-eye retinal afferent (one optic nerve
+    per eye), so a monocular afferent defect (RAPD) stays per-eye.
     """
     scene_angular_vel: jnp.ndarray   # (N*3,) cascade buffer
     scene_linear_vel:  jnp.ndarray   # (N*3,)
@@ -116,10 +120,11 @@ class State(NamedTuple):
     scene_visible:     jnp.ndarray   # (N,)
     target_visible:    jnp.ndarray   # (N,)
     defocus:           jnp.ndarray   # (N,)
+    luminance:         jnp.ndarray   # (1,) afferent luminance LP register (normalised, ~[0,1])
 
 
 def rest_state():
-    """Zero state (all cascade buffers zero)."""
+    """Zero state (all cascade buffers zero; dark → zero afferent luminance)."""
     N = _N_STAGES_OTHER
     return State(
         scene_angular_vel = jnp.zeros(N * 3),
@@ -129,6 +134,7 @@ def rest_state():
         scene_visible     = jnp.zeros(N),
         target_visible    = jnp.zeros(N),
         defocus           = jnp.zeros(N),
+        luminance         = jnp.zeros(1),
     )
 
 
@@ -137,7 +143,7 @@ def to_array(state):
     return jnp.concatenate([
         state.scene_angular_vel, state.scene_linear_vel, state.target_pos,
         state.target_vel, state.scene_visible, state.target_visible,
-        state.defocus,
+        state.defocus, state.luminance,
     ])
 
 _N_SCALAR = _N_STAGES_OTHER     # used in retina geometry below for scaling — keeps
@@ -459,6 +465,7 @@ class RetinaOut(NamedTuple):
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
     target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf (NOT strobe-gated)
     defocus:           jnp.ndarray  # scalar — delayed defocus (D)
+    luminance:         jnp.ndarray  # scalar — afferent retinal luminance (~[0,1]) → pupil light reflex
 
 
 def step(state,
@@ -484,11 +491,12 @@ def step(state,
         scene_present, target_present: scalar visibility flags (this eye)
         target_strobed:  scalar global strobe gate; (1−strobed) gates target_vel only
         sensory_params:  SensoryParams — reads tau_vis_sharp, v_max_scene_vel,
-                         v_max_target_vel, visual_field_limit, k_visual_field
+                         v_max_target_vel, visual_field_limit, k_visual_field,
+                         lum_scene, lum_target, tau_lum (luminance afferent)
 
     Returns:
         dstate:     retina.State  state derivative (same NT shape as state)
-        retina_out: RetinaOut    delayed per-eye signals
+        retina_out: RetinaOut    delayed per-eye signals (incl. afferent luminance)
     """
     # ── 1. Geometry — world_to_retina projection ─────────────────────────────
     target_pos, scene_angular_vel, scene_linear_vel, target_vel, scene_vis, target_vis = \
@@ -512,6 +520,14 @@ def step(state,
     # ── 3. Advance sharp cascades (N stages × τ_retina, per signal) ──────────
     tau_retina = sensory_params.tau_vis_sharp
     N          = _N_STAGES_OTHER
+    # Luminance afferent (pupillary light reflex): 1-pole light-adaptation LP of
+    # this eye's physical retinal illumination — a lit full-field scene dominates,
+    # a lone foveal target is a dim point source. Per-eye (one optic nerve each),
+    # so a monocular afferent defect (RAPD) stays isolated; the consensual reflex
+    # is assembled downstream in the pupil controller.
+    L_phys = jnp.clip(sensory_params.lum_scene  * scene_present
+                      + sensory_params.lum_target * target_present, 0.0, 1.0)
+    dlum   = (L_phys - state.luminance) / sensory_params.tau_lum
     dstate = State(
         scene_angular_vel = delay_cascade_step(state.scene_angular_vel, scene_angular_in, tau_retina, N=N),
         scene_linear_vel  = delay_cascade_step(state.scene_linear_vel,  scene_linear_in,  tau_retina, N=N),
@@ -520,25 +536,19 @@ def step(state,
         scene_visible     = delay_cascade_step(state.scene_visible,     scene_vis,        tau_retina, N=N),
         target_visible    = delay_cascade_step(state.target_visible,    target_vis,       tau_retina, N=N),
         defocus           = delay_cascade_step(state.defocus,           defocus_in,       tau_retina, N=N),
+        luminance         = dlum,
     )
 
     # ── 4. Read delayed signals (last n_axes of each cascade) ────────────────
-    out = RetinaOut(
-        scene_angular_vel = state.scene_angular_vel[-3:],
-        scene_linear_vel  = state.scene_linear_vel[-3:],
-        target_pos        = state.target_pos[-3:],
-        target_vel        = state.target_vel[-3:],
-        scene_visible     = state.scene_visible[-1],
-        target_visible    = state.target_visible[-1],
-        defocus           = state.defocus[-1],
-    )
+    out = read_outputs(state)
     return dstate, out
 
 
 def read_outputs(state):
     """Pure state readout — returns RetinaOut from a per-eye retina.State.
 
-    Last n_axes of each cascade buffer = sharp-cascade output (delayed signal).
+    Last n_axes of each cascade buffer = sharp-cascade output (delayed signal);
+    luminance is the current 1-pole afferent register.
     """
     return RetinaOut(
         scene_angular_vel = state.scene_angular_vel[-3:],
@@ -548,6 +558,7 @@ def read_outputs(state):
         scene_visible     = state.scene_visible[-1],
         target_visible    = state.target_visible[-1],
         defocus           = state.defocus[-1],
+        luminance         = state.luminance[-1],
     )
 
 

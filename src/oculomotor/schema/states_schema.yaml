@@ -79,9 +79,9 @@ sensory.canal_state:
   anatomy:    "Cupula mechanics (Steinhausen pendulum, per canal)"
   description: |
     Two-state SSM per canal: x1 = cupula deflection, x2 = inertia state.
-    Internal model state — usually plot the rectified afferent
-    (canal_afferents) instead.
-  state_slice: "sensory[_IDX_C]"
+    The afferent output nonlinearity reads x2 only. Internal model state —
+    usually plot the rectified afferent (canal_afferents) instead.
+  state_slice: "sensory.canal"
   llm_plottable: false
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -90,10 +90,10 @@ sensory.canal_state:
 
 sensory.otolith:
   group: vestibular_periphery
-  encodes:    "specific force (linear acceleration + gravity, LP-adapted)"
+  encodes:    "specific force (linear acceleration + gravity), running estimate"
   frame:      "head"
   representation: "rectified-firing-rate"
-  activation:     "state  (LP-adapter output, already non-negative for compressive force range)"
+  activation:     "state  (running GIA estimate, already non-negative for compressive force range)"
   shape: [6]
   axes:  [L_x1, L_x2, L_x3, R_x1, R_x2, R_x3]
   units: "m/s²"
@@ -101,8 +101,10 @@ sensory.otolith:
   population: "Otolithic primary afferents"
   description: |
     Bilateral linear-acceleration afferents (specific force in head frame).
-    LP-adapter dynamics; output drives gravity / heading observers.
-  state_slice: "sensory[_IDX_OTO]"
+    Each side runs a short-TC (tau_oto) low-pass that TRACKS the GIA — a running
+    estimate, not a slow adaptation. The bilateral average is the GIA the gravity
+    / heading observers read (sensory.otolith output).
+  state_slice: "sensory.otolith"
   references: ["Fernandez & Goldberg (1976)"]
   llm_plottable: true
 
@@ -121,9 +123,10 @@ sensory.luminance:
     Per-eye first-order low-pass of physical retinal luminance (from each eye's
     scene / target presence). The two eyes are separate afferents so a monocular
     defect (RAPD) can be modelled; the consensual combination happens downstream
-    in brain_models.pupil. Distinct from the image-forming retina cascade;
+    in brain_models.pupil. Now colocated with the image-forming retina as the
+    `luminance` register of each eye's retina.State (one optic nerve per eye);
     afferent latency set by tau_lum (~0.3 s).
-  state_slice: "sensory.lum"
+  state_slice: "sensory.retina_L.luminance / sensory.retina_R.luminance"
   references: ["Ellis (1981)", "McDougal & Gamlin (2015)"]
   llm_plottable: true
 

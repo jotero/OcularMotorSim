@@ -57,6 +57,7 @@ _CYC_BRAIN_LAYOUT = [
     ('scene_visible',      _N_STAGES_BRAIN_POS,     1),  # N-stage gamma
     ('target_visible',     _N_STAGES_BRAIN_POS,     1),  # N-stage gamma
     ('defocus',            1,                       1),  # 1-pole LP
+    ('luminance',          1,                       1),  # 1-pole LP — pretectal light drive (PLR)
 ]
 
 _CYC_BRAIN_SIZES   = {name: N * n for name, N, n in _CYC_BRAIN_LAYOUT}
@@ -75,6 +76,7 @@ _OFF_TARGET_DISP       = _CYC_BRAIN_OFFSETS['target_disparity']
 _OFF_SCENE_VIS         = _CYC_BRAIN_OFFSETS['scene_visible']
 _OFF_TARGET_VIS        = _CYC_BRAIN_OFFSETS['target_visible']
 _OFF_DEFOCUS           = _CYC_BRAIN_OFFSETS['defocus']
+_OFF_LUMINANCE         = _CYC_BRAIN_OFFSETS['luminance']
 
 _END_SCENE_ANGULAR_VEL = _OFF_SCENE_ANGULAR_VEL + _CYC_BRAIN_SIZES['scene_angular_vel']
 _END_SCENE_LINEAR      = _OFF_SCENE_LINEAR      + _CYC_BRAIN_SIZES['scene_linear_vel']
@@ -84,6 +86,7 @@ _END_TARGET_DISP       = _OFF_TARGET_DISP       + _CYC_BRAIN_SIZES['target_dispa
 _END_SCENE_VIS         = _OFF_SCENE_VIS         + _CYC_BRAIN_SIZES['scene_visible']
 _END_TARGET_VIS        = _OFF_TARGET_VIS        + _CYC_BRAIN_SIZES['target_visible']
 _END_DEFOCUS           = _OFF_DEFOCUS           + _CYC_BRAIN_SIZES['defocus']
+_END_LUMINANCE         = _OFF_LUMINANCE         + _CYC_BRAIN_SIZES['luminance']
 
 
 # ── Readout matrices — read into x_cyc_brain block (size N_STATES) ─────────────
@@ -104,6 +107,7 @@ C_target_disp      = _make_C_last_n(_END_TARGET_DISP,       3)
 C_scene_visible    = _make_C_last_n(_END_SCENE_VIS,         1)
 C_target_visible   = _make_C_last_n(_END_TARGET_VIS,        1)
 C_defocus          = _make_C_last_n(_END_DEFOCUS,           1)
+C_luminance        = _make_C_last_n(_END_LUMINANCE,         1)
 
 
 # ── Cyclopean output bundle ────────────────────────────────────────────────────
@@ -119,6 +123,7 @@ class CyclopeanOut(NamedTuple):
     target_visible:    jnp.ndarray  # scalar
     target_fusable:    jnp.ndarray  # scalar — algebraic fusion gate (NOT cascaded)
     defocus:           jnp.ndarray  # scalar
+    light_drive:       jnp.ndarray  # scalar — consensual pretectal light drive → both pupils (PLR)
 
 
 # ── Binocular policies ─────────────────────────────────────────────────────────
@@ -236,6 +241,7 @@ class State(NamedTuple):
     scene_visible:     jnp.ndarray   # (N,)   N-stage gamma cascade
     target_visible:    jnp.ndarray   # (N,)   N-stage gamma cascade
     defocus:           jnp.ndarray   # (1,)   1-pole LP
+    luminance:         jnp.ndarray   # (1,)   1-pole LP — pretectal consensual light drive
 
 
 def rest_state():
@@ -250,6 +256,7 @@ def rest_state():
         scene_visible     = jnp.zeros(N),
         target_visible    = jnp.zeros(N),
         defocus           = jnp.zeros(1),
+        luminance         = jnp.zeros(1),
     )
 
 
@@ -299,11 +306,25 @@ def step(state, retina_L, retina_R, ec_pos, ec_verg, brain_params):
     w_def_R  = retina_R.target_visible / def_norm
     defocus_cyc = (w_def_L * retina_L.defocus + w_def_R * retina_R.defocus) * defocus_visible
 
+    # Pretectal light drive (pupillary light reflex) — the SUBCORTICAL consensual
+    # combination, sitting beside the NOT/AOS scene channel in this same stage. Sum
+    # both eyes' afferent luminance, each scaled by its afferent-limb integrity
+    # (g_pupil_afferent → RAPD), then clip. A PLAIN sum — deliberately NOT subject
+    # to the fusion / dominance / disparity gating the image-forming channels get:
+    # the pretectal reflex just adds. Drives BOTH pupils equally, so a monocular
+    # afferent defect dilates both together (anisocoria is efferent-only). This raw
+    # combination is smoothed by the pc luminance LP cascade below (pretectal-relay
+    # latency), exactly like defocus.
+    light_cyc = jnp.clip(
+        brain_params.g_pupil_afferent_L * retina_L.luminance
+        + brain_params.g_pupil_afferent_R * retina_R.luminance, 0.0, 1.0)
+
     # ── 2. Brain LP cascades ──────────────────────────────────────────────────
     tau_motion     = brain_params.tau_vis_smooth_motion
     tau_target_vel = brain_params.tau_vis_smooth_target_vel
     tau_disparity  = brain_params.tau_vis_smooth_disparity
     tau_defocus    = brain_params.tau_vis_smooth_defocus
+    tau_luminance  = brain_params.tau_vis_smooth_luminance
     tau_brain_pos  = brain_params.tau_brain_pos
     N              = _N_STAGES_BRAIN_POS
 
@@ -316,6 +337,7 @@ def step(state, retina_L, retina_R, ec_pos, ec_verg, brain_params):
         scene_visible     = delay_cascade_step(state.scene_visible,     scene_visible_cyc,    tau_brain_pos,  N=N),
         target_visible    = delay_cascade_step(state.target_visible,    target_visible_cyc,   tau_brain_pos,  N=N),
         defocus           = delay_cascade_step(state.defocus,           defocus_cyc,          tau_defocus,    N=1),
+        luminance         = delay_cascade_step(state.luminance,         light_cyc,            tau_luminance,  N=1),
     )
 
     # ── 3. Read delayed cyclopean signals (last n_axes of each block) ────────
@@ -329,6 +351,7 @@ def step(state, retina_L, retina_R, ec_pos, ec_verg, brain_params):
         target_visible    = state.target_visible[-1],
         target_fusable    = target_fusable,
         defocus           = state.defocus[-1],
+        light_drive       = state.luminance[-1],
     )
     return dstate, cyc
 
@@ -355,6 +378,7 @@ def read_activations(state):
         target_visible    = state.target_visible[-1],
         target_fusable    = jnp.float32(0.0),    # not stored — placeholder
         defocus           = state.defocus[-1],
+        light_drive       = state.luminance[-1],
     )
 
 
@@ -367,7 +391,7 @@ Activations = CyclopeanOut
 # ── Legacy flat-array adapters (deleted once brain_model migrates to BrainState) ─
 
 def from_array(x_cyc_brain):
-    """(43,) flat array → pc.State."""
+    """(44,) flat array → pc.State."""
     return State(
         scene_angular_vel = x_cyc_brain[_OFF_SCENE_ANGULAR_VEL : _END_SCENE_ANGULAR_VEL],
         scene_linear_vel  = x_cyc_brain[_OFF_SCENE_LINEAR      : _END_SCENE_LINEAR],
@@ -377,13 +401,14 @@ def from_array(x_cyc_brain):
         scene_visible     = x_cyc_brain[_OFF_SCENE_VIS         : _END_SCENE_VIS],
         target_visible    = x_cyc_brain[_OFF_TARGET_VIS        : _END_TARGET_VIS],
         defocus           = x_cyc_brain[_OFF_DEFOCUS           : _END_DEFOCUS],
+        luminance         = x_cyc_brain[_OFF_LUMINANCE         : _END_LUMINANCE],
     )
 
 
 def to_array(state):
-    """pc.State → (43,) flat array."""
+    """pc.State → (44,) flat array."""
     return jnp.concatenate([
         state.scene_angular_vel, state.scene_linear_vel, state.target_pos,
         state.target_vel, state.target_disparity, state.scene_visible,
-        state.target_visible, state.defocus,
+        state.target_visible, state.defocus, state.luminance,
     ])

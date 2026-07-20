@@ -151,10 +151,12 @@ def pupil_size(states):
 def luminance(states):
     """Per-eye afferent retinal luminance, shape (T, 2) = [left, right], ~[0, 1].
 
-    The low-passed light signal driving the pupillary light reflex (from the
-    luminance sensory afferent), NOT the physical scene/target presence.
+    The low-passed light signal driving the pupillary light reflex (the per-eye
+    retinal luminance afferent register), NOT the physical scene/target presence.
     """
-    return np.array(states.sensory.lum.x_lum)
+    L = np.array(states.sensory.retina_L.luminance)[..., -1]   # (T,)
+    R = np.array(states.sensory.retina_R.luminance)[..., -1]   # (T,)
+    return np.stack([L, R], axis=-1)                           # (T, 2)
 
 
 def eyelid(states):

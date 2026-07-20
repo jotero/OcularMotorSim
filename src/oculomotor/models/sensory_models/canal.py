@@ -85,8 +85,19 @@ PINV_SENS = jnp.linalg.pinv(ORIENTATIONS)   # (3, 6)
 
 # ── Nonlinearity ───────────────────────────────────────────────────────────────
 
-def nonlinearity(x_c, gains, floor):
-    """Soft push-pull rectification: maps inertia states → afferent firing rates.
+def nonlinearity(x2, gains, floor, v_max):
+    """Canal afferent nonlinearity: second-stage state → afferent firing rates.
+
+    Only the second-stage (inertia) state x2 drives the afferent output; the
+    first stage x1 shapes the bandpass dynamics but does not appear here — so
+    callers pass x2 alone, not the full canal state.
+
+    This is THE canal output nonlinearity — it applies every static nonlinear
+    stage in one place: (1) soft push-pull rectification around the resting
+    discharge, then (2) the afferent-rate bounds — inhibitory cutoff at 0 (the
+    inhibited canal falls silent, Ewald's 2nd law) up to the excitatory
+    saturation ceiling v_max. Callers get the finished afferent rate; they must
+    NOT clip again.
 
     gains scales only the MODULATION above/below the resting discharge floor,
     not the resting discharge itself.  This models UVH as reduced sensitivity
@@ -101,18 +112,39 @@ def nonlinearity(x_c, gains, floor):
     canal_gains = 0.0 → y = 0 + floor = floor  (paretic but resting preserved)
 
     Args:
-        x_c:   (12,)        canal state [x1 (6) | x2 (6)]
+        x2:    (N_CANALS,)  second-stage (inertia) canal state — drives the afferent
         gains: (N_CANALS,)  per-canal scale; 0 = complete paresis
         floor: scalar       resting discharge (deg/s); inhibitory saturation point
+        v_max: scalar       excitatory afferent saturation ceiling (deg/s)
 
     Returns:
-        y: (N_CANALS,)  absolute afferent firing rate (deg/s equivalent)
+        y: (N_CANALS,)  saturated afferent firing rate (deg/s equivalent)
     """
-    x2   = x_c[N_CANALS:]                              # inertia states (6,)
     k    = _SOFTNESS
     f    = floor
     y_nl = -f + softplus(k * (x2 + f)) / k + softplus(k * (x2 - f)) / k
-    return gains * y_nl + f   # resting discharge (f) is always present; gains scales modulation only
+    y    = gains * y_nl + f   # resting discharge (f) always present; gains scales modulation only
+    # Afferent rate bounds: silence (0) at full inhibition → v_max at excitatory
+    # saturation. (Symmetric -v_max was a vestige of the pre-floor signed output,
+    # when y_nl was centred on 0; the floor made y an absolute rate ≥ 0.)
+    return jnp.clip(y, 0.0, v_max)
+
+
+def read_outputs(state, sensory_params):
+    """Pure state readout — canal afferent firing rates from canal.State.
+
+    Applies the output nonlinearity (rectification + saturation) to the
+    second-stage state x2. Mirrors retina.read_outputs / otolith.read_outputs.
+
+    Args:
+        state:          canal.State  (x1, x2)
+        sensory_params: SensoryParams  (reads canal_gains, canal_floor, canal_v_max)
+
+    Returns:
+        y_canals: (N_CANALS,)  afferent firing rates (deg/s equivalent)
+    """
+    return nonlinearity(state.x2, sensory_params.canal_gains,
+                        sensory_params.canal_floor, sensory_params.canal_v_max)
 
 
 # ── SSM step ───────────────────────────────────────────────────────────────────
@@ -138,9 +170,7 @@ def step(state, w_head, sensory_params):
     dx1 = (-state.x1 + ORIENTATIONS @ w_head) / tau_c
     dx2 = (-(state.x1 + state.x2) + ORIENTATIONS @ w_head) / tau_s
 
-    # nonlinearity reads x2 internally; reuse via flat-vector convention for now
-    y_canals = nonlinearity(jnp.concatenate([state.x1, state.x2]),
-                             sensory_params.canal_gains, sensory_params.canal_floor)
-    # Excitatory ceiling — sensor-side saturation
-    y_canals = jnp.clip(y_canals, -sensory_params.canal_v_max, sensory_params.canal_v_max)
+    # Afferent output is a pure readout of the second-stage state x2
+    # (rectification + saturation applied inside read_outputs → nonlinearity).
+    y_canals = read_outputs(state, sensory_params)
     return State(x1=dx1, x2=dx2), y_canals

@@ -8,21 +8,21 @@ per-eye signals and are cortical computations, not peripheral.
 
 Signal flow:
     w_head            → [Canal array]    → y_canals (6,)   afferent firing rates
-    a_head, q_head    → [Otolith array]  → f_gia (3,)      GIA → gravity estimator
-    per-eye stimulus  → [retina.step] L  → RetinaOut_L (delayed per-eye signals)
+    a_head, q_head    → [Otolith array]  → f_gia (3,)      running GIA → gravity estimator
+    per-eye stimulus  → [retina.step] L  → RetinaOut_L (delayed per-eye signals + luminance)
                       → [retina.step] R  → RetinaOut_R
     SensoryOutput bundles canal + otolith + retina_L + retina_R for the brain.
 
-State layout (198 states):
-    x_sensory = [x_canal (12) | x_oto (6) | x_retina_L (90) | x_retina_R (90)]
-
-Index constants (relative to x_sensory):
-    _IDX_C         — canal states                   (12,)
-    _IDX_OTO       — otolith states                  (6,)
-    _IDX_RETINA_L  — left-eye sharp cascade states  (90,)
-    _IDX_RETINA_R  — right-eye sharp cascade states (90,)
-    _IDX_VIS       — full per-eye visual block     (180,)
-    _IDX_VIS_L     — alias for _IDX_RETINA_L (backward compat)
+State layout (200 states) — a NamedTuple of per-subsystem States (no flat array,
+no _IDX_* slice constants; Diffrax handles the PyTree natively):
+    State(
+        canal    : canal.State    (12)   two-stage bandpass
+        otolith  : otolith.State   (6)   bilateral GIA-tracking LP
+        retina_L : retina.State   (91)   sharp cascade (90) + luminance (1)
+        retina_R : retina.State   (91)
+    )
+Each subsystem is read as an attribute (state.canal, state.retina_L, …); the
+per-subsystem outputs are exposed through read_outputs().
 """
 
 from typing import NamedTuple
@@ -33,9 +33,7 @@ import jax.numpy as jnp
 from oculomotor.models.sensory_models import canal            as _canal
 from oculomotor.models.sensory_models import otolith          as _otolith
 from oculomotor.models.sensory_models import retina           as _retina
-from oculomotor.models.sensory_models import luminance        as _luminance
 from oculomotor.models.sensory_models.retina import RetinaOut  # noqa: F401  (re-export)
-from oculomotor.models.plant_models.readout import rotation_matrix as _rotation_matrix
 
 
 # ── Sensory parameters ──────────────────────────────────────────────────────────
@@ -60,8 +58,10 @@ class SensoryParams(NamedTuple):
                                              # Goldberg & Fernandez 1971: ~300–600 deg/s; 400 conservative.
                                              # At typical stimulus velocities (<200 deg/s) the clip is inert.
 
-    # Otolith — first-order LP adaptation (Fernandez & Goldberg 1976)
-    tau_oto:            float       = 100.0  # otolith adaptation TC (s); large → near-DC pass
+    # Otolith — first-order GIA tracking. tau_oto is SHORT so the state is a
+    # running estimate of GIA (small lag + light noise smoothing), NOT a slow
+    # adaptation; this state is what the gravity estimator reads.
+    tau_oto:            float       = 0.02   # otolith GIA-tracking TC (s); short → tracks GIA closely
 
     # Visual pathway — sensor-side parameters only. The brain-side LP smoothing
     # TCs (tau_vis_smooth_*) and the binocular-fusion-policy parameters (npc /
@@ -128,21 +128,23 @@ delay_cascade_step = _retina.delay_cascade_step
 
 _N_CANAL_STATES  = _canal.N_STATES                # 12
 _N_OTO_STATES    = _otolith.N_STATES              #  6
-_N_RETINA_PER_EYE= _retina.N_STATES_PER_EYE       # 90
-_N_VIS_STATES    = 2 * _N_RETINA_PER_EYE          # 90+90 = 180
-_N_LUM_STATES    = _luminance.N_STATES            #  2 (per-eye afferent)
-N_STATES         = _N_CANAL_STATES + _N_OTO_STATES + _N_VIS_STATES + _N_LUM_STATES  # 12+6+180+2 = 200
+_N_RETINA_PER_EYE= _retina.N_STATES_PER_EYE       # 91 (90 cascade + 1 luminance)
+_N_VIS_STATES    = 2 * _N_RETINA_PER_EYE          # 91+91 = 182
+N_STATES         = _N_CANAL_STATES + _N_OTO_STATES + _N_VIS_STATES  # 12+6+182 = 200
 
 
 # ── State NamedTuple ──────────────────────────────────────────────────────────
 
 class State(NamedTuple):
-    """Top-level sensory state — canal + otolith + per-eye retina + luminance."""
+    """Top-level sensory state — canal + otolith + per-eye retina.
+
+    Per-eye retina now carries its own afferent-luminance register (pupillary
+    light reflex), so there is no separate luminance sub-SSM.
+    """
     canal:    _canal.State      # (12,)  bandpass two-stage SSM
-    otolith:  _otolith.State    #  (6,)  bilateral LP adaptation
-    retina_L: _retina.State     # (90,)  per-eye sharp cascade — left eye
-    retina_R: _retina.State     # (90,)  per-eye sharp cascade — right eye
-    lum:      _luminance.State  #  (2,)  per-eye luminance afferent (pupillary light reflex)
+    otolith:  _otolith.State    #  (6,)  bilateral GIA-tracking LP
+    retina_L: _retina.State     # (91,)  per-eye sharp cascade + luminance — left eye
+    retina_R: _retina.State     # (91,)  per-eye sharp cascade + luminance — right eye
 
 
 def rest_state():
@@ -152,20 +154,18 @@ def rest_state():
         otolith  = _otolith.rest_state(),
         retina_L = _retina.rest_state(),
         retina_R = _retina.rest_state(),
-        lum      = _luminance.rest_state(),
     )
 
 
 # Legacy flat-array adapters retained for any external callers that still hold
 # (T,) trajectory arrays predating the SimState NT migration.
 def to_array(state):
-    """sensory_model.State → (199,) flat array."""
+    """sensory_model.State → (200,) flat array."""
     return jnp.concatenate([
         _canal.to_array(state.canal),
         _otolith.to_array(state.otolith),
         _retina.to_array(state.retina_L),
         _retina.to_array(state.retina_R),
-        _luminance.to_array(state.lum),
     ])
 
 
@@ -178,7 +178,7 @@ class SensoryOutput(NamedTuple):
 
     Shared:
         canal:            (6,)   canal afferent rates
-        otolith:          (3,)   instantaneous GIA in head frame (m/s²) → gravity estimator
+        otolith:          (3,)   running GIA estimate in head frame (m/s²) → gravity estimator
     Cyclopean delayed signals:
         scene_slip:       (3,)   delayed scene angular velocity [yaw,pitch,roll] deg/s → VS / OKR
         scene_linear_vel: (3,)   delayed scene linear velocity [x,y,z] m/s, eye frame → looming
@@ -191,47 +191,35 @@ class SensoryOutput(NamedTuple):
         defocus:          float  delayed cyclopean defocus (D) = delay(acc_demand + RE − x_plant)
                                  Positive = near target closer than current accommodation.
                                  Gated by defocus_visible = OR(scene_vis, target_vis).
-        luminance:        (2,)   per-eye afferent retinal luminance [L, R]
-                                 (normalised, ~[0, 1]), low-passed from per-eye
-                                 scene/target presence → pupil light reflex.
+
+    Per-eye afferent luminance (pupillary light reflex) now rides inside each
+    eye's RetinaOut (`retina_L.luminance`, `retina_R.luminance`), not as a
+    separate field — the pupil controller assembles the [L, R] pair itself.
     """
     canal:     jnp.ndarray           # (6,)  canal afferent rates
-    otolith:   jnp.ndarray           # (3,)  instantaneous GIA (m/s², head frame)
-    retina_L:  RetinaOut             # delayed per-eye signals — left eye
-    retina_R:  RetinaOut             # delayed per-eye signals — right eye
-    luminance: jnp.ndarray           # (2,) per-eye afferent luminance [L, R] → pupil light reflex
+    otolith:   jnp.ndarray           # (3,)  running GIA estimate (m/s², head frame)
+    retina_L:  RetinaOut             # delayed per-eye signals (incl. luminance) — left eye
+    retina_R:  RetinaOut             # delayed per-eye signals (incl. luminance) — right eye
 
 
-def read_outputs(state, sensory_params, q_head, a_head):
+def read_outputs(state, sensory_params):
     """Read all sensory outputs from the current state (pure state readout).
 
     Args:
         state:          sensory_model.State
         sensory_params: SensoryParams
-        q_head:         (3,)    head rotation vector [yaw,pitch,roll] (deg) — for GIA
-        a_head:         (3,)    head linear acceleration (m/s², world frame) — for GIA
 
     Returns:
         SensoryOutput with delayed per-eye signals.
     """
-    # Concatenate (x1, x2) to apply canal nonlinearity (reads x2 internally).
-    canal_flat = jnp.concatenate([state.canal.x1, state.canal.x2])
-    canal_out  = _canal.nonlinearity(canal_flat,
-                                      sensory_params.canal_gains,
-                                      sensory_params.canal_floor)
-    canal_out = jnp.clip(canal_out, -sensory_params.canal_v_max, sensory_params.canal_v_max)
-
-    # Instantaneous GIA in head frame — same formula as otolith.step().
-    q_xyz = jnp.array([-q_head[1], q_head[0], q_head[2]])
-    R     = _rotation_matrix(q_xyz)
-    f_gia = R.T @ _otolith.G_WORLD + R.T @ a_head   # GIA in head frame (m/s²)
-
+    # Each subsystem exposes a uniform read_outputs(state[, params]) — the canal
+    # afferent nonlinearity, the otolith running-GIA estimate, and each eye's
+    # delayed retinal signals (which now carry their own afferent luminance).
     return SensoryOutput(
-        canal     = canal_out,
-        otolith   = f_gia,
-        retina_L  = _retina.read_outputs(state.retina_L),
-        retina_R  = _retina.read_outputs(state.retina_R),
-        luminance = state.lum.x_lum,   # (2,) per-eye afferent luminance (delayed) → pupil light reflex
+        canal    = _canal.read_outputs(state.canal, sensory_params),
+        otolith  = _otolith.read_outputs(state.otolith),
+        retina_L = _retina.read_outputs(state.retina_L),
+        retina_R = _retina.read_outputs(state.retina_R),
     )
 
 
@@ -286,19 +274,9 @@ def step(state,
         defocus_R, scene_present_R, target_present_R, target_strobed,
         sensory_params)
 
-    # Luminance afferent (pupillary light reflex), per eye. Physical retinal
-    # luminance is assembled from each eye's own scene / target presence, then
-    # low-passed by the per-eye luminance sub-SSM. A lit full-field scene
-    # dominates; a lone foveal target contributes a dim point source. The
-    # consensual combination of the two eyes happens downstream in the pupil
-    # controller (bilateral pretectum), so a monocular afferent defect (RAPD)
-    # stays per-eye here.
-    lum_s, lum_t = sensory_params.lum_scene, sensory_params.lum_target
-    L_phys = jnp.clip(jnp.array([
-        lum_s * scene_present_L + lum_t * target_present_L,   # left eye
-        lum_s * scene_present_R + lum_t * target_present_R,   # right eye
-    ]), 0.0, 1.0)
-    dlum, _ = _luminance.step(state.lum, L_phys, sensory_params.tau_lum)
+    # Per-eye afferent luminance (pupillary light reflex) is advanced inside each
+    # retina.step from that eye's own scene / target presence — no separate
+    # luminance sub-SSM here.
 
     return State(canal=dcanal, otolith=dotolith,
-                  retina_L=dretina_L, retina_R=dretina_R, lum=dlum)
+                 retina_L=dretina_L, retina_R=dretina_R)

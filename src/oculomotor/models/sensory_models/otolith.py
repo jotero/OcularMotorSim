@@ -38,16 +38,16 @@ SSM interface (follows canal.py convention)
         f_gia  (3,)  — LP-filtered GIA estimate passed to gravity_estimator
 
 ──────────────────────────────────────────────────────────────────────────
-Dynamics  (first-order adaptation, Fernandez & Goldberg 1976)
-    The otolithic membrane settles slowly to a sustained GIA:
+Dynamics  (first-order tracking)
+    Each side low-passes the raw head-frame GIA into a running estimate:
         dx_oto/dt = (S · f − x_oto) / τ_oto
-        y_oto     = x_oto                    (LP-filtered GIA)
+        y_oto     = mean(x_L, x_R)           (running GIA estimate → brain)
 
-    τ_oto large (10–100 s) → y_oto ≈ f at all frequencies above ~0.01 Hz
-    τ_oto small             → high-pass (adapts away sustained tilt)
-
-    For the Laurens tilt-translation model, large τ_oto is preferred so
-    that the DC gravity component is preserved.
+    τ_oto is SHORT (light smoothing) so the estimate tracks the true GIA with a
+    small lag and can absorb afferent noise.  This running estimate — the state,
+    NOT the raw instantaneous f — is what the gravity estimator consumes; it is a
+    faithful GIA tracker, not a slow adaptation that would drop the DC gravity
+    component.
 """
 
 from typing import NamedTuple
@@ -101,6 +101,26 @@ def to_array(state):
     return jnp.concatenate([state.x_L, state.x_R])
 
 
+# ── GIA readout (running estimate → brain) ───────────────────────────────────────
+
+def read_outputs(state):
+    """Pure state readout — running GIA estimate in head frame (m/s²).
+
+    Each side's state tracks the head-frame GIA; the brain reads their bilateral
+    average (= the ``PINV_SENS`` mix, since ``SENS_LEFT = SENS_RIGHT = I``). This
+    mirrors ``canal.read_outputs`` / ``retina.read_outputs``: downstream reads the
+    GIA from *state*, so the transduction geometry lives only in ``step`` and
+    there is no duplicated formula.
+
+    Args:
+        state: otolith.State (x_L, x_R) bilateral GIA-tracking states (m/s²)
+
+    Returns:
+        f_gia: (3,) running GIA estimate, head frame (m/s²)
+    """
+    return 0.5 * (state.x_L + state.x_R)
+
+
 # ── SSM step ───────────────────────────────────────────────────────────────────
 
 def step(state, u, sensory_params):
@@ -115,7 +135,7 @@ def step(state, u, sensory_params):
 
     Returns:
         dstate: otolith.State  state derivative (m/s³)
-        f_gia:  (3,)           LP-filtered GIA estimate → gravity_estimator (m/s²)
+        f_gia:  (3,)           running GIA estimate → gravity_estimator (m/s²)
     """
     a_head = u[:3]   # (3,) head linear acceleration (m/s²)
     q_head = u[3:]   # (3,) head orientation rotation vector (deg)
@@ -123,28 +143,23 @@ def step(state, u, sensory_params):
     x_L = state.x_L
     x_R = state.x_R
 
-    # Rotate q_head [yaw,pitch,roll] → xyz rotation vector for rotation_matrix.
-    # Uses ypr_to_xyz convention: yaw→+y, pitch→−x, roll→+z  (left-handed world frame).
+    # Raw instantaneous GIA in head frame (mechanical transduction). This is the
+    # ONLY place the sensor geometry lives — read_outputs() and sensory_model read
+    # the running estimate from state, so there is no duplicated formula.
+    # ypr_to_xyz convention: yaw→+y, pitch→−x, roll→+z (left-handed world frame).
     q_xyz = jnp.array([-q_head[1], q_head[0], q_head[2]])
-    R      = rotation_matrix(q_xyz)    # (3,3) world←head rotation
-    g_head = R.T @ G_WORLD             # (3,) specific force in head frame
+    R     = rotation_matrix(q_xyz)          # (3,3) world←head rotation
+    f     = R.T @ G_WORLD + R.T @ a_head    # (3,) raw GIA, head frame
 
-    # Rotate world-frame linear acceleration to head frame
-    a_head_frame = R.T @ a_head
-
-    # Gravitoinertial acceleration (GIA) = gravity component + linear acceleration
-    f = g_head + a_head_frame
-
-    # LP adaptation dynamics: low-pass filter the raw GIA
+    # First-order tracking: each side runs a low-pass estimate of the GIA.
+    # tau_oto is SHORT (light smoothing) so the estimate tracks GIA with a small
+    # lag and can absorb otolith afferent noise — this is a running estimate, not
+    # a slow adaptation. The gravity estimator consumes this state (not raw f).
     tau  = sensory_params.tau_oto
     dx_L = (SENS_LEFT  @ f - x_L) / tau
     dx_R = (SENS_RIGHT @ f - x_R) / tau
 
-    # Return the INSTANTANEOUS GIA (= f), not the LP-adapted state.
-    # The gravity estimator needs the raw otolith reading so the correction
-    # term K_grav·(f−ĝ) works correctly during sustained tilt — if we pass the
-    # LP state (tau_oto=100 s), the correction pulls ĝ back toward upright
-    # once the canal decays, causing visible drift.
-    f_gia  = f   # instantaneous GIA in head frame (m/s²)
+    # Output = the running (state) estimate the brain reads — SSM y = C·x.
+    f_gia = read_outputs(state)
 
     return State(x_L=dx_L, x_R=dx_R), f_gia

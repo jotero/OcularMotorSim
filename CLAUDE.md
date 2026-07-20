@@ -83,11 +83,11 @@ src/oculomotor/
 │   │   ├── canal.py                   Canal array SSM (Steinhausen, 6 canals, 12 states)
 │   │   ├── otolith.py                 Otolith SSM (bilateral LP adaptation, 6 states)
 │   │   ├── retina.py                  Geometry (world_to_retina) + sensor saturation +
-│   │   │                              per-eye sharp gamma cascade (90 states/eye).
-│   │   │                              retina.step → RetinaOut (delayed per-eye signals).
+│   │   │                              per-eye sharp gamma cascade + luminance afferent
+│   │   │                              register (91 states/eye). retina.step → RetinaOut.
 │   │   └── sensory_model.py           Connector: canal + otolith + retina_L + retina_R →
 │   │                                   SensoryOutput {canal, otolith, retina_L, retina_R}
-│   │                                   (198 states)
+│   │                                   (200 states; luminance now rides in RetinaOut)
 │   ├── brain_models/                  Cortical computations — operate on already-delayed signals
 │   │   ├── perception_self_motion.py  VS + GE + HE unified observer (Laurens & Angelaki 2017)
 │   │   ├── perception_target.py       Target gates + working memory (FEF/dlPFC layer)
@@ -107,8 +107,6 @@ src/oculomotor/
 │   │   ├── cerebellum.py              EC delay cascades + flocculus (FL) NI extension +
 │   │   │                              paraflocculus (VPF) pursuit forward model.
 │   │   │                              Replaces the deleted efference_copy.py.
-│   │   ├── unified_brain.py           Experimental matrix-form rewrite of brain_model.step
-│   │   │                              (active experiment, not canonical).
 │   │   └── brain_model.py             Connector: cyclopean → perception → SG/pursuit/TVOR/NI
 │   │                                   → vergence/acc → FCP → cerebellum (EC).
 │   │                                   BrainState is a NamedTuple of sub-state NamedTuples —
@@ -132,8 +130,7 @@ src/oculomotor/
 ├── schema/                           Bundled config yaml as package-data (parameters_schema, states_schema)
 └── sim/
     ├── simulator.py                   ODE wiring + simulate() entry point.
-    │                                   Brain step is swappable via set_brain_step()
-    │                                   (unified_brain.step is a drop-in alternative).
+    │                                   Brain step is swappable via set_brain_step().
     ├── kinematics.py                  KinematicTrajectory / TargetTrajectory builders
     ├── stimuli.py                     Centralized stimulus generators
     └── synthetic.py                   Synthetic-data helpers for fitting
@@ -163,24 +160,25 @@ natively, so subsystems are accessed as attributes.
 
 ```
 SimState(
-    sensory   : SensoryState   (198 states)
+    sensory   : SensoryState   (200 states)
     brain     : BrainState     (≈170 states; see breakdown)
     plant     : PlantState     (6 states, plus accommodation 1 state)
 )
 ```
 
-**Sensory** (198 states; same shape as before):
+**Sensory** (200 states):
 ```
-sensory: [x_c (12) | x_oto (6) | x_retina_L (90) | x_retina_R (90)]
+sensory: [x_c (12) | x_oto (6) | x_retina_L (91) | x_retina_R (91)]
 ```
-`x_retina_<L|R>` (per eye, sharp gamma cascade, N=6 stages each):
+`x_retina_<L|R>` (per eye, sharp gamma cascade N=6 stages each, + luminance LP):
 `[scene_angular_vel(18) | scene_linear_vel(18) | target_pos(18) | target_vel(18) |
-  scene_visible(6) | target_visible(6) | defocus(6)]`
+  scene_visible(6) | target_visible(6) | defocus(6) | luminance(1)]`
 
 **Brain** (nested NamedTuple — `BrainState`):
 ```python
 BrainState(
-    pc:   pc.State    # 43  perception_cyclopean (binocular fusion + brain LP)
+    pc:   pc.State    # 44  perception_cyclopean (binocular fusion + brain LP;
+                      #     incl. pretectal light-drive LP → pupil)
     sm:   sm.State    # 21  self-motion observer (VS bilateral + GE + HE).
                       #     VS pops are CANAL-PLANE [H, LARP, RALP] (H→MVN, LARP/RALP→SVN)
     pt:   pt.State    #  4  target working memory  (x_mem(3) + trust(1))
@@ -336,7 +334,6 @@ Each behavior has a corresponding demo script and output figure.
   - **Saccadic suppression** — visual gate threshold/steepness on cerebellar EC during saccade (commit `0d09a28`). Used to tune the post-saccadic settling window.
   - **Exact plant forward model** — explored inside cerebellum (commits `b8722b7`, `9c33f47`); current code rotates predicted velocity through `ec_pos = NI_net` rather than running a separate MN/plant copy, since Robinson pulse-step already cancels the plant LP to ~5 ms residual.
   - **BrainState refactor** — brain state is now a NamedTuple of subsystem `State` NamedTuples (no flat array, no `_IDX_*` slice constants). Diffrax handles PyTrees natively.
-  - **Unified brain (experimental)** — [`unified_brain.py`](src/oculomotor/models/brain_models/unified_brain.py) is a matrix-form rewrite of `brain_model.step` aligned with `manuscripts/unified_oculomotor_template.md`. Active experiment; **not the canonical brain**. Swap in via `simulator.set_brain_step(unified_brain.step)`.
 
 - **Active debugging (2026-05-25)** — explicitly flagged by user:
   - **Post-saccadic oscillation** — small residual, cerebellum forward-model + suppression-gate combo has helped but not fully closed it. See `project_ec_pre_delay_tradeoff.md`.
@@ -370,7 +367,7 @@ Three generated HTML pages live under `web/`. Keep them in sync with code — bu
 
 - **Multiple plant models** — see design note below.
 
-- **Multiple brain models** — `unified_brain.py` is the current experimental alternative to `brain_model.py`. Plug in via `set_brain_step()`.
+- **Multiple brain models** — alternative brain implementations plug in via `set_brain_step()` (must match `brain_model.step`'s I/O signature). None currently shipped.
 
 ### Design note: swappable plants and brain models
 
@@ -396,19 +393,22 @@ Any plant implementing this contract (first-order, second-order, MJX-backed) is 
 **Brain model interface contract:**
 
 ```python
-def step(brain_state, sensory_out: SensoryOutput, brain_params, noise_acc=0.0) -> \
-        (dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc):
+def step(brain_state, sensory_out: SensoryOutput, brain_params, noise_acc=0.0, blink_drive=0.0) -> \
+        (dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid):
     # brain_state : BrainState NamedTuple (PyTree of subsystem States)
     # sensory_out : SensoryOutput (canal, otolith, retina_L: RetinaOut, retina_R: RetinaOut, …)
+    # blink_drive : scalar central blink command (pre-generated schedule) → eyelid
     # nerves      : (12,) per-muscle nerve activations → plant
     # ec_vel/pos  : version efference (head frame, deg/s and deg)
     # ec_verg     : vergence efference (deg)
     # u_acc       : accommodation neural command (D)
+    # u_pupil     : (2,) commanded per-eye pupil diameter (mm) → iris plant
+    # u_lid       : (2,) commanded per-eye lid closure → eyelid plant
 ```
 
 Different brain architectures (Raphan-Cohen, Kalman, RL policy) swap in here via
-`simulator.set_brain_step(fn)`. `unified_brain.step` is the current alternative
-implementation matching this signature. The sensory model and plant remain unchanged.
+`simulator.set_brain_step(fn)` — any callable matching this signature. The sensory
+model and plant remain unchanged.
 
 ## SSM module convention
 
@@ -477,7 +477,7 @@ def step(x, u, theta):
 
 Some modules have nonlinearities that wrap the linear ABCD core:
 
-- **Canal** (`canal.py`): `nonlinearity(x_c, gains)` applies smooth push-pull rectification to the `x2` (inertia state) to get afferent firing rates. The linear `A @ x + B @ u` drives the state derivative; only the output is nonlinear. Re-exported as `canal_nonlinearity` from `sensory_model.py`.
+- **Canal** (`canal.py`): `nonlinearity(x2, gains, floor, v_max)` applies smooth push-pull rectification to the second-stage inertia state `x2` **and** the [0, v_max] afferent-rate saturation, in one place, to get afferent firing rates. Exposed as `canal.read_outputs(state, params)`. The linear `A @ x + B @ u` drives the state derivative; only the output is nonlinear. Re-exported as `canal_nonlinearity` from `sensory_model.py`.
 - **Saccade generator**: gates (`gate_err`, `gate_res`, `gate_dir`) and adaptive reset TC layered on top of linear SSM core. Target selection (orbital clip + centering saccade) is handled internally using `x_ni` as a proxy for eye position and `target_in_vf` to detect out-of-field targets.
 - **Visual delay** (`retina.py` + `perception_cyclopean.py`): two-stage. (a) Per-eye sharp gamma cascade in `retina.step` (N=6 stages × τ_retina), with `velocity_saturation` and visibility gating done before cascade input. (b) Post-fusion brain LP smoothing in `perception_cyclopean.step` (channel-specific TCs: motion, target_vel, disparity, defocus, plus N-stage gamma for target_pos / visibility). The brain's `C_slip` / `C_pos` / `C_vel` / `C_target_disp` / `C_target_visible` / etc. readout matrices live in `perception_cyclopean` and read into `brain[:, _IDX_CYC_BRAIN]`.
 

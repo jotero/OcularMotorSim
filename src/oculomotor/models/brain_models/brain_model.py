@@ -88,6 +88,7 @@ from oculomotor.models.brain_models  import saccade_generator      as sg
 from oculomotor.models.brain_models  import pursuit                as pu
 from oculomotor.models.brain_models  import tvor                   as tv
 from oculomotor.models.brain_models  import pupil                  as pupil
+from oculomotor.models.brain_models  import eyelid                 as eyelid
 from oculomotor.models.brain_models  import final_common_pathway   as fcp
 from oculomotor.models.brain_models  import cerebellum               as cb
 from oculomotor.models.brain_models  import listing
@@ -354,6 +355,9 @@ class BrainParams(NamedTuple):
                                                 # Sloppy accommodation channel; combined with the lens
                                                 # plant TC (Schor & Bharadwaj 2006) produces realistic
                                                 # sluggish open-loop accommodation responses.
+    tau_vis_smooth_luminance:   float = 0.05   # smoothing LP TC (s) for the pretectal light-drive cyclopean
+                                                # LP (PLR relay). Central smoothing on top of the peripheral
+                                                # retina luminance register (tau_lum); total PLR afferent lag.
     tau_brain_pos:              float = 0.015  # N-stage gamma TC (s) for target_pos / visibility brain
                                                 # phase (post-fusion). Total visual mean delay for these
                                                 # signals ≈ tau_vis_sharp + tau_brain_pos = 0.08 s.
@@ -977,7 +981,7 @@ def make_x0(brain_params=None):
 
 # ── Step function ──────────────────────────────────────────────────────────────
 
-def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
+def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0):
     """Single ODE step for the brain subsystem.
 
     Args:
@@ -989,6 +993,8 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
                         .retina_R         RetinaOut for right eye
         brain_params: BrainParams   model parameters
         noise_acc:    scalar  accumulator diffusion noise sample (pre-scaled)
+        blink_drive:  scalar  central blink command in [0,1] (pre-generated
+                              spontaneous-blink schedule) → orbicularis / eyelid
 
     Returns:
         dbrain_state: BrainState  state derivative
@@ -999,6 +1005,8 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         u_acc:        scalar total lens-plant input (D) — neural + CA/C, drives acc_plant
         u_pupil:      (2,)   commanded per-eye pupil diameter (mm) [L, R] — light
                              reflex + near response, drives the iris plants
+        u_lid:        (2,)   commanded per-eye lid closure [L, R] (0=open..1=closed)
+                             — posture + blink + downgaze lid-follow, drives eyelid plant
     """
     # ── Activation / Decoded / Weights registries ────────────────────────────
     # Built once per step.  Subsystems read these instead of raw state.
@@ -1186,14 +1194,23 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
 
     # ── Pupil: light reflex + near response → commanded per-eye iris diameter ──
     # Stateless (pupil.py); dynamics live in the two iris plants (pupil_plant).
-    # Consensual light reflex reads the (2,) per-eye afferent luminance; the near
-    # response reads total accommodation. Returns (2,) [L, R] — separate pupils so
-    # an efferent (CN III / iris) lesion produces anisocoria.
+    # Consensual light reflex reads the single pretectal light drive — the
+    # binocular afferent sum (with RAPD gains) computed in perception_cyclopean
+    # (cyc.light_drive); the near response reads total accommodation. Returns (2,)
+    # [L, R] — separate pupils so an efferent (CN III / iris) lesion → anisocoria.
     u_pupil = pupil.command(
-        sensory_out.luminance,
+        cyc.light_drive,
         acts.va.acc_fast + acts.va.acc_slow,
         brain_params,
     )
+
+    # ── Eyelid: posture + blink + downgaze lid-follow → commanded lid closure ──
+    # Stateless (eyelid.py); dynamics live in the eyelid plant. blink_drive is the
+    # central (pre-generated) spontaneous-blink command. Lid-follow reads the
+    # brain's own vertical-gaze efference (ec_pos pitch) — the upper lid follows
+    # the eye by co-innervation with the superior rectus, so it's efference-driven,
+    # not proprioceptive. Conjugate (same pitch to both lids).
+    u_lid = eyelid.command(blink_drive, ec_pos[1], ec_pos[1], brain_params)
 
     # ── Final common pathway: nucleus encode → MN low-pass → nerve transmission ─
     # step is STATE-driven: it derives the signed leak/nerve rate from
@@ -1253,4 +1270,4 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0):
         cb   = dcb,
     )
 
-    return dbrain, nerves, ec_vel, ec_pos, ec_verg_cmd, u_acc, u_pupil
+    return dbrain, nerves, ec_vel, ec_pos, ec_verg_cmd, u_acc, u_pupil, u_lid

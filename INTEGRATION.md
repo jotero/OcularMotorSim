@@ -57,6 +57,7 @@ class RetinaOut(NamedTuple):
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
     target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf
     defocus:           jnp.ndarray  # scalar — delayed defocus (D)
+    luminance:         jnp.ndarray  # scalar — per-eye afferent retinal luminance (~[0,1]) → pupil light reflex
 ```
 
 > **These signals are already post-processing.** The model assumes the visual delay
@@ -76,8 +77,8 @@ The brain takes one bundle per step. Defined in
 ```python
 class SensoryOutput(NamedTuple):
     canal:    jnp.ndarray   # (6,) canal afferent rates (deg/s-equivalent)
-    otolith:  jnp.ndarray   # (3,) instantaneous GIA in HEAD frame (m/s²)
-    retina_L: RetinaOut     # left  eye
+    otolith:  jnp.ndarray   # (3,) running GIA estimate in HEAD frame (m/s²)
+    retina_L: RetinaOut     # left  eye  (incl. luminance afferent)
     retina_R: RetinaOut     # right eye
 ```
 
@@ -213,6 +214,7 @@ def my_retina(t):                                   # constant 10 deg error = op
         scene_visible     = jnp.float32(0.0),
         target_visible    = jnp.float32(1.0),
         defocus           = jnp.float32(0.0),
+        luminance         = jnp.float32(0.0),
     )
 
 # ── One integration step (Euler shown for clarity; see note on Heun) ───────
@@ -224,7 +226,7 @@ def step(carry, t):
         canal=canal_rest, otolith=otolith_rest,
         retina_L=retina, retina_R=retina)            # same image to both eyes (monocular case)
 
-    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc = brain_model.step(brain_x, sens, params.brain)
+    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid = brain_model.step(brain_x, sens, params.brain)
     dL, q_eye_L, w_eye_L = plant_model.step(plant_x.left,  nerves[:6], params.plant, M_PLANT_EYE_L)
     dR, q_eye_R, w_eye_R = plant_model.step(plant_x.right, nerves[6:], params.plant, M_PLANT_EYE_R)
     dacc, _ = acc_plant.step(acc_x, u_acc, params.brain.tau_acc_plant)
@@ -262,10 +264,10 @@ you must run `sensory_model.step` too, and feed the eye outputs and efference co
 back in. The strict evaluation order (from
 [`ODE_ocular_motor`](src/oculomotor/sim/simulator.py#L303)) is:
 
-1. `sensory_model.read_outputs(sensory_x, params.sensory, q_head, a_head)` → `SensoryOutput`
+1. `sensory_model.read_outputs(sensory_x, params.sensory)` → `SensoryOutput`
    (delayed signals from the *current* sensory state).
 2. (optional) add sensory noise to the retina fields.
-3. `brain_model.step(...)` → `nerves, ec_vel, ec_pos, ec_verg, u_acc`.
+3. `brain_model.step(..., blink_drive)` → `nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid`.
 4. `plant_model.step(...)` per eye → `q_eye_{L,R}, w_eye_{L,R}` (+ `acc_plant.step`).
 5. compute per-eye `defocus` from the current target distance and lens state.
 6. `sensory_model.step(sensory_x, q_head, w_head, …, q_eye_L_eff, w_eye_L, …, ec_vel, ec_pos, ec_verg, params.sensory)` → `dsensory`
@@ -289,8 +291,7 @@ express what you need.
 **Pattern B — swap one stage, keep the rest.**
 - Swap the **brain**: `simulator.set_brain_step(my_brain_step)` where your function
   matches `brain_model.step`'s signature
-  (`fn(brain_state, sensory_out, brain_params, noise_acc) -> (dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc)`).
-  `unified_brain.step` is a working example.
+  (`fn(brain_state, sensory_out, brain_params, noise_acc, blink_drive) -> (dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid)`).
 - Swap the **plant**: any module implementing
   `step(x_p, motor_cmd, plant_params, decode_matrix) -> (dx_p, q_eye, w_eye)` is a
   drop-in (wire it in `simulator.py`).
