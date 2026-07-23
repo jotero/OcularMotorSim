@@ -20,6 +20,26 @@ from oculomotor.llm_pipeline.prompt import SYSTEM_PROMPT
 _SYSTEM = [{"type": "text", "text": SYSTEM_PROMPT,
             "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
 
+
+def _unwrap_tool_input(payload: dict, required_field: str) -> dict:
+    """Strip a redundant single-key wrapper from a tool's arguments.
+
+    Some models emit the tool arguments nested one level too deep — e.g.
+    ``{"scenario": {<the real fields>}}`` for ``generate_scenario`` instead of
+    the flat object the schema asks for (observed with claude-sonnet-5). That
+    makes every required field read as missing at validation time.
+
+    Only unwrap when it's unambiguously a wrapper: the required field is absent
+    at the top level, there is exactly one key, and its value is a dict. A
+    correctly-flat payload has ``required_field`` present, so it is never touched.
+    """
+    if (isinstance(payload, dict) and required_field not in payload
+            and len(payload) == 1):
+        (inner,) = payload.values()
+        if isinstance(inner, dict):
+            return inner
+    return payload
+
 # ── LLM call ──────────────────────────────────────────────────────────────────
 
 def call_llm(description: str, model: str) -> SimulationScenario | SimulationComparison:
@@ -69,9 +89,11 @@ def call_llm(description: str, model: str) -> SimulationScenario | SimulationCom
     print(f"  → LLM chose: {tool_block.name}")
 
     if tool_block.name == "generate_comparison":
-        return SimulationComparison.model_validate(tool_block.input)
+        payload = _unwrap_tool_input(tool_block.input, "scenarios")
+        return SimulationComparison.model_validate(payload)
     else:
-        return SimulationScenario.model_validate(tool_block.input)
+        payload = _unwrap_tool_input(tool_block.input, "description")
+        return SimulationScenario.model_validate(payload)
 
 
 # Keep old names as aliases for any direct CLI use
@@ -109,4 +131,5 @@ def _call_llm_comparison(description: str, model: str) -> SimulationComparison:
     )
 
     tool_block = next(b for b in response.content if b.type == "tool_use")
-    return SimulationComparison.model_validate(tool_block.input)
+    payload = _unwrap_tool_input(tool_block.input, "scenarios")
+    return SimulationComparison.model_validate(payload)
