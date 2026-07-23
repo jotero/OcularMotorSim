@@ -1,4 +1,4 @@
-# ClaudeOculomotorJax — Project Context for Claude
+# OcularMotorSim — Project Context for Claude
 
 > **Lost? Start at [MAP.md](MAP.md)** — the project atlas: subsystem router (code ↔ design note ↔
 > manuscript ↔ bench), a live status dashboard, and a mirror of Claude's private memory.
@@ -30,16 +30,19 @@ Do **not** reimplement the logic.
 
 ## Running scripts
 
+The venv lives **outside** OneDrive (syncing wheels is slow, and a synced venv breaks
+whenever the checkout moves). Path: `%LOCALAPPDATA%\om-venvs\OcularMotorSim`.
+
 Always use `-X utf8` to avoid Windows cp1252 encoding errors (Greek letters in print statements crash otherwise):
 
 ```bash
-"d:/OneDrive/UC Berkeley/OMlab - JOM/Code/ClaudeOculomotorJax/.venv/Scripts/python.exe" -X utf8 -m oculomotor.benchmarks.bench_vor_okr
+"$LOCALAPPDATA/om-venvs/OcularMotorSim/Scripts/python.exe" -X utf8 -m oculomotor.benchmarks.bench_vor_okr
 ```
 
 Or from PowerShell:
 
 ```powershell
-& "d:\OneDrive\UC Berkeley\OMlab - JOM\Code\ClaudeOculomotorJax\.venv\Scripts\python.exe" -X utf8 -m oculomotor.benchmarks.bench_vor_okr
+& "$env:LOCALAPPDATA\om-venvs\OcularMotorSim\Scripts\python.exe" -X utf8 -m oculomotor.benchmarks.bench_vor_okr
 ```
 
 (Benchmarks live in `src/oculomotor/benchmarks/` and run as modules: `-m oculomotor.benchmarks.bench_<area>`.)
