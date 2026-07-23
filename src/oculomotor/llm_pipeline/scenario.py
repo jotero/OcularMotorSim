@@ -241,22 +241,31 @@ Quick reference — typical cerebellar patient for GEN:
 """
 
 
+# ── Panel names ────────────────────────────────────────────────────────────────
+# SINGLE SOURCE OF TRUTH for the allowed plot panels — shared by PlotConfig (single
+# mode) AND SimulationComparison (overlay mode) so the two can never drift apart.
+# They DID drift: 'spv' and the two cerebellum panels were valid in single mode but
+# absent from the comparison list, so any nystagmus comparison the LLM built with
+# 'spv' (which the system prompt actively recommends) failed schema validation.
+PanelName = Literal[
+    'eye_position', 'eye_velocity', 'spv', 'head_velocity',
+    'gaze_error', 'retinal_error', 'canal_afferents',
+    'velocity_storage', 'neural_integrator',
+    'saccade_burst', 'pursuit_drive', 'refractory',
+    'vergence', 'accommodation', 'pupil_diameter',
+    # Cerebellar diagnostic panels
+    'cerebellum_pursuit', 'cerebellum_vor',
+    # Stimulus panels
+    'target_position', 'target_velocity', 'scene_velocity', 'visual_flags',
+]
+
+
 # ── PlotConfig (unchanged) ─────────────────────────────────────────────────────
 
 class PlotConfig(BaseModel):
     """Which signal panels to include in the figure."""
 
-    panels: list[Literal[
-        'eye_position', 'eye_velocity', 'spv', 'head_velocity',
-        'gaze_error', 'retinal_error', 'canal_afferents',
-        'velocity_storage', 'neural_integrator',
-        'saccade_burst', 'pursuit_drive', 'refractory',
-        'vergence', 'accommodation', 'pupil_diameter',
-        # Cerebellar diagnostic panels
-        'cerebellum_pursuit', 'cerebellum_vor',
-        # Stimulus panels
-        'target_position', 'target_velocity', 'scene_velocity', 'visual_flags',
-    ]] = Field(
+    panels: list[PanelName] = Field(
         description=(
             "CHOOSE the panels that best reveal the phenomenon THIS scenario tests — reason about it; "
             "do not copy a fixed template. ORDER DOESN'T MATTER: the renderer always lays panels out "
@@ -522,13 +531,12 @@ class SimulationComparison(BaseModel):
             "the overlay. Plain English, clinician-facing, no variable names."
         )
     )
-    panels: list[Literal[
-        'eye_position', 'eye_velocity', 'head_velocity', 'gaze_error',
-        'retinal_error', 'canal_afferents', 'velocity_storage',
-        'neural_integrator', 'saccade_burst', 'pursuit_drive', 'refractory',
-        'vergence', 'accommodation', 'pupil_diameter',
-        'target_position', 'target_velocity', 'scene_velocity', 'visual_flags',
-    ]] = Field(description="Panels applied to all scenarios in the comparison.")
+    panels: list[PanelName] = Field(
+        description=(
+            "Panels applied to all scenarios in the comparison. Shares the PanelName "
+            "set with single mode. The overlay renderer draws per-patient signals "
+            "(eye_position, spv, velocity_storage, …) as one series per scenario, and "
+            "shared-stimulus panels (head/scene/target, visual_flags) once."))
     scenarios: list[SimulationScenario] = Field(
         min_length=2, max_length=4,
         description=(

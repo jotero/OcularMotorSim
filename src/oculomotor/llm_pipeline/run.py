@@ -1403,6 +1403,16 @@ def _build_comparison_spec(
 
     panel_specs = []
     for panel in _order_panels(comparison.panels):
+        # visual_flags is a shared-stimulus context strip (a gantt, not overlaid
+        # lines). In a comparison every scenario shares the stimulus, so render it
+        # ONCE through the single-mode builder instead of overlaying identical strips.
+        if panel == 'visual_flags':
+            t0, sig0, stim0 = results[0]
+            vf = _panel_spec('visual_flags', np.asarray(t0), sig0, stim0,
+                             comparison.scenarios[0], _stride_for(len(t0)))
+            panel_specs.append(vf[0] if isinstance(vf, list) else vf)
+            continue
+
         traces, hlines = [], [{'y': 0, 'color': _C['zero'], 'style': '--'}]
         for idx, (t, sig, stim_kw) in enumerate(results):
             color = _COMPARE_COLORS[idx % len(_COMPARE_COLORS)]
@@ -1411,6 +1421,8 @@ def _build_comparison_spec(
             ep, ev = sig['eye_pos'], sig['eye_vel']
             hv = np.array(stim_kw['head_vel_array'])
             pt = np.array(stim_kw['p_target_array'])
+            vt = np.array(stim_kw['v_target_array'])
+            vs = np.array(stim_kw['v_scene_array'])
             dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
             head_angle = np.cumsum(hv[:, 0]) * dt_val
             head_moves = np.max(np.abs(head_angle)) > 2.0
@@ -1455,6 +1467,42 @@ def _build_comparison_spec(
                 add(label, ep[:, 0] + head_angle)
             elif panel == 'retinal_error':
                 add(label, sig['e_pos_delayed'][:, 0])
+            # ── per-patient signals (one series per scenario) — these had no overlay
+            #    branch before, so a comparison that picked them rendered blank ──
+            elif panel == 'spv':
+                ub = sig['u_burst']
+                spv = np.stack([extract_spv(t, ev[:, i], burst=ub[:, i], smooth_s=0.2)
+                                for i in range(3)], axis=1)
+                add(label, spv[:, 0])
+                if idx == 0:   # shared driving stimulus, drawn once for gain reference
+                    if float(np.max(np.abs(hv[:, 0]))) > 2.0:
+                        add('Head vel', hv[:, 0], c=_C['head'], s=':')
+                    if np.any(np.abs(vs[:, 0]) > 0.5):
+                        add('Scene vel', vs[:, 0], c='#8c510a', s='--')
+            elif panel == 'canal_afferents':          # alias of velocity_storage
+                add(label, sig['w_est'][:, 0])
+            elif panel == 'cerebellum_pursuit':
+                add(label, sig['cb_vpf_drive'][:, 0])
+            elif panel == 'cerebellum_vor':
+                add(label, sig['cb_fl_drive'][:, 0])
+            # ── shared-stimulus panels: identical across scenarios, draw once ──
+            elif panel == 'scene_velocity':
+                if idx == 0:
+                    add('Scene vel', vs[:, 0], c='#8c510a', s='-')
+            elif panel == 'target_position':
+                if idx == 0:
+                    _d = np.maximum(pt[:, 2], 0.05)
+                    add('Target yaw', np.degrees(np.arctan2(pt[:, 0], _d)),
+                        c=_C['target'], s='-')
+            elif panel == 'target_velocity':
+                if idx == 0:
+                    add('Target vel yaw', vt[:, 0], c=_C['target'], s='-')
+
+        # Skip cleanly rather than emit a blank panel when nothing was drawn (e.g. a
+        # PanelName added later with no overlay branch here).
+        if not traces:
+            print(f"  [comparison] no overlay renderer for panel '{panel}' — skipped")
+            continue
 
         ps = {'name': panel, 'ylabel': _PANEL_LABELS.get(panel, panel),
               'type': 'lines', 'hlines': hlines, 'shading': [], 'traces': traces}
