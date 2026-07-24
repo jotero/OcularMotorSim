@@ -514,25 +514,22 @@ def ODE_ocular_motor(t, state, args):
     )
 
     # ── Brain: VS + NI + SG + pursuit + vergence + accommodation + pupil ──────
-    dbrain, nrv = _BRAIN_STEP(
+    dbrain, nerves = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t),
         blink_drive_interp.evaluate(t))
-    nerves, u_acc = nrv.extraocular, nrv.ciliary
-    iris_sphincter, iris_dilator = nrv.iris_sphincter, nrv.iris_dilator
-    lid_levator, lid_muller, lid_orbicularis = (
-        nrv.lid_levator, nrv.lid_muller, nrv.lid_orbicularis)
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
     # Binocular step returns ONLY the state derivative.  Position is the state
     # (C = I); eye velocity is the position derivative (reused, not recomputed).
-    dplant = plant_model.step(state.plant, nerves, theta.plant, M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R)
+    dplant = plant_model.step(state.plant, nerves.extraocular, theta.plant,
+                              M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R)
     q_eye_L, q_eye_R = state.plant.left, state.plant.right
     w_eye_L, w_eye_R = dplant.left,      dplant.right
 
     # ── Accommodation plant ────────────────────────────────────────────────────
-    # u_acc = brain neural command + CA/C feedforward (combined inside va.step).
+    # nerves.ciliary = brain neural command + CA/C feedforward (combined inside va.step).
     dx_acc_plant = acc_plant_mod.step(
-        state.acc_plant, u_acc, theta.brain.tau_acc_plant)
+        state.acc_plant, nerves.ciliary, theta.brain.tau_acc_plant)
 
     # ── Pupil (iris) plants — per eye [L, R] ─────────────────────────────────────
     # The brain emits the antagonist iris NERVE drives (sphincter = CN III
@@ -541,7 +538,7 @@ def ODE_ocular_motor(t, state, args):
     # sphincter) and low-passes it with a rate-asymmetric TC (fast constriction,
     # slow re-dilation).
     dx_pupil_plant = pupil_plant_mod.step(
-        state.pupil_plant, iris_sphincter, iris_dilator,
+        state.pupil_plant, nerves.iris_sphincter, nerves.iris_dilator,
         theta.brain.pupil_min, theta.brain.pupil_max,
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
@@ -551,7 +548,7 @@ def ODE_ocular_motor(t, state, args):
     # lesioned in the FCP. The eyelid plant decodes the balance into a commanded
     # closure and low-passes it (fast close / slow open).
     dx_eyelid_plant = eyelid_plant_mod.step(
-        state.eyelid_plant, lid_levator, lid_muller, lid_orbicularis)
+        state.eyelid_plant, nerves.lid_levator, nerves.lid_muller, nerves.lid_orbicularis)
 
     # ── Optical interventions — applied after plant, before sensory step ─────
     # Prisms are head-frame mounted (glasses); they rotate the apparent gaze direction
