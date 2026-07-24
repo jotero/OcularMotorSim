@@ -528,49 +528,33 @@ def ODE_ocular_motor(t, state, args):
         blink_drive_interp.evaluate(t))
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
-    # Binocular step returns ONLY the state derivative.  Position is the state
-    # (C = I); eye velocity is the position derivative (reused, not recomputed).
+    # w_eye = dplant: velocity IS the position derivative (reused, not recomputed).
     dplant = plant_model.step(state.plant, nerves.extraocular, theta.plant,
                               M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R)
     q_eye_L, q_eye_R = state.plant.left, state.plant.right
     w_eye_L, w_eye_R = dplant.left,      dplant.right
 
-    # ── Accommodation plant ────────────────────────────────────────────────────
-    # nerves.ciliary = brain neural command + CA/C feedforward (combined inside va.step).
+    # ── Accommodation plant (ciliary command → lens) ────────────────────────────
     dx_acc_plant = acc_plant_mod.step(
         state.acc_plant, nerves.ciliary, theta.brain.tau_acc_plant)
 
-    # ── Pupil (iris) plants — per eye [L, R] ─────────────────────────────────────
-    # The brain emits the antagonist iris NERVE drives (sphincter = CN III
-    # constrictor, dilator = sympathetic), already lesioned in the FCP. The iris
-    # plant decodes the pair to a commanded diameter (pupil_min + dilator −
-    # sphincter) and low-passes it with a rate-asymmetric TC (fast constriction,
-    # slow re-dilation).
+    # ── Iris plants — decode sphincter/dilator → diameter (see pupil_plant) ──────
     dx_pupil_plant = pupil_plant_mod.step(
         state.pupil_plant, nerves.iris_sphincter, nerves.iris_dilator,
         theta.brain.pupil_min, theta.brain.pupil_max,
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
-    # ── Eyelid plants — per eye [L, R] ───────────────────────────────────────────
-    # The brain emits the three antagonist lid-muscle drives (levator = CN III
-    # opener, Müller = sympathetic opener, orbicularis = CN VII closer), already
-    # lesioned in the FCP. The eyelid plant decodes the balance into a commanded
-    # closure and low-passes it (fast close / slow open).
+    # ── Eyelid plants — decode levator/Müller/orbicularis → closure (see eyelid_plant) ──
     dx_eyelid_plant = eyelid_plant_mod.step(
         state.eyelid_plant, nerves.lid_levator, nerves.lid_muller, nerves.lid_orbicularis)
 
-    # ── Optical interventions — applied after plant, before sensory step ─────
-    # Prisms are head-frame mounted (glasses); they rotate the apparent gaze direction
-    # without changing the physical eye velocity. All of world_to_retina propagates
-    # through the effective eye orientation automatically.
+    # ── Optical interventions (after plant, before sensory) ─────────────────────
+    # Prism is head-frame (glasses): rotates the apparent field, not the physical eye.
     q_eye_L_eff = _apply_prism(q_eye_L, prism_L_interp.evaluate(t))
     q_eye_R_eff = _apply_prism(q_eye_R, prism_R_interp.evaluate(t))
 
-    # ── Per-eye defocus: acc_demand + refractive_error − x_plant ─────────────
-    # Defocus is the blur signal at the retina. Computed here (using current
-    # x_plant from state) and passed to sensory_model.step() which gates it by
-    # defocus_visible and delays it through the cyclopean cascade.
-    # refractive_error (D): >0 hyperopia (needs more acc), <0 myopia (needs less).
+    # ── Per-eye defocus → retina: blur = 1/dist + lens + refractive_error − accom ──
+    # refractive_error (D): >0 hyperopia (needs more accom), <0 myopia.
     x_plant_now = state.acc_plant[0]
     re = theta.brain.refractive_error
     defocus_L = 1.0 / (jnp.linalg.norm(p_target_L) + 1e-9) + lens_L + re - x_plant_now
