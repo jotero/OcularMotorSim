@@ -675,7 +675,7 @@ class BrainParams(NamedTuple):
                                           #   → the hallmark fast-constriction / slow-redilation asymmetry
     # Pupil lesion knobs (all [0,1], 1 = intact). The efferent PARASYMPATHETIC
     # (pupilloconstrictor) is lesioned via the shared CN III knobs, in two stages:
-    # the Edinger-Westphal nucleus (g_nuc_ew → internal ophthalmoplegia) and the
+    # the Edinger-Westphal nucleus (g_mn_ew → internal ophthalmoplegia) and the
     # CN III nerve trunk (g_cn3 → blown pupil with a nerve palsy) — see iris_nerves.
     # The knobs below are the pupil-SPECIFIC ones (afferent, sympathetic, pretectal):
     g_pupil_afferent_L:    float = 1.0    # LEFT afferent-limb integrity (retina / optic nerve); <1 = left RAPD. Scales
@@ -690,7 +690,7 @@ class BrainParams(NamedTuple):
     # Eyelid (eyelid.py → eyelid_plant.py). Closure per eye in [0,1] (0 = open,
     # 1 = closed) = posture (levator + Müller) − orbicularis blink + downgaze
     # lid-follow. The levator is lesioned in TWO stages: the central caudal nucleus
-    # (g_nuc_ccn, projects to BOTH lids → bilateral partial ptosis) and the peripheral
+    # (g_mn_ccn, projects to BOTH lids → bilateral partial ptosis) and the peripheral
     # CN III nerve (g_cn3 → unilateral complete ptosis). The orbicularis follows the
     # CN VII gain g_cn7; Müller ptosis reuses g_ocular_symp.
     eyelid_levator_contra_frac: float = 0.3  # fraction of each levator's nuclear (CCN) drive from the CONTRA side
@@ -703,26 +703,26 @@ class BrainParams(NamedTuple):
     # side), not per muscle. The (12,) vectors the FCP consumes (g_nucleus, g_nerve)
     # are DERIVED from the trunk gains via nucleus_gains_from_trunks /
     # nerve_gains_from_trunks — see the properties below. Set any lesion with
-    # with_brain(θ, g_nuc_cn6_R=0) / with_brain(θ, g_cn3_R=0).
+    # with_brain(θ, g_mn_ab_R=0) / with_brain(θ, g_cn3_R=0).
     #
     # Stage 1 — NUCLEUS (cell loss). Distinct from the nerve stage: a CN VI NUCLEUS
-    # lesion (g_nuc_cn6_R=0) → horizontal GAZE palsy (the ABN gain is shared with the
+    # lesion (g_mn_ab_R=0) → horizontal GAZE palsy (the ABN gain is shared with the
     # co-located AIN → ipsi LR + contra MR both silenced), vs an isolated LR palsy from
     # a CN VI NERVE lesion. The CN III complex has separable subnuclei so the classic
     # dissociations fall out: somatic eye muscles, central caudal (levator → ptosis),
     # and Edinger-Westphal (pupil sphincter + ciliary → accommodation). E.g. dorsal-
     # midbrain sparing = somatic/CCN out, EW spared (reactive pupil); internal
     # ophthalmoplegia = EW out (fixed pupil + cycloplegia), somatic spared.
-    g_nuc_cn3_L:  float = 1.0   # LEFT  oculomotor SOMATIC subnuclei (MR,SR,IR,IO) → eye muscles
-    g_nuc_cn3_R:  float = 1.0   # RIGHT oculomotor somatic subnuclei
-    g_nuc_cn4_L:  float = 1.0   # LEFT  trochlear nucleus (CN IV) → SO
-    g_nuc_cn4_R:  float = 1.0   # RIGHT trochlear nucleus
-    g_nuc_cn6_L:  float = 1.0   # LEFT  abducens nucleus (CN VI) → LR + AIN(MLF) → gaze palsy
-    g_nuc_cn6_R:  float = 1.0   # RIGHT abducens nucleus
-    g_nuc_ccn_L:  float = 1.0   # LEFT  central caudal nucleus (CN III) → levator palpebrae (lid)
-    g_nuc_ccn_R:  float = 1.0   # RIGHT central caudal nucleus
-    g_nuc_ew_L:   float = 1.0   # LEFT  Edinger-Westphal (CN III parasymp) → pupil sphincter + ciliary
-    g_nuc_ew_R:   float = 1.0   # RIGHT Edinger-Westphal
+    g_mn_oc_L:  float = 1.0   # LEFT  oculomotor SOMATIC subnuclei (MR,SR,IR,IO) → eye muscles
+    g_mn_oc_R:  float = 1.0   # RIGHT oculomotor somatic subnuclei
+    g_mn_tr_L:  float = 1.0   # LEFT  trochlear nucleus (CN IV) → SO
+    g_mn_tr_R:  float = 1.0   # RIGHT trochlear nucleus
+    g_mn_ab_L:  float = 1.0   # LEFT  abducens nucleus (CN VI) → LR + AIN(MLF) → gaze palsy
+    g_mn_ab_R:  float = 1.0   # RIGHT abducens nucleus
+    g_mn_ccn_L: float = 1.0   # LEFT  central caudal nucleus (CN III) → levator palpebrae (lid)
+    g_mn_ccn_R: float = 1.0   # RIGHT central caudal nucleus
+    g_mn_ew_L:  float = 1.0   # LEFT  Edinger-Westphal (CN III parasymp) → pupil sphincter + ciliary
+    g_mn_ew_R:  float = 1.0   # RIGHT Edinger-Westphal
     #
     # Stage 2 — NERVE (axon conduction block / fascicular lesion). g_cn<n>_<side>
     # isolates the muscles a trunk serves without affecting the nucleus; a CN III palsy
@@ -741,10 +741,10 @@ class BrainParams(NamedTuple):
         from the CN III/IV/VI nucleus-complex trunk gains via nucleus_gains_from_trunks.
         Consumers (FCP read_activations/step) read this unchanged; the CCN (lid) and EW
         (pupil/accom) subnuclei are read separately by the eyelid/iris/ciliary helpers.
-        Source of truth: g_nuc_cn3/cn4/cn6_{L,R}."""
-        return nucleus_gains_from_trunks(self.g_nuc_cn3_L, self.g_nuc_cn3_R,
-                                         self.g_nuc_cn4_L, self.g_nuc_cn4_R,
-                                         self.g_nuc_cn6_L, self.g_nuc_cn6_R)
+        Source of truth: g_mn_oc/tr/ab_{L,R} (+ g_mn_ccn/ew for lid + pupil/accom)."""
+        return nucleus_gains_from_trunks(self.g_mn_oc_L, self.g_mn_oc_R,
+                                         self.g_mn_tr_L, self.g_mn_tr_R,
+                                         self.g_mn_ab_L, self.g_mn_ab_R)
 
     @property
     def g_nerve(self):

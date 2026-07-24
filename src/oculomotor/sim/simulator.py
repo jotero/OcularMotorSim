@@ -340,18 +340,18 @@ def with_cn3_palsy(params: Params, side: str = 'right') -> Params:
 def with_cn3_nuclear_palsy(params: Params, side: str = 'left') -> Params:
     """CN III NUCLEAR palsy — somatic ophthalmoplegia + bilateral partial ptosis.
 
-    Zeroes that side's SOMATIC oculomotor nucleus (g_nuc_cn3, → MR/SR/IR/IO weakness)
-    AND its central caudal nucleus (g_nuc_ccn, → levator). The CCN projects to BOTH
+    Zeroes that side's SOMATIC oculomotor nucleus (g_mn_oc, → MR/SR/IR/IO weakness)
+    AND its central caudal nucleus (g_mn_ccn, → levator). The CCN projects to BOTH
     lids, so a one-sided nuclear lesion → BILATERAL PARTIAL ptosis (asymmetric,
     ipsi-dominant per eyelid_levator_contra_frac). The Edinger-Westphal nucleus
-    (g_nuc_ew) is LEFT INTACT → the pupil stays reactive (dorsal-midbrain sparing).
+    (g_mn_ew) is LEFT INTACT → the pupil stays reactive (dorsal-midbrain sparing).
     For internal ophthalmoplegia instead (fixed pupil + cycloplegia, somatic spared),
-    zero g_nuc_ew_<side>.
+    zero g_mn_ew_<side>.
     """
     if side == 'left':
-        return with_brain(params, g_nuc_cn3_L=0.0, g_nuc_ccn_L=0.0)
+        return with_brain(params, g_mn_oc_L=0.0, g_mn_ccn_L=0.0)
     elif side == 'right':
-        return with_brain(params, g_nuc_cn3_R=0.0, g_nuc_ccn_R=0.0)
+        return with_brain(params, g_mn_oc_R=0.0, g_mn_ccn_R=0.0)
     raise ValueError(f"side must be 'left' or 'right', got {side!r}")
 
 

@@ -287,21 +287,21 @@ The final common pathway has THREE distinct lesion types, each with different ph
 **Motor NUCLEUS gains** (scalars [0..1]) — multiplicative cell-loss gain on a motor
   nucleus; ALL frequencies attenuated equally (burst AND tonic AND baseline tone). ONE
   gain per nucleus per side, parameterized per nucleus complex (not per subnucleus):
-    g_nuc_cn3_L/R → oculomotor SOMATIC subnuclei (MR, SR, IR, IO) → eye muscles
-    g_nuc_cn4_L/R → trochlear nucleus (superior oblique)
-    g_nuc_cn6_L/R → abducens nucleus: covers BOTH the ipsilateral LR motoneurons AND the
+    g_mn_oc_L/R → oculomotor SOMATIC subnuclei (MR, SR, IR, IO) → eye muscles
+    g_mn_tr_L/R → trochlear nucleus (superior oblique)
+    g_mn_ab_L/R → abducens nucleus: covers BOTH the ipsilateral LR motoneurons AND the
                     AIN/MLF outflow to the contralateral MR → CN VI NUCLEUS palsy =
                     horizontal GAZE palsy (both eyes fail to look to that side), unlike a
                     CN VI NERVE palsy (isolated LR weakness).
-    g_nuc_ccn_L/R → central caudal nucleus → levator (lid); projects to BOTH lids, so a
+    g_mn_ccn_L/R → central caudal nucleus → levator (lid); projects to BOTH lids, so a
                     one-sided lesion → bilateral partial ptosis.
-    g_nuc_ew_L/R  → Edinger-Westphal (parasympathetic) → pupil sphincter + ciliary. 0 =
+    g_mn_ew_L/R  → Edinger-Westphal (parasympathetic) → pupil sphincter + ciliary. 0 =
                     internal ophthalmoplegia (fixed dilated pupil + cycloplegia), somatic
                     eye muscles + lid spared.
   Partial value (e.g. 0.5) automatically produces both saccade slowing AND tonic strabismus
   via the now-asymmetric baseline — no separate phoria parameter needed.
-  Dissociations: nuclear third with pupil sparing = g_nuc_cn3_R + g_nuc_ccn_R out, g_nuc_ew
-  intact (dorsal-midbrain sparing); internal ophthalmoplegia = g_nuc_ew_R out alone.
+  Dissociations: nuclear third with pupil sparing = g_mn_oc_R + g_mn_ccn_R out, g_mn_ew
+  intact (dorsal-midbrain sparing); internal ophthalmoplegia = g_mn_ew_R out alone.
 
 **g_cn3_L / g_cn3_R / g_cn4_L / g_cn4_R / g_cn6_L / g_cn6_R** (scalars [0..1]) —
   per-cranial-nerve-TRUNK axonal conduction cap (frequency-selective: burst clipped,
@@ -311,7 +311,7 @@ The final common pathway has THREE distinct lesion types, each with different ph
             CN III palsy ALSO gives ptosis + a fixed dilated pupil + cycloplegia on that
             side, automatically.
     g_cn4 → CN IV (superior oblique).        g_cn6 → CN VI (lateral rectus).
-  0 = complete palsy; partial (e.g. 0.4) = recovering.  (NUCLEAR lesion → g_nuc_* above.)
+  0 = complete palsy; partial (e.g. 0.4) = recovering.  (NUCLEAR lesion → g_mn_* above.)
 
 **g_mlf_L / g_mlf_R** (scalars [0..1]) — MLF axon CONDUCTION CAP, frequency-selective.
   AIN motoneurons project across midline through the MLF to contralateral CN3_MR
@@ -359,11 +359,11 @@ The table below maps all conditions to parameters — use it:
 | Mild / recovering INO | g_mlf_L=0.5  (or g_mlf_R=0.5) |
 | Complete INO (block) / WEBINO | g_mlf_L=0.0  (both = 0.0 for WEBINO) |
 | CN VI nerve palsy (R) | g_cn6_R=0.0 |
-| CN VI nucleus palsy (R) → horizontal gaze palsy R | g_nuc_cn6_R=0.0 |
-| Partial CN VI nucleus (R) → eso + slow saccades | g_nuc_cn6_R=0.5 |
+| CN VI nucleus palsy (R) → horizontal gaze palsy R | g_mn_ab_R=0.0 |
+| Partial CN VI nucleus (R) → eso + slow saccades | g_mn_ab_R=0.5 |
 | CN III nerve palsy (R) → down-and-out + ptosis + blown pupil + cycloplegia | g_cn3_R=0.0 |
-| CN III nucleus palsy (R) → ophthalmoplegia + bilateral ptosis, pupil spared | g_nuc_cn3_R=0.0, g_nuc_ccn_R=0.0 |
-| Internal ophthalmoplegia (R) → fixed dilated pupil + cycloplegia | g_nuc_ew_R=0.0 |
+| CN III nucleus palsy (R) → ophthalmoplegia + bilateral ptosis, pupil spared | g_mn_oc_R=0.0, g_mn_ccn_R=0.0 |
+| Internal ophthalmoplegia (R) → fixed dilated pupil + cycloplegia | g_mn_ew_R=0.0 |
 | CN IV nerve palsy (R) → R hypertropia | g_cn4_R=0.0 |
 | Partial CN VI palsy (recovering) | g_cn6_R=0.4 |
 | Right exotropia (extra LR_R tone) | r_baseline=[50,80,50,50,50,50,50,50,50,50,50,50] |

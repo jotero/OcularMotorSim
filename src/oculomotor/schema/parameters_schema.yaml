@@ -1213,26 +1213,26 @@ brain.eyelid_blink_rate:
 # lesion: a CN VI nucleus lesion is a horizontal GAZE palsy (ABN + co-located AIN/MLF),
 # not an isolated LR palsy. The CN III complex splits into somatic (eye muscles),
 # central caudal (levator/lid), and Edinger-Westphal (pupil sphincter + ciliary).
-brain.g_nuc_cn3_L:
+brain.g_mn_oc_L:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
   anatomy: "LEFT oculomotor SOMATIC subnuclei (MR, SR, IR, IO)"
   description: |
     Left CN III somatic oculomotor nucleus integrity [0..1]. 0 = somatic
-    ophthalmoplegia of the four CN III eye muscles. Pair with g_nuc_ccn_L for the
-    accompanying ptosis; leave g_nuc_ew_L intact for dorsal-midbrain pupil sparing.
+    ophthalmoplegia of the four CN III eye muscles. Pair with g_mn_ccn_L for the
+    accompanying ptosis; leave g_mn_ew_L intact for dorsal-midbrain pupil sparing.
   disorders:
     - {name: "CN III nucleus palsy (L, somatic)", value: 0.0, tag: cn}
-brain.g_nuc_cn3_R:
+brain.g_mn_oc_R:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
   anatomy: "RIGHT oculomotor somatic subnuclei"
-  description: "Right CN III somatic nucleus integrity (symmetric to g_nuc_cn3_L)."
+  description: "Right CN III somatic nucleus integrity (symmetric to g_mn_oc_L)."
   disorders:
     - {name: "CN III nucleus palsy (R, somatic)", value: 0.0, tag: cn}
-brain.g_nuc_cn4_L:
+brain.g_mn_tr_L:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
@@ -1240,15 +1240,15 @@ brain.g_nuc_cn4_L:
   description: "Left CN IV nucleus integrity [0..1]. 0 = trochlear nuclear palsy."
   disorders:
     - {name: "CN IV nucleus palsy (L)", value: 0.0, tag: cn}
-brain.g_nuc_cn4_R:
+brain.g_mn_tr_R:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
   anatomy: "RIGHT trochlear nucleus (CN IV)"
-  description: "Right CN IV nucleus integrity (symmetric to g_nuc_cn4_L)."
+  description: "Right CN IV nucleus integrity (symmetric to g_mn_tr_L)."
   disorders:
     - {name: "CN IV nucleus palsy (R)", value: 0.0, tag: cn}
-brain.g_nuc_cn6_L:
+brain.g_mn_ab_L:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
@@ -1261,16 +1261,16 @@ brain.g_nuc_cn6_L:
   disorders:
     - {name: "CN VI nucleus palsy (L) → gaze palsy", value: 0.0, tag: cn}
     - {name: "Partial CN VI nucleus (L)", value: 0.5, tag: cn}
-brain.g_nuc_cn6_R:
+brain.g_mn_ab_R:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
   anatomy: "RIGHT abducens nucleus (CN VI)"
-  description: "Right abducens nucleus integrity (symmetric to g_nuc_cn6_L)."
+  description: "Right abducens nucleus integrity (symmetric to g_mn_ab_L)."
   disorders:
     - {name: "CN VI nucleus palsy (R) → gaze palsy", value: 0.0, tag: cn}
     - {name: "Partial CN VI nucleus (R)", value: 0.5, tag: cn}
-brain.g_nuc_ccn_L:
+brain.g_mn_ccn_L:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
@@ -1281,15 +1281,15 @@ brain.g_nuc_ccn_L:
     partial ptosis (asymmetric, ipsi-dominant per eyelid_levator_contra_frac).
   disorders:
     - {name: "Central caudal nucleus ptosis (L)", value: 0.0, tag: cn}
-brain.g_nuc_ccn_R:
+brain.g_mn_ccn_R:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
   anatomy: "RIGHT central caudal nucleus (CN III)"
-  description: "Right central caudal nucleus integrity (symmetric to g_nuc_ccn_L)."
+  description: "Right central caudal nucleus integrity (symmetric to g_mn_ccn_L)."
   disorders:
     - {name: "Central caudal nucleus ptosis (R)", value: 0.0, tag: cn}
-brain.g_nuc_ew_L:
+brain.g_mn_ew_L:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
@@ -1300,12 +1300,12 @@ brain.g_nuc_ew_L:
     cycloplegia, with the somatic eye muscles and lid spared.
   disorders:
     - {name: "Internal ophthalmoplegia (L)", value: 0.0, tag: cn}
-brain.g_nuc_ew_R:
+brain.g_mn_ew_R:
   range: [0, 1]
   group: final_common_pathway
   units: "—"
   anatomy: "RIGHT Edinger-Westphal (CN III parasympathetic)"
-  description: "Right Edinger-Westphal integrity (symmetric to g_nuc_ew_L)."
+  description: "Right Edinger-Westphal integrity (symmetric to g_mn_ew_L)."
   disorders:
     - {name: "Internal ophthalmoplegia (R)", value: 0.0, tag: cn}
 
@@ -1326,7 +1326,7 @@ brain.g_cn3_L:
     weakens the four CN III eye muscles (eye rests down-and-out) AND — because the
     levator palpebrae and pupilloconstrictor parasympathetics travel with the
     nerve — produces ptosis and a fixed dilated ('blown') pupil on the same side.
-    0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_nuc_cn3.)
+    0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_mn_oc.)
   disorders:
     - {name: "CN III palsy (L)", value: 0.0, tag: cn}
 
@@ -1367,7 +1367,7 @@ brain.g_cn6_L:
   description: |
     Left CN VI nerve integrity [0..1]. 0 = lateral-rectus palsy → esotropia and an
     abduction deficit on that side; partial = recovering. (A NUCLEAR lesion is a
-    horizontal gaze palsy — g_nuc_cn6.)
+    horizontal gaze palsy — g_mn_ab.)
   disorders:
     - {name: "CN VI palsy (L)", value: 0.0, tag: cn}
     - {name: "Recovering CN VI (L)", value: 0.4, tag: cn}

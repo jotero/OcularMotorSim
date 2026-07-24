@@ -411,7 +411,7 @@ class SimulationScenario(BaseModel):
         plot: {panels: ['eye_position', 'eye_velocity']}
 
     CN VI nucleus palsy (right abducens nucleus → horizontal GAZE palsy right):
-        patient: {g_nuc_cn6_R: 0.0}                          ← abducens nucleus trunk (R)
+        patient: {g_mn_ab_R: 0.0}                          ← abducens nucleus trunk (R)
         The abducens nucleus gain covers BOTH the ipsilateral LR AND the co-located
         AIN/MLF outflow to the contralateral MR, so BOTH eyes fail to look right —
         unlike the CN VI NERVE palsy above (isolated right LR weakness).
@@ -423,12 +423,12 @@ class SimulationScenario(BaseModel):
         cycloplegia.
 
     CN III nucleus palsy (right → dorsal-midbrain sparing):
-        patient: {g_nuc_cn3_R: 0.0, g_nuc_ccn_R: 0.0}        ← somatic + central caudal
+        patient: {g_mn_oc_R: 0.0, g_mn_ccn_R: 0.0}        ← somatic + central caudal
         Somatic ophthalmoplegia + bilateral partial ptosis (the central caudal nucleus
         feeds BOTH lids); Edinger-Westphal spared → the pupil stays reactive.
 
     Internal ophthalmoplegia (right → fixed pupil + cycloplegia, eye moves):
-        patient: {g_nuc_ew_R: 0.0}                           ← Edinger-Westphal nucleus (R)
+        patient: {g_mn_ew_R: 0.0}                           ← Edinger-Westphal nucleus (R)
 
     CN IV nerve palsy (right SO palsy):
         patient: {g_cn4_R: 0.0}                              ← trochlear nerve trunk (R)
@@ -449,7 +449,7 @@ class SimulationScenario(BaseModel):
         patient: {g_cn6_R: 0.3}                              ← abducens nerve (R) at 30%
 
     Horizontal gaze palsy (right — via the abducens nucleus):
-        patient: {g_nuc_cn6_R: 0.0}                          ← abducens nucleus trunk (R)
+        patient: {g_mn_ab_R: 0.0}                          ← abducens nucleus trunk (R)
         The abducens nucleus gain carries the gaze palsy (ipsi LR + contra MR via the
         co-located AIN/MLF). Nucleus AND nerve are both per-TRUNK now, so an isolated
         single-muscle/subnucleus cut is no longer expressible (add an explicit branch
