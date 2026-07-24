@@ -674,9 +674,10 @@ class BrainParams(NamedTuple):
     tau_pupil_dilate:      float = 1.0    # slow dilation TC (s); dilator + viscoelastic recoil — pupil enlarging
                                           #   → the hallmark fast-constriction / slow-redilation asymmetry
     # Pupil lesion knobs (all [0,1], 1 = intact). The efferent PARASYMPATHETIC
-    # (pupilloconstrictor) is NOT a separate knob — it travels with CN III and
-    # follows the CN III trunk gain g_cn3 (see pupil.py), so any CN III palsy blows
-    # that pupil automatically. These are the non-CN-III knobs:
+    # (pupilloconstrictor) is lesioned via the shared CN III knobs, in two stages:
+    # the Edinger-Westphal nucleus (g_nuc_ew → internal ophthalmoplegia) and the
+    # CN III nerve trunk (g_cn3 → blown pupil with a nerve palsy) — see iris_nerves.
+    # The knobs below are the pupil-SPECIFIC ones (afferent, sympathetic, pretectal):
     g_pupil_afferent_L:    float = 1.0    # LEFT afferent-limb integrity (retina / optic nerve); <1 = left RAPD. Scales
                                           #   the left eye's contribution to the CONSENSUAL light drive (no anisocoria).
     g_pupil_afferent_R:    float = 1.0    # RIGHT afferent-limb integrity (symmetric to g_pupil_afferent_L).
