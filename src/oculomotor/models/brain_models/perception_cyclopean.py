@@ -4,9 +4,9 @@
 Inputs: RetinaOut_L, RetinaOut_R (already delayed by retina sharp cascade,
 sensor-saturated, visibility-gated).
 Outputs: cyclopean fused + brain-LP-smoothed signals (post-fusion delay block
-of 43 states).
+of 44 states).
 
-Three binocular policies:
+Two binocular policies:
     binocular_fusion_policy — NPC gate + dominance for target pos/disparity
     binocular_okr_policy    — visibility-weighted optic flow average
 
@@ -19,7 +19,8 @@ Brain LP state layout (post-fusion smoothing):
     scene_visible     : N stages × 1 = 6
     target_visible    : N stages × 1 = 6
     defocus           : 1 LP × 1 = 1   (τ_defocus ≈ 200 ms)
-    Total: 43
+    luminance         : 1 LP × 1 = 1   (τ_lum) — pretectal light drive → pupils (PLR)
+    Total: 44
 
 target_disparity is computed POST-RETINA-CASCADE from per-eye DELAYED target_pos,
 since sharp delay happens upstream in retina.step.
@@ -388,25 +389,13 @@ def read_activations(state):
 Activations = CyclopeanOut
 
 
-# ── Legacy flat-array adapters (deleted once brain_model migrates to BrainState) ─
-
-def from_array(x_cyc_brain):
-    """(44,) flat array → pc.State."""
-    return State(
-        scene_angular_vel = x_cyc_brain[_OFF_SCENE_ANGULAR_VEL : _END_SCENE_ANGULAR_VEL],
-        scene_linear_vel  = x_cyc_brain[_OFF_SCENE_LINEAR      : _END_SCENE_LINEAR],
-        target_pos        = x_cyc_brain[_OFF_TARGET_POS        : _END_TARGET_POS],
-        target_vel        = x_cyc_brain[_OFF_TARGET_VEL        : _END_TARGET_VEL],
-        target_disparity  = x_cyc_brain[_OFF_TARGET_DISP       : _END_TARGET_DISP],
-        scene_visible     = x_cyc_brain[_OFF_SCENE_VIS         : _END_SCENE_VIS],
-        target_visible    = x_cyc_brain[_OFF_TARGET_VIS        : _END_TARGET_VIS],
-        defocus           = x_cyc_brain[_OFF_DEFOCUS           : _END_DEFOCUS],
-        luminance         = x_cyc_brain[_OFF_LUMINANCE         : _END_LUMINANCE],
-    )
-
+# ── Flat-array readout bridge ──────────────────────────────────────────────────
+# to_array flattens pc.State to the (44,) x_cyc_brain vector the C_* matrices index.
+# Still LIVE: analysis.py / llm_pipeline.run apply the C_* readouts to to_array(pc)
+# to pull delayed cyclopean signals out of the brain state.
 
 def to_array(state):
-    """pc.State → (44,) flat array."""
+    """pc.State → (44,) flat array (indexed by the C_* readout matrices)."""
     return jnp.concatenate([
         state.scene_angular_vel, state.scene_linear_vel, state.target_pos,
         state.target_vel, state.target_disparity, state.scene_visible,

@@ -96,11 +96,6 @@ def rest_state():
     return State(x_L=SENS_LEFT @ G_WORLD, x_R=SENS_RIGHT @ G_WORLD)
 
 
-def to_array(state):
-    """otolith.State → (6,) flat array — legacy adapter; SimState uses the NT directly."""
-    return jnp.concatenate([state.x_L, state.x_R])
-
-
 # ── GIA readout (running estimate → brain) ───────────────────────────────────────
 
 def read_outputs(state):

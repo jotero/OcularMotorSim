@@ -1,28 +1,37 @@
-"""Retinal geometry + visual delay cascade.
+"""Retinal geometry + per-eye visual delay cascade.
 
 Two responsibilities:
 
   1. Geometry — convert Cartesian target position to angular gaze error,
      compute retinal velocity of the tracked target (pursuit drive), and apply
-     the visual-field gate (eccentricity limit of the retina).
+     the visual-field gate (eccentricity limit of the retina).  See
+     ``world_to_retina``.
 
-  2. Visual delay cascade — gamma-distributed delay implemented as a
-     cascade of N_STAGES first-order LP filters.  Approximates a pure
-     delay of tau_vis seconds.  With N_STAGES=40 and tau_vis=0.08 s:
-         Mean delay = 0.08 s,  std ≈ 0.013 s,  −3 dB BW ≈ 66 Hz
+  2. Visual delay — a PER-EYE gamma-distributed delay implemented as a cascade
+     of N first-order LP stages, approximating a pure transport delay of
+     ``tau_vis_sharp`` seconds (the Pugh & Lamb 1993 photo-transduction rise
+     shape).  Each eye runs its OWN cascade and knows nothing about the other
+     eye — binocular fusion happens AFTER the delay, downstream in
+     ``perception_cyclopean``.  There is no cyclopean cascade in this module.
 
-     Ten signals are delayed in the SINGLE CYCLOPEAN cascade (binocular
-     fusion happens BEFORE the delay in cyclopean_vision.pre_delay_fusion):
-         Signal 0 — scene_angular_vel  (3,)  cyclopean rotational optic flow  → OKR / VS
-         Signal 1 — scene_linear_vel   (3,)  cyclopean translational optic flow → looming
-         Signal 2 — target_pos         (3,)  cyclopean target position          → saccade error
-         Signal 3 — target_vel         (3,)  cyclopean target velocity (strobe-gated) → pursuit
-         Signal 4 — target_disparity   (3,)  vergence disparity (diplopia-gated) → vergence
-         Signal 5 — scene_disp_rate    (3,)  per-eye scene-flow differential  → vergence + HE
-         Signal 6 — scene_visible      (1,)  delay(scene_present) — cyclopean
-         Signal 7 — target_visible     (1,)  delay(target_present × target_in_vf) — cyclopean
-         Signal 8 — target_motion_vis  (1,)  delay(target_visible × (1−strobe)) — pursuit gate
-         Signal 9 — target_fusable     (1,)  delay(NPC fusion gate) — binocular fusability
+     With N = ``_N_STAGES_OTHER`` (6) stages the cascade output is the last
+     ``n_axes`` elements of each buffer (see ``read_outputs``).
+
+     Per-eye signals delayed (``retina.State`` → ``RetinaOut``), all EYE FRAME:
+         scene_angular_vel (3)  rotational optic flow              → OKR / VS
+         scene_linear_vel  (3)  translational optic flow (parallax) → looming / T-VOR
+         target_pos        (3)  target direction [yaw, pitch, 0]   → saccade error
+         target_vel        (3)  target retinal velocity            → pursuit
+         scene_visible     (1)  delay(scene_present)
+         target_visible    (1)  delay(target_present × target_in_vf)
+         defocus           (1)  delay(per-eye defocus, D)          → accommodation
+     Plus a 1-pole afferent luminance register (NOT a sharp cascade):
+         luminance         (1)  low-passed retinal illumination    → pupil light reflex
+
+     Binocular constructions — target_disparity (vergence) and the per-eye
+     scene-flow differential (heading / vergence) — are NOT produced here; they
+     are assembled in ``perception_cyclopean`` from the two eyes' delayed
+     target_pos / scene-flow signals.
 
 Implicit depth-map assumption
 -----------------------------
@@ -37,10 +46,10 @@ We side-step this by assuming the brain has a depth map (e.g., from binocular
 disparity, motion parallax, accommodation cues) and can therefore expose:
     - clean angular flow (scene_angular_vel) as if from rigid rotation
     - clean translational flow (scene_linear_vel) as the head-translation parallax
-    - per-eye flow differential (scene_disp_rate) as a depth-rate cue
+    - a per-eye flow differential (formed downstream from the two eyes) as a depth-rate cue
 
-In practice for a depthless or uniform scene, scene_disp_rate degenerates to 0,
-which the brain correctly interprets as "no depth-rate change" → constrains
+In practice for a depthless or uniform scene that per-eye differential degenerates
+to 0, which the brain correctly interprets as "no depth-rate change" → constrains
 heading-z and vergence-rate estimates.  This is the right zero-point behavior;
 in a depth-structured scene the same signal would carry rich heading information.
 """
@@ -53,23 +62,19 @@ from oculomotor.models.plant_models.readout import rotation_matrix
 
 # ── Cascade parameters ──────────────────────────────────────────────────────────
 #
-# Two-tier transmission model per signal:
-#   - SHARP cascade: high-N (or moderate-N) gamma cascade modelling photo-
-#     transduction + axonal/synaptic transport delay (Pugh & Lamb 1993, Dunn &
-#     Rieke 2006). Produces a near-pure transport delay of mean = tau_sharp.
-#   - SMOOTH LP: optional 1-pole leaky integrator after the cascade modelling
-#     channel-specific neural integration (MT/MST motion window, V1 stereo
-#     correspondence, accommodation circuit). Adds smoothness without changing
-#     the dead-zone character.
-#
-# target_pos KEEPS the legacy 40-stage cascade (no LP) — saccade targeting needs
-# a sharp transport delay with no extra smoothing.
+# Two-tier transmission model, split across modules:
+#   - SHARP cascade (THIS module): a gamma cascade modelling photo-transduction +
+#     axonal/synaptic transport delay (Pugh & Lamb 1993, Dunn & Rieke 2006).
+#     Produces a near-pure transport delay of mean = tau_sharp. EVERY per-eye
+#     channel — target_pos included — uses the same short cascade (see step()).
+#   - SMOOTH LP (DOWNSTREAM): optional multi-stage smoothing after the sharp
+#     cascade, modelling channel-specific neural integration (MT/MST motion
+#     window, V1 stereo correspondence, accommodation circuit). It is applied in
+#     perception_cyclopean (brain LP) and the cerebellum EC forward models via the
+#     shared cascade_lp_step helper below — NOT in the retina's own step.
 
-# Legacy stage count for target_pos
-N_STAGES      = 40
-
-# Sharp-cascade stage count for all OTHER signals (Pugh-Lamb photo-transduction:
-# 4-6 stage biochemical cascade gives the right rise shape).
+# Sharp-cascade stage count for ALL per-eye signals (Pugh-Lamb photo-transduction:
+# a 4-6 stage biochemical cascade gives the right rise shape).
 _N_STAGES_OTHER = 6
 
 # ── Per-eye retina state layout ────────────────────────────────────────────────
@@ -136,22 +141,6 @@ def rest_state():
         defocus           = jnp.zeros(N),
         luminance         = jnp.zeros(1),
     )
-
-
-def to_array(state):
-    """retina.State → (N_STATES_PER_EYE,) flat array — legacy adapter."""
-    return jnp.concatenate([
-        state.scene_angular_vel, state.scene_linear_vel, state.target_pos,
-        state.target_vel, state.scene_visible, state.target_visible,
-        state.defocus, state.luminance,
-    ])
-
-_N_SCALAR = _N_STAGES_OTHER     # used in retina geometry below for scaling — keeps
-                                # the visual-field gate sigmoid the same as before
-
-# Backward-compat alias for legacy code (efference_copy.py) that hardcodes the
-# 40-stage 3-axis cascade size.
-_N_PER_SIG = N_STAGES * 3       # 120
 
 
 # ── Sensor saturation ───────────────────────────────────────────────────────────
@@ -367,18 +356,20 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
 
 # ── Delay cascade ───────────────────────────────────────────────────────────────
 
-def delay_cascade_step(x, u, tau_vis, N=N_STAGES):
+def delay_cascade_step(x, u, tau_vis, N):
     """Advance a delay cascade of N stages for any signal shape.
 
-    Works for both 3-D signals (120 states each) and scalar signals (40 states)
-    with the same code.  A and B are built from N and the signal width at JAX
-    trace time, so there is no runtime overhead vs pre-computed matrices.
+    Works for both 3-D signals (N*3 states) and scalar signals (N states) with
+    the same code.  A and B are built from N and the signal width at JAX trace
+    time, so there is no runtime overhead vs pre-computed matrices.  Callers pass
+    N explicitly (retina channels use _N_STAGES_OTHER; the brain LP block uses 1
+    or _N_STAGES_BRAIN_POS).
 
     Args:
         x:       (N*n,)          cascade state  (n = signal width)
         u:       (n,) or scalar  input signal
         tau_vis: float           total cascade delay (s)
-        N:       int             number of stages (default N_STAGES=40)
+        N:       int             number of stages
 
     Returns:
         dx: (N*n,)  state derivative
@@ -392,18 +383,6 @@ def delay_cascade_step(x, u, tau_vis, N=N_STAGES):
     B = jnp.zeros((ns, n)).at[:n].set(jnp.eye(n))
     k = N / tau_vis
     return k * (A @ x + B @ u1d)
-
-
-def delay_cascade_read(x_cascade):
-    """Read the delayed output (last stage) of a 3-D cascade.
-
-    Args:
-        x_cascade: (120,)  cascade state
-
-    Returns:
-        delayed: (3,)  signal delayed by tau_vis seconds
-    """
-    return x_cascade[_N_PER_SIG - 3 : _N_PER_SIG]
 
 
 def cascade_lp_step(x_block, u, tau_sharp, tau_smooth, N, n_axes, N_lp):

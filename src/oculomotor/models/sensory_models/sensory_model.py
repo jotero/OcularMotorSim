@@ -43,7 +43,7 @@ class SensoryParams(NamedTuple):
 
     These are determined by peripheral anatomy/physiology.  Fixed during
     typical patient fitting but freed for known peripheral pathology
-    (e.g. canal paresis → canal_gains, drug effects → tau_vis).
+    (e.g. canal paresis → canal_gains, drug effects → tau_vis_sharp).
     """
     # Semicircular canals — Steinhausen torsion-pendulum (Fernandez & Goldberg 1971)
     tau_c:              float       = 5.0    # cupula adaptation TC (s); HP corner ≈ 0.03 Hz
@@ -113,14 +113,11 @@ FLOOR             = _canal.FLOOR           # 80.0
 _SOFTNESS         = _canal._SOFTNESS       # 0.5  nonlinearity sharpness
 canal_nonlinearity = _canal.nonlinearity   # renamed in canal.py
 
-# Visual delay — readout helpers live in perception_cyclopean (in brain_models).
-# External code reading delayed cyclopean signals should import them directly:
-#     from oculomotor.models.brain_models.perception_cyclopean import C_slip, ...
-#     from oculomotor.models.brain_models.brain_model           import _IDX_CYC_BRAIN
-#     scene_slip_d = states.brain[:, _IDX_CYC_BRAIN] @ C_slip.T
-N_STAGES           = _retina.N_STAGES             # 40 (legacy constant)
-_N_PER_SIG         = _retina._N_PER_SIG           # 120 (legacy)
-delay_cascade_step = _retina.delay_cascade_step
+# Visual delay — the delayed cyclopean signals live on the BRAIN state, not here.
+# They are read from the perception_cyclopean sub-state (brain_state.pc) via that
+# module's C_* readout matrices (the brain state is a NamedTuple now — no _IDX_*
+# slices). External code should import the matrices directly:
+#     from oculomotor.models.brain_models.perception_cyclopean import C_slip, C_pos, ...
 
 # ── State layout ───────────────────────────────────────────────────────────────
 # Per-eye retina sharp cascades only (90 each). The cyclopean brain LP block
@@ -157,44 +154,22 @@ def rest_state():
     )
 
 
-# Legacy flat-array adapters retained for any external callers that still hold
-# (T,) trajectory arrays predating the SimState NT migration.
-def to_array(state):
-    """sensory_model.State → (200,) flat array."""
-    return jnp.concatenate([
-        _canal.to_array(state.canal),
-        _otolith.to_array(state.otolith),
-        _retina.to_array(state.retina_L),
-        _retina.to_array(state.retina_R),
-    ])
-
-
 # ── Bundled sensory output ──────────────────────────────────────────────────────
 
 class SensoryOutput(NamedTuple):
     """Bundled sensory outputs — passed as a unit to brain_model.
 
-    All visual signals are cyclopean (binocularly fused before delay).
+    Visual signals are PER-EYE and already sharp-cascade delayed. Binocular fusion
+    + brain-LP smoothing happen downstream in perception_cyclopean; this bundle
+    carries the two eyes' RetinaOut untouched. Afferent luminance (pupillary light
+    reflex) rides inside each RetinaOut, so a monocular afferent defect (RAPD)
+    stays per-eye — the pupil controller assembles the [L, R] pair itself.
 
-    Shared:
-        canal:            (6,)   canal afferent rates
-        otolith:          (3,)   running GIA estimate in head frame (m/s²) → gravity estimator
-    Cyclopean delayed signals:
-        scene_slip:       (3,)   delayed scene angular velocity [yaw,pitch,roll] deg/s → VS / OKR
-        scene_linear_vel: (3,)   delayed scene linear velocity [x,y,z] m/s, eye frame → looming
-        target_pos:       (3,)   delayed target position   → SG after gating
-        target_slip:      (3,)   delayed target velocity   → pursuit after gating
-        target_disparity: (3,)   delayed vergence disparity (diplopia-gated) → vergence
-        scene_visible:    scalar delayed cyclopean scene presence gate
-        target_visible:   scalar delayed cyclopean target presence gate
-        target_motion_visible: scalar delayed pursuit gate = delay(target_visible × (1−strobe))
-        defocus:          float  delayed cyclopean defocus (D) = delay(acc_demand + RE − x_plant)
-                                 Positive = near target closer than current accommodation.
-                                 Gated by defocus_visible = OR(scene_vis, target_vis).
-
-    Per-eye afferent luminance (pupillary light reflex) now rides inside each
-    eye's RetinaOut (`retina_L.luminance`, `retina_R.luminance`), not as a
-    separate field — the pupil controller assembles the [L, R] pair itself.
+    Fields:
+        canal:    (6,)      canal afferent rates
+        otolith:  (3,)      running GIA estimate in head frame (m/s²) → gravity estimator
+        retina_L: RetinaOut delayed per-eye signals (incl. luminance) — left eye
+        retina_R: RetinaOut delayed per-eye signals (incl. luminance) — right eye
     """
     canal:     jnp.ndarray           # (6,)  canal afferent rates
     otolith:   jnp.ndarray           # (3,)  running GIA estimate (m/s², head frame)
@@ -230,10 +205,10 @@ def step(state,
          q_head, w_head, x_head, v_head, a_head,
          # ── Eye kinematics (prism-shifted by ODE before this call) ────────────
          q_eye_L, w_eye_L, q_eye_R, w_eye_R,
-         # ── Scene stimulus (per eye) ──────────────────────────────────────────
+         # ── Scene stimulus (per eye — L/R split enables stereoscopic displays) ─
          q_scene_L, w_scene_L, x_scene_L, v_scene_L,
          q_scene_R, w_scene_R, x_scene_R, v_scene_R,
-         # ── Target stimulus (per eye) ─────────────────────────────────────────
+         # ── Target stimulus (per eye — L/R split enables stereoscopic displays) ─
          p_target_L, dp_dt_L,
          p_target_R, dp_dt_R,
          # ── Defocus (per eye; = acc_demand + refractive_error − x_acc_plant) ──
@@ -241,8 +216,6 @@ def step(state,
          # ── Visibility flags ──────────────────────────────────────────────────
          scene_present_L, scene_present_R,
          target_present_L, target_present_R, target_strobed,
-         # ── Efference copy (from brain) — unused here, kept for API stability ─
-         ec_vel, ec_pos, ec_verg,
          # ── Parameters ───────────────────────────────────────────────────────
          sensory_params):
     """Single ODE step for the sensory subsystem (canal + otolith + per-eye retina).
@@ -261,8 +234,6 @@ def step(state,
     dotolith, _ = _otolith.step(state.otolith, jnp.concatenate([a_head, q_head]), sensory_params)
 
     # Per-eye retina cascades (cyclopean fusion happens in brain).
-    # ec_vel / ec_pos / ec_verg are no longer used here.
-    _ = ec_vel, ec_pos, ec_verg
     dretina_L, _ = _retina.step(
         state.retina_L, eye_off_L, q_head, w_head, x_head, v_head,
         q_eye_L, w_eye_L, w_scene_L, v_scene_L, p_target_L, dp_dt_L,
@@ -278,5 +249,4 @@ def step(state,
     # retina.step from that eye's own scene / target presence — no separate
     # luminance sub-SSM here.
 
-    return State(canal=dcanal, otolith=dotolith,
-                 retina_L=dretina_L, retina_R=dretina_R)
+    return State(canal=dcanal, otolith=dotolith, retina_L=dretina_L, retina_R=dretina_R)

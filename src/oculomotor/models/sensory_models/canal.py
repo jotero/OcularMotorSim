@@ -72,10 +72,6 @@ def rest_state():
     return State(x1=jnp.zeros(N_CANALS), x2=jnp.zeros(N_CANALS))
 
 
-def to_array(state):
-    """canal.State → (12,) flat array — legacy adapter; SimState uses the NT directly."""
-    return jnp.concatenate([state.x1, state.x2])
-
 FLOOR     = 80.0   # deg/s — default resting discharge (Goldberg & Fernandez 1971); used as SensoryParams default
 _SOFTNESS = 0.5    # nonlinearity sharpness (s/deg)
 

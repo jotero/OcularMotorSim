@@ -157,9 +157,10 @@ def _apply_prism(q_eye_ypr, prism_ypr):
 class SimConfig(NamedTuple):
     """Solver / run settings — not model parameters, not learnable.
 
-    dt_solve: Heun fixed step (s).  Must satisfy dt < 2 * tau_stage_vis.
-              With N_STAGES=40 and tau_vis=0.08 s → tau_stage = 0.002 s
-              → dt_max = 0.004 s.  Default 0.001 s gives 4× safety margin.
+    dt_solve: Heun fixed step (s).  Must satisfy dt < 2 * tau_stage_vis, where
+              tau_stage_vis is the SMALLEST per-stage TC among the delay cascades
+              (the sharp/brain gamma cascades run ~2–3 ms per stage → dt_max ≈
+              0.004–0.005 s).  Default 0.001 s gives a comfortable safety margin.
 
     warmup_s: Settling period (s) prepended before t=0.  The stimulus is
               held at its t=0 value for this duration so that fast states
@@ -529,7 +530,7 @@ def ODE_ocular_motor(t, state, args):
     )
 
     # ── Brain: VS + NI + SG + pursuit + vergence + accommodation + pupil ──────
-    dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid = _BRAIN_STEP(
+    dbrain, nerves, _, _, _, u_acc, u_pupil, u_lid = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t),
         blink_drive_interp.evaluate(t))
 
@@ -587,7 +588,6 @@ def ODE_ocular_motor(t, state, args):
         defocus_L, defocus_R,
         scene_present_L, scene_present_R,
         target_present_L, target_present_R, target_strobed,
-        ec_vel, ec_pos, ec_verg,
         theta.sensory)
 
     return SimState(
