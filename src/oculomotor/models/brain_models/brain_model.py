@@ -655,10 +655,8 @@ class BrainParams(NamedTuple):
                                           # CA/C only contributes a small, hard-to-measure perturbation.
                                           # When enabled (≈0.08): drives accommodation when vergence is
                                           # disparity-driven; AC_A·CA_C ≈ 0.4 D/D < 1 keeps the cross-loop stable.
-    refractive_error:      float = 0.0   # patient refractive error (diopters); >0 hyperopia, <0 myopia
-                                          # Added to 1/z before defocus = 1/z + RE − x_plant.
-                                          # Hyperope needs more accommodation at every distance;
-                                          # myope needs less (natural far point = 1/|RE| m for myopia).
+    # (refractive_error moved to PlantParams — it's an optical property of the eye,
+    #  not a neural parameter.)
 
     # Pupil — light reflex + near-response constriction (pupil.py → pupil_plant.py).
     # Per-eye commanded diameter = rest − cn3·(consensual light + near), where cn3

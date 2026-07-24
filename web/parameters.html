@@ -91,7 +91,7 @@ tr:last-child { border-bottom: none; }
     <a href="#brainparams-pursuit" style="padding-left:32px;font-size:11px;color:#aaa">Pursuit <span style="color:#666">(5)</span></a>
     <a href="#brainparams-vergence" style="padding-left:32px;font-size:11px;color:#aaa">Vergence <span style="color:#666">(12)</span></a>
     <a href="#brainparams-tvor" style="padding-left:32px;font-size:11px;color:#aaa">Tvor <span style="color:#666">(6)</span></a>
-    <a href="#brainparams-accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Accommodation <span style="color:#666">(9)</span></a>
+    <a href="#brainparams-accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Accommodation <span style="color:#666">(8)</span></a>
     <a href="#brainparams-pupil" style="padding-left:32px;font-size:11px;color:#aaa">Pupil <span style="color:#666">(12)</span></a>
     <a href="#brainparams-eyelid" style="padding-left:32px;font-size:11px;color:#aaa">Eyelid <span style="color:#666">(2)</span></a>
     <a href="#brainparams-final_common_pathway" style="padding-left:32px;font-size:11px;color:#aaa">Final Common Pathway <span style="color:#666">(24)</span></a>
@@ -110,6 +110,7 @@ tr:last-child { border-bottom: none; }
     <a href="#plantparams">PlantParams</a>
     <a href="#plantparams-plant" style="padding-left:32px;font-size:11px;color:#aaa">Plant <span style="color:#666">(3)</span></a>
     <a href="#plantparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(2)</span></a>
+    <a href="#plantparams-accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Accommodation <span style="color:#666">(1)</span></a>
     <div style="border-top:1px solid #2a2a4e;margin:18px 12px 8px;"></div>
     <h2>Other pages</h2>
     <a href="benchmarks/">Benchmarks</a>
@@ -119,8 +120,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-07-24 15:09</strong> &nbsp;|&nbsp;
-      Version: <strong>4ab1679-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-24 16:38</strong> &nbsp;|&nbsp;
+      Version: <strong>af07c39-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - Documents\JOM\Code\OcularMotorSim\src\oculomotor\schema\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -128,7 +129,7 @@ tr:last-child { border-bottom: none; }
     <div class="warning"><b>28 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
     
   <section class="section" id="brainparams">
-    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(157 fields)</small></h2>
+    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(156 fields)</small></h2>
     <p class="desc">Central neural model parameters — VS, NI, SG, gravity, vergence, accommodation, T-VOR, OCR, CN/MLF gains. Read by every brain submodule's <code>step()</code>.</p>
     
     <div class="subsection" id="brainparams-self_motion_estimation">
@@ -1336,7 +1337,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="brainparams-accommodation">
-      <h3>Accommodation <small style="font-size:11px;font-weight:400;color:#888">(9 fields)</small></h3>
+      <h3>Accommodation <small style="font-size:11px;font-weight:400;color:#888">(8 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -1426,16 +1427,6 @@ tr:last-child { border-bottom: none; }
           <td class="desc-cell"><p>CA/C ratio. Schor & Kotulak 1986 report ≈ 0.5 D/MA (meter-angle); at IPD 64 mm that's ≈ 0.08 D/pd. Loop product AC_A·CA_C ≈ 0.4 D/D < 1 keeps the cross-loop stable.</p><div class="refs">Schor & Kotulak (1986) · Schor (1992) J Opt Soc Am</div></td>
           <td class="anatomy-cell">Convergence-accommodation cross-link</td>
           <td></td>
-        </tr>
-
-        <tr>
-          <td class="param-name">refractive_error<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
-          <td><span class="default">0</span></td>
-          <td class="units">D</td>
-          <td class="range-cell"></td>
-          <td class="desc-cell"><p>Patient refractive error. >0 hyperopia (needs more accommodation at every distance), <0 myopia (natural far point = 1/|RE| m).</p></td>
-          <td class="anatomy-cell">Patient refractive error</td>
-          <td><span class="tag tag-other">+2 D hyperope (uncorrected): 2.0</span> <span class="tag tag-other">−2 D myope (uncorrected): -2.0</span></td>
         </tr>
         </tbody>
       </table>
@@ -2290,7 +2281,7 @@ tr:last-child { border-bottom: none; }
   </section>
     
   <section class="section" id="plantparams">
-    <h2>PlantParams <small style="font-size:12px;font-weight:400;color:#888">(5 fields)</small></h2>
+    <h2>PlantParams <small style="font-size:12px;font-weight:400;color:#888">(6 fields)</small></h2>
     <p class="desc">Extraocular plant — mechanical orbit dynamics.</p>
     
     <div class="subsection" id="plantparams-plant">
@@ -2370,6 +2361,32 @@ tr:last-child { border-bottom: none; }
           <td class="desc-cell"><p>muscle SERIES-ELASTIC zero Tz (s) — numerator lead of the plant transfer, (1+Tz s)/[(1+τ₁ s)(1+τ₂ s)] (Robinson; Optican & Miles 1985 4th-order plant). The SEE transmits force *changes* to eye position with a lead, so the eye responds fast without an aggressive neural command. The NI's slide (brain.tau_slide) is set = Tz so its pole CANCELS this zero → eye tracks NI_net exactly (no ring, no peak cost). Ignored by the 1st-order plant.</p></td>
           <td class="anatomy-cell"></td>
           <td></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection" id="plantparams-accommodation">
+      <h3>Accommodation <small style="font-size:11px;font-weight:400;color:#888">(1 field)</small></h3>
+      <table class="param-table">
+        <thead><tr>
+          <th style="width:160px">Parameter</th>
+          <th style="width:90px">Default</th>
+          <th style="width:60px">Units</th>
+          <th style="width:110px">Valid range</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:200px">Disorders / notable values</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="param-name">refractive_error<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">0</span></td>
+          <td class="units">D</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Refractive error — a fixed optical property of the eye (axial length vs corneal power), so it lives in PlantParams, not the brain. >0 hyperopia (needs more accommodation at every distance), <0 myopia (natural far point = 1/|RE| m).</p></td>
+          <td class="anatomy-cell">Eye refractive error (optical property of the eyeball)</td>
+          <td><span class="tag tag-other">+2 D hyperope (uncorrected): 2.0</span> <span class="tag tag-other">−2 D myope (uncorrected): -2.0</span></td>
         </tr>
         </tbody>
       </table>

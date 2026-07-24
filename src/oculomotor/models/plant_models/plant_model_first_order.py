@@ -41,10 +41,11 @@ import jax.numpy as jnp
 # ── Plant parameters ────────────────────────────────────────────────────────────
 
 class PlantParams(NamedTuple):
-    """Extraocular plant parameters — orbital mechanics.
+    """Extraocular plant parameters — orbital mechanics + eye optics.
 
-    Determined by orbital anatomy and muscle physiology.  Varies with
-    strabismus surgery, orbital inflammation, thyroid eye disease, etc.
+    Determined by orbital anatomy and muscle physiology (varies with strabismus
+    surgery, orbital inflammation, thyroid eye disease), plus the eye's fixed
+    optical refractive error (axial length vs corneal power).
     """
     tau_p:         float = 0.15    # plant TC / orbital slow pole τ₁ (s); Robinson 1981, Goldstein 1983
     tau_muscle:    float = 0.013   # muscle fast pole τ₂ (s) — force-development LP (2nd-order plant).
@@ -58,6 +59,11 @@ class PlantParams(NamedTuple):
                                    # ring, no peak cost). Ignored by the 1st-order plant.
     orbital_limit: float = 50.0   # mechanical half-range of the orbit (deg); anatomical
     k_orbital:     float = 1.0    # sigmoid steepness for orbital gate (1/deg)
+    # ── Eye optics (not a rotation parameter, but a physical property of the eye) ──
+    refractive_error: float = 0.0  # (diopters) >0 hyperopia, <0 myopia. Enters the retinal
+                                   # defocus as blur = 1/z + refractive_error − accom: a hyperope
+                                   # needs more accommodation at every distance, a myope less
+                                   # (natural far point = 1/|RE| m). Read by the simulator's defocus.
 
 
 # ── State layout ───────────────────────────────────────────────────────────────

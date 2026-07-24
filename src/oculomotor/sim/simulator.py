@@ -76,9 +76,9 @@ from oculomotor.models.plant_models.muscle_geometry import M_MUSCLE_ACTION_INV_L
 from oculomotor.models.sensory_models import sensory_model
 from oculomotor.models.brain_models   import brain_model
 from oculomotor.models.plant_models   import plant_model_second_order as plant_model
-from oculomotor.models.plant_models   import accommodation_plant     as acc_plant_mod
-from oculomotor.models.plant_models   import pupil_plant             as pupil_plant_mod
-from oculomotor.models.plant_models   import eyelid_plant            as eyelid_plant_mod
+from oculomotor.models.plant_models   import accommodation_plant     as acc_plant_model
+from oculomotor.models.plant_models   import pupil_plant             as pupil_plant_model
+from oculomotor.models.plant_models   import eyelid_plant            as eyelid_plant_model
 from oculomotor.models.brain_models    import eyelid                 as eyelid_ctrl
 from oculomotor.sim                    import eyelid                 as eyelid_gen
 
@@ -535,17 +535,17 @@ def ODE_ocular_motor(t, state, args):
     w_eye_L, w_eye_R = dplant.left,      dplant.right
 
     # ── Accommodation plant (ciliary command → lens) ────────────────────────────
-    dx_acc_plant = acc_plant_mod.step(
+    dx_acc_plant = acc_plant_model.step(
         state.acc_plant, nerves.ciliary, theta.brain.tau_acc_plant)
 
     # ── Iris plants — decode sphincter/dilator → diameter (see pupil_plant) ──────
-    dx_pupil_plant = pupil_plant_mod.step(
+    dx_pupil_plant = pupil_plant_model.step(
         state.pupil_plant, nerves.iris_sphincter, nerves.iris_dilator,
         theta.brain.pupil_min, theta.brain.pupil_max,
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
     # ── Eyelid plants — decode levator/Müller/orbicularis → closure (see eyelid_plant) ──
-    dx_eyelid_plant = eyelid_plant_mod.step(
+    dx_eyelid_plant = eyelid_plant_model.step(
         state.eyelid_plant, nerves.lid_levator, nerves.lid_muller, nerves.lid_orbicularis)
 
     # ── Optical interventions (after plant, before sensory) ─────────────────────
@@ -556,7 +556,7 @@ def ODE_ocular_motor(t, state, args):
     # ── Per-eye defocus → retina: blur = 1/dist + lens + refractive_error − accom ──
     # refractive_error (D): >0 hyperopia (needs more accom), <0 myopia.
     x_plant_now = state.acc_plant[0]
-    re = theta.brain.refractive_error
+    re = theta.plant.refractive_error
     defocus_L = 1.0 / (jnp.linalg.norm(p_target_L) + 1e-9) + lens_L + re - x_plant_now
     defocus_R = 1.0 / (jnp.linalg.norm(p_target_R) + 1e-9) + lens_R + re - x_plant_now
 
@@ -863,7 +863,7 @@ def simulate(
     # lesion starts already drooped.
     from oculomotor.models.brain_models import final_common_pathway as _fcp
     _lev0, _mul0, _orb0 = eyelid_ctrl.command(0.0, 0.0, 0.0, params.brain)
-    _lid0 = eyelid_plant_mod.decode(*_fcp.eyelid_nerves(_lev0, _mul0, _orb0, params.brain))
+    _lid0 = eyelid_plant_model.decode(*_fcp.eyelid_nerves(_lev0, _mul0, _orb0, params.brain))
 
     x0 = SimState(
         sensory      = sensory_x0,
