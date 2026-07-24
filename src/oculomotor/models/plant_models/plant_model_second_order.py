@@ -28,13 +28,17 @@ per-eye state).
 
 Binocular layout — the State carries POSITIONS in `left`/`right` (so analysis and
 benches read `state.plant.left[:, 0]` = eye yaw unchanged) plus the muscle-force
-intermediate in `left_musc`/`right_musc`.  `step()` operates on a single eye.
+intermediate in `left_musc`/`right_musc`.  `step()` is BINOCULAR: it takes the
+plant State + the (12,) nerve vector and returns the State derivative (both eyes);
+the per-eye math lives in the private `_step_eye` helper.
 
-State:   x_musc (3,)  muscle-force state (fast-pole intermediate, deg)
-         x_pos  (3,)  eye rotation vector (deg), bounded within ±orbital_limit
-Input:   motor_cmd  (3,) or (6,)  pulse-step-slide motor command from NI
-Outputs: q_eye  (3,)  eye rotation vector (= x_pos)
-         w_true (3,)  instantaneous eye angular velocity (deg/s) (= dx_pos)
+Per-eye state: x_musc (3,)  muscle-force intermediate (fast-pole), deg
+               x_pos  (3,)  eye rotation vector (deg), bounded within ±orbital_limit
+Input:   nerves (12,)  per-muscle activations [L6 | R6] from the FCP
+Outputs (read off the state / derivative, NOT returned by step — the common SSM
+contract keeps step to the derivative):
+         eye position = state.left/right    (C = I: the position IS the state)
+         eye velocity = dstate.left/right   (= d position/dt: reuse the derivative)
 
 Parameters (PlantParams, shared with the first-order module):
   τ_p        — orbital slow pole τ₁ (s). 0.15 s.
@@ -76,8 +80,11 @@ def rest_state():
                  left_musc=jnp.zeros(3), right_musc=jnp.zeros(3))
 
 
-def step(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
-    """Single ODE step for one eye — two cascaded viscoelastic LPs.
+def _step_eye(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
+    """One eye — two cascaded viscoelastic LPs.  Returns (dx_musc, dx_pos).
+
+    dx_pos IS the instantaneous eye velocity (wall-clipped); q_eye = x_pos, so
+    the caller reads position off the state and velocity off this derivative.
 
     Args:
         x_musc:        (3,)   muscle-force state (fast-pole intermediate, deg)
@@ -85,12 +92,6 @@ def step(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
         motor_cmd:     (3,) or (6,)  pulse-step-slide motor command (or muscle activations)
         plant_params:  PlantParams  (tau_p = τ₁ orbital, tau_muscle = τ₂ muscle)
         decode_matrix: (3, 6) or None.  motor_cmd_3 = decode_matrix @ motor_cmd_6.
-
-    Returns:
-        dx_musc: (3,)  d(muscle-force)/dt   = (motor_cmd − x_musc)/τ₂
-        dx_pos:  (3,)  d(position)/dt        = wall-clipped (x_musc − x_pos)/τ₁
-        q_eye:   (3,)  eye rotation vector   (= x_pos)
-        w_true:  (3,)  instantaneous eye angular velocity (= dx_pos)
     """
     tau_1 = plant_params.tau_p          # orbital slow pole τ₁
     tau_2 = plant_params.tau_muscle     # muscle fast pole  τ₂
@@ -119,6 +120,28 @@ def step(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
     w_true = jnp.where(x_pos >= L,  jnp.minimum(w_raw,  0.0), w_raw)
     w_true = jnp.where(x_pos <= -L, jnp.maximum(w_true, 0.0), w_true)
 
-    dx_pos = w_true
-    q_eye  = x_pos
-    return dx_musc, dx_pos, q_eye, w_true
+    return dx_musc, w_true       # dx_pos = w_true (clipped eye velocity)
+
+
+def step(state, nerves, plant_params, decode_L=None, decode_R=None):
+    """Binocular ODE step: nerves → plant State derivative (both eyes).
+
+    Common SSM shape — takes the subsystem State + input, returns ONLY the State
+    derivative.  The eye-position and eye-velocity outputs are not returned: they
+    are trivially available to the caller as the state (position, C = I) and this
+    derivative (velocity = d position/dt).
+
+    Args:
+        state:        plant.State  binocular positions + muscle-force intermediates
+        nerves:       (12,)  per-muscle activations [L6 | R6]  (split in half per eye)
+        plant_params: PlantParams
+        decode_L/R:   (3, 6) muscle→command decode per eye (M_PLANT_EYE_L/R).
+                      None = use the per-eye command directly.
+
+    Returns:
+        dstate: plant.State  state derivative
+    """
+    h = nerves.shape[0] // 2
+    dx_m_L, dx_p_L = _step_eye(state.left_musc,  state.left,  nerves[:h], plant_params, decode_L)
+    dx_m_R, dx_p_R = _step_eye(state.right_musc, state.right, nerves[h:], plant_params, decode_R)
+    return State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R)

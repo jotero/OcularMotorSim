@@ -215,21 +215,21 @@ def read_activations(state, brain_params):
 
 
 def step(state, premotor_activity, brain_params):
-    """Single ODE step: premotor activity → motor neurons → output nerve.
+    """Single ODE step: premotor activity → motor-neuron membrane derivative.
 
         dx_mn  =  (premotor + mlf  −  v) / tau_mn
 
-    Three clean stages — state → activation → nerve:
+    Three clean stages — state → activation → nerve — split across two functions:
       • state.mn = the nucleus MEMBRANE potential (SIGNED — below threshold for the
         off-direction muscle).  The leak relaxes it toward the synaptic input
         (premotor + MLF).  Signed so the L−R differential can reach NERVE_MAX, not
         NERVE_MAX/2 — which is why step takes the state, not the ≥0 activations:
-        those couldn't drive the leak.
+        those couldn't drive the leak.  step() computes ONLY this membrane derivative.
       • activation = read_activations(state) — the ≥0 nucleus FIRING rate (f-I
         ceiling NERVE_MAX + g_nucleus nuclear lesion, both cell-body properties).
-      • nerve (here) = route @ activation, then the g_nerve conduction cap — the
-        NERVE output and the AXON lesion.  Healthy the nerve == the routed firing;
-        g_nerve / g_mlf < 1 are the only things that change it.
+      • nerve = read_outputs(state) = route @ activation, then the g_nerve conduction
+        cap — the NERVE output and the AXON lesion.  Pure function of the membrane
+        state; healthy the nerve == the routed firing (g_nerve / g_mlf < 1 change it).
 
     Args:
         state:              fcp.State  MN membrane states (14,)
@@ -238,10 +238,8 @@ def step(state, premotor_activity, brain_params):
         brain_params:       BrainParams (g_nucleus, g_nerve, g_mlf_L/R, tau_mn)
 
     Returns:
-        dstate: fcp.State  state derivative (membrane integrator)
-        nerves: (12,)      axonal firing rates to extraocular muscles
-                            [LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,
-                             LR_R, MR_R, SR_R, IR_R, SO_R, IO_R]
+        dstate: fcp.State  state derivative (membrane integrator).  The nerve output
+                            comes from read_outputs(state, brain_params), not here.
     """
     v = state.mn                             # membrane potential (signed); f-I ceiling lives in read_activations
 
@@ -288,14 +286,24 @@ def step(state, premotor_activity, brain_params):
     # firing rate), so the firing can be read out ≥0 without perturbing dynamics.
     dx_mn = (premotor + mlf - v) / brain_params.tau_mn
 
-    # Nerve output: route the nucleus firing to the muscles (_ROUTE is a pure
-    # selection — AIN→MR is delivered via the MLF above, already in the CN3_MR
-    # firing), then apply the cranial-nerve conduction lesion.  g_nerve is the AXON
-    # lesion: g_nerve→0 silences the muscle (denervated, no force); g_nerve<1
-    # frequency-selectively caps the burst → limited-motility ophthalmoplegia.
+    return State(mn=dx_mn)
+
+
+def read_outputs(state, brain_params):
+    """Nerve output (12,) — axonal firing rates to the extraocular muscles.
+
+        [LR_L, MR_L, SR_L, IR_L, SO_L, IO_L, LR_R, MR_R, SR_R, IR_R, SO_R, IO_R]
+
+    A pure function of the nucleus MEMBRANE state: route the ≥0 nucleus firing
+    (read_activations) to the 12 muscles via _ROUTE (a pure selection — AIN→MR is
+    delivered by the MLF, already integrated into the CN3_MR membrane, so its
+    firing carries it), then apply the cranial-nerve conduction lesion.  Needs no
+    premotor input.  g_nerve is the AXON lesion: g_nerve→0 silences the muscle
+    (denervated, no force); g_nerve<1 frequency-selectively caps the burst →
+    limited-motility ophthalmoplegia.
+    """
     activation = read_activations(state, brain_params).mn                             # ≥0 nucleus firing (14,)
-    nerve      = _smooth_clip(_ROUTE @ activation, brain_params.g_nerve * _NERVE_MAX)  # project + axon lesion
-    return State(mn=dx_mn), nerve
+    return _smooth_clip(_ROUTE @ activation, brain_params.g_nerve * _NERVE_MAX)        # project + axon lesion
 
 
 def rest_state(premotor_activity, brain_params):

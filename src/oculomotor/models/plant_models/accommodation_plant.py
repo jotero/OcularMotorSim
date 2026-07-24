@@ -39,8 +39,9 @@ def step(x_plant, u_neural, tau_acc_plant):
         tau_acc_plant: scalar  lens / ciliary muscle TC (s)
 
     Returns:
-        dx_plant: (1,)   state derivative (D/s)
-        x_plant_out: scalar  current accommodation (D) — for AC/A and blur feedback
+        dx_plant: (1,)   state derivative (D/s).  The observable (current
+                         accommodation, for AC/A and blur feedback) IS the state
+                         (C = I) — the caller reads x_plant directly.
     """
     dx = (u_neural - x_plant[0]) / tau_acc_plant
-    return jnp.array([dx]), x_plant[0]
+    return jnp.array([dx])

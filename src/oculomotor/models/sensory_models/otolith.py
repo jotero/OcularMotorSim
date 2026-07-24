@@ -154,7 +154,4 @@ def step(state, u, sensory_params):
     dx_L = (SENS_LEFT  @ f - x_L) / tau
     dx_R = (SENS_RIGHT @ f - x_R) / tau
 
-    # Output = the running (state) estimate the brain reads — SSM y = C·x.
-    f_gia = read_outputs(state)
-
-    return State(x_L=dx_L, x_R=dx_R), f_gia
+    return State(x_L=dx_L, x_R=dx_R)

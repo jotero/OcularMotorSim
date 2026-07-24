@@ -1216,9 +1216,10 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     # step is STATE-driven: it derives the signed leak/nerve rate from
     # brain_state.fcp.mn internally.  (acts.fcp is the ≥0 nucleus firing rate, for
     # the registry/figure only — exposing it ≥0 must not feed back into the leak.)
-    dfcp, nerves = fcp.step(brain_state.fcp,
-                             jnp.concatenate([motor_cmd_ni, u_verg]),
-                             brain_params)
+    dfcp   = fcp.step(brain_state.fcp,
+                      jnp.concatenate([motor_cmd_ni, u_verg]),
+                      brain_params)
+    nerves = fcp.read_outputs(brain_state.fcp, brain_params)
 
     # ── Cerebellum: cascade advance + return signals ─────────────────────────
     # ec_vel = version-velocity efference; drives both EC cascades inside cb.step

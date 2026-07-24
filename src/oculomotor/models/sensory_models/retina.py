@@ -474,8 +474,9 @@ def step(state,
                          lum_scene, lum_target, tau_lum (luminance afferent)
 
     Returns:
-        dstate:     retina.State  state derivative (same NT shape as state)
-        retina_out: RetinaOut    delayed per-eye signals (incl. afferent luminance)
+        dstate: retina.State  state derivative (same NT shape as state).  The
+                              delayed per-eye signals are the SSM output y — read
+                              via read_outputs(state) (RetinaOut, incl. luminance).
     """
     # ── 1. Geometry — world_to_retina projection ─────────────────────────────
     target_pos, scene_angular_vel, scene_linear_vel, target_vel, scene_vis, target_vis = \
@@ -518,9 +519,7 @@ def step(state,
         luminance         = dlum,
     )
 
-    # ── 4. Read delayed signals (last n_axes of each cascade) ────────────────
-    out = read_outputs(state)
-    return dstate, out
+    return dstate
 
 
 def read_outputs(state):

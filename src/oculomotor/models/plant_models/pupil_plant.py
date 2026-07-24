@@ -52,9 +52,9 @@ def step(x, u_pupil, tau_constrict, tau_dilate):
         tau_dilate:    scalar slow dilation TC (s)     — used where u ≥ x
 
     Returns:
-        dx:      (2,)   state derivative (mm/s)
-        x_out:   (2,)   current pupil diameter (mm)
+        dx: (2,)  state derivative (mm/s).  The observable (current pupil
+                  diameter) IS the state (C = I) — the caller reads x directly.
     """
     tau = jnp.where(u_pupil < x, tau_constrict, tau_dilate)   # fast in, slow out
     dx  = (u_pupil - x) / tau
-    return dx, x
+    return dx

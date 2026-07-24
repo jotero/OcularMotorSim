@@ -154,8 +154,8 @@ def step(state, w_head, sensory_params):
         theta:  Params       model parameters (reads phys.tau_c, phys.tau_s, phys.canal_gains)
 
     Returns:
-        dstate:   canal.State   state derivative
-        y_canals: (N_CANALS,)   afferent firing rates
+        dstate: canal.State  state derivative.  Afferent firing rates are the SSM
+                             output y — read via read_outputs(state, sensory_params).
     """
     tau_c = sensory_params.tau_c
     tau_s = sensory_params.tau_s
@@ -166,7 +166,4 @@ def step(state, w_head, sensory_params):
     dx1 = (-state.x1 + ORIENTATIONS @ w_head) / tau_c
     dx2 = (-(state.x1 + state.x2) + ORIENTATIONS @ w_head) / tau_s
 
-    # Afferent output is a pure readout of the second-stage state x2
-    # (rectification + saturation applied inside read_outputs → nonlinearity).
-    y_canals = read_outputs(state, sensory_params)
-    return State(x1=dx1, x2=dx2), y_canals
+    return State(x1=dx1, x2=dx2)

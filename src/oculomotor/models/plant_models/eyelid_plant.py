@@ -47,9 +47,9 @@ def step(x, u_lid, tau_close=TAU_CLOSE, tau_open=TAU_OPEN):
         tau_open:  scalar slower opening TC (s) — used where u ≤ x
 
     Returns:
-        dx:      (2,)   state derivative (1/s)
-        x_out:   (2,)   current lid closure
+        dx: (2,)  state derivative (1/s).  The observable (current lid closure)
+                  IS the state (C = I) — the caller reads x directly.
     """
     tau = jnp.where(u_lid > x, tau_close, tau_open)   # snap shut, ease open
     dx  = (u_lid - x) / tau
-    return dx, x
+    return dx

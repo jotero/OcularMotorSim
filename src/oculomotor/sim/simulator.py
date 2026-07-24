@@ -535,21 +535,22 @@ def ODE_ocular_motor(t, state, args):
         blink_drive_interp.evaluate(t))
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
-    dx_m_L, dx_p_L, q_eye_L, w_eye_L = plant_model.step(
-        state.plant.left_musc,  state.plant.left,  nerves[:6], theta.plant, M_PLANT_EYE_L)
-    dx_m_R, dx_p_R, q_eye_R, w_eye_R = plant_model.step(
-        state.plant.right_musc, state.plant.right, nerves[6:], theta.plant, M_PLANT_EYE_R)
+    # Binocular step returns ONLY the state derivative.  Position is the state
+    # (C = I); eye velocity is the position derivative (reused, not recomputed).
+    dplant = plant_model.step(state.plant, nerves, theta.plant, M_PLANT_EYE_L, M_PLANT_EYE_R)
+    q_eye_L, q_eye_R = state.plant.left, state.plant.right
+    w_eye_L, w_eye_R = dplant.left,      dplant.right
 
     # ── Accommodation plant ────────────────────────────────────────────────────
     # u_acc = brain neural command + CA/C feedforward (combined inside va.step).
-    dx_acc_plant, _ = acc_plant_mod.step(
+    dx_acc_plant = acc_plant_mod.step(
         state.acc_plant, u_acc, theta.brain.tau_acc_plant)
 
     # ── Pupil (iris) plants — per eye [L, R] ─────────────────────────────────────
     # u_pupil = (2,) commanded per-eye pupil diameter (mm) from the pupil
     # controller (light reflex + near response); each iris low-passes it with a
     # rate-asymmetric TC (fast constriction, slow re-dilation).
-    dx_pupil_plant, _ = pupil_plant_mod.step(
+    dx_pupil_plant = pupil_plant_mod.step(
         state.pupil_plant, u_pupil,
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
@@ -557,7 +558,7 @@ def ODE_ocular_motor(t, state, args):
     # u_lid = (2,) commanded lid closure, now computed IN the brain
     # (brain_model.step: posture + blink + downgaze lid-follow off the vertical-gaze
     # efference) alongside u_pupil. Each lid low-passes it (fast close / slow open).
-    dx_eyelid_plant, _ = eyelid_plant_mod.step(state.eyelid_plant, u_lid)
+    dx_eyelid_plant = eyelid_plant_mod.step(state.eyelid_plant, u_lid)
 
     # ── Optical interventions — applied after plant, before sensory step ─────
     # Prisms are head-frame mounted (glasses); they rotate the apparent gaze direction
@@ -593,7 +594,7 @@ def ODE_ocular_motor(t, state, args):
     return SimState(
         sensory      = dx_sensory,
         brain        = dbrain,
-        plant        = plant_model.State(left=dx_p_L, right=dx_p_R, left_musc=dx_m_L, right_musc=dx_m_R),
+        plant        = dplant,
         acc_plant    = dx_acc_plant,
         pupil_plant  = dx_pupil_plant,
         eyelid_plant = dx_eyelid_plant,

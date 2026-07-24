@@ -230,16 +230,16 @@ def step(state,
     eye_off_L = jnp.array([-ipd_half, 0.0, 0.0])
     eye_off_R = jnp.array([ ipd_half, 0.0, 0.0])
 
-    dcanal,   _ = _canal.step(state.canal,     w_head, sensory_params)
-    dotolith, _ = _otolith.step(state.otolith, jnp.concatenate([a_head, q_head]), sensory_params)
+    dcanal   = _canal.step(state.canal,     w_head, sensory_params)
+    dotolith = _otolith.step(state.otolith, jnp.concatenate([a_head, q_head]), sensory_params)
 
     # Per-eye retina cascades (cyclopean fusion happens in brain).
-    dretina_L, _ = _retina.step(
+    dretina_L = _retina.step(
         state.retina_L, eye_off_L, q_head, w_head, x_head, v_head,
         q_eye_L, w_eye_L, w_scene_L, v_scene_L, p_target_L, dp_dt_L,
         defocus_L, scene_present_L, target_present_L, target_strobed,
         sensory_params)
-    dretina_R, _ = _retina.step(
+    dretina_R = _retina.step(
         state.retina_R, eye_off_R, q_head, w_head, x_head, v_head,
         q_eye_R, w_eye_R, w_scene_R, v_scene_R, p_target_R, dp_dt_R,
         defocus_R, scene_present_R, target_present_R, target_strobed,
