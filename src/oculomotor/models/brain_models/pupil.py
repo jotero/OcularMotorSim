@@ -62,8 +62,6 @@ References:
 
 import jax.numpy as jnp
 
-from oculomotor.models.plant_models.muscle_geometry import cn3_nerve_integrity
-
 N_STATES  = 0   # stateless — the dynamics live in the iris plants (pupil_plant.py)
 N_OUTPUTS = 2   # commanded pupil diameter (mm), per eye [L, R]
 
@@ -90,7 +88,7 @@ def command(light_drive, accom_level, brain_params):
     # Efferent parasympathetic (pupilloconstrictor) integrity per eye — travels
     # with CN III, so it follows the SHARED oculomotor nerve gains (no separate
     # pupil-nerve knob). A CN III palsy → that side's pupil is blown → anisocoria.
-    cn3_L, cn3_R = cn3_nerve_integrity(bp.g_nerve)
+    cn3_L, cn3_R = bp.g_cn3_L, bp.g_cn3_R   # CN III nerve-trunk integrity (per side)
 
     # ── Consensual light drive (shared by both pupils) ────────────────────────
     # The binocular afferent sum (with RAPD gains) is the pretectal combination,

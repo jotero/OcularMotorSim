@@ -94,8 +94,8 @@ from oculomotor.models.brain_models  import cerebellum               as cb
 from oculomotor.models.brain_models  import listing
 
 from oculomotor.models.sensory_models.sensory_model import SensoryOutput
-from oculomotor.models.brain_models.final_common_pathway import G_NUCLEUS_DEFAULT
-from oculomotor.models.plant_models.muscle_geometry           import R_BASELINE_DEFAULT, nerve_gains_from_trunks
+from oculomotor.models.brain_models.final_common_pathway import (
+    G_NUCLEUS_DEFAULT, R_BASELINE_DEFAULT, nerve_gains_from_trunks)
 # EC cascade math (rotation, saturation, cascade_lp_step) and the cascade
 # state both live in `cerebellum.py` now — same module that owns the pursuit
 # forward model (which uses the cascade tails as its prediction).
@@ -675,8 +675,8 @@ class BrainParams(NamedTuple):
                                           #   → the hallmark fast-constriction / slow-redilation asymmetry
     # Pupil lesion knobs (all [0,1], 1 = intact). The efferent PARASYMPATHETIC
     # (pupilloconstrictor) is NOT a separate knob — it travels with CN III and
-    # follows the shared g_nerve gains (see pupil.py / cn3_nerve_integrity), so any
-    # CN III palsy blows that pupil automatically. These are the non-CN-III knobs:
+    # follows the CN III trunk gain g_cn3 (see pupil.py), so any CN III palsy blows
+    # that pupil automatically. These are the non-CN-III knobs:
     g_pupil_afferent_L:    float = 1.0    # LEFT afferent-limb integrity (retina / optic nerve); <1 = left RAPD. Scales
                                           #   the left eye's contribution to the CONSENSUAL light drive (no anisocoria).
     g_pupil_afferent_R:    float = 1.0    # RIGHT afferent-limb integrity (symmetric to g_pupil_afferent_L).
@@ -1212,6 +1212,14 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
         ec_verg          = acts.cb.ec_verg,    # cerebellar delayed vergence-H EC
         brain_params     = brain_params,
     )
+
+    # Ciliary muscle (accommodation) is CN III parasympathetic — a CN III palsy
+    # cyclopleges that eye. The lens is a single (binocular) state, so gate the
+    # accommodation drive by the BETTER eye's CN III integrity: BILATERAL CN III
+    # palsy → cycloplegia; unilateral → preserved (the intact eye drives the shared
+    # near response). Completes the CN III triad → ophthalmoplegia + ptosis + blown
+    # pupil + cycloplegia. (Monocular cycloplegia would need per-eye lens states.)
+    u_acc = u_acc * jnp.maximum(brain_params.g_cn3_L, brain_params.g_cn3_R)
 
     # ── Pupil: light reflex + near response → commanded per-eye iris diameter ──
     # Stateless (pupil.py); dynamics live in the two iris plants (pupil_plant).

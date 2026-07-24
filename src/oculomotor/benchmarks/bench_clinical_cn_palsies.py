@@ -23,10 +23,9 @@ from oculomotor.sim.simulator import (
     PARAMS_DEFAULT, with_brain, with_sensory, simulate, SimConfig,
 )
 from oculomotor.sim import kinematics as km
+from oculomotor.models.brain_models.final_common_pathway import ABN_R, G_NUCLEUS_DEFAULT
 from oculomotor.models.plant_models.muscle_geometry import (
-    ABN_R,
     LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
-    G_NUCLEUS_DEFAULT, G_NERVE_DEFAULT,
 )
 from oculomotor.analysis import ax_fmt
 

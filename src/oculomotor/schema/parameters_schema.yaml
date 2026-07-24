@@ -1116,8 +1116,8 @@ brain.tau_pupil_dilate:
     - "Ellis (1981)"
 
 # NOTE: the pupil's efferent parasympathetic is NOT a separate parameter — it
-# travels with CN III and follows the shared g_nerve gains (cn3_nerve_integrity),
-# so any CN III palsy blows that pupil automatically (see pupil.py).
+# travels with CN III and follows the CN III trunk gain g_cn3, so any CN III palsy
+# blows that pupil automatically (see pupil.py).
 
 brain.g_pupil_afferent_L:
   range: [0, 1]

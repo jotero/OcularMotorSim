@@ -52,13 +52,147 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
+# Plant biomechanics this module's motor encoding is calibrated against (the eye's
+# muscle rotation axes + the per-eye/nerve index vocabulary).
 from oculomotor.models.plant_models.muscle_geometry import (
-    M_NUCLEUS, M_NERVE_PROJ,
-    G_NUCLEUS_DEFAULT, G_NERVE_DEFAULT,
-    AIN_L, AIN_R, ABN_L, ABN_R, CN3_MR_L, CN3_MR_R,
-    MR_L, MR_R,   # nerve-order rows used only to strip the AIN→MR entries from the route
+    M_NERVE_L, M_NERVE_R,                                    # (6,3) per-eye muscle rotation axes
+    LR, MR, SR, IR, SO, IO,                                  # per-eye muscle indices
+    LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,                      # combined 12-D nerve-output indices
+    LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
+    N_NERVES,
 )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Motor-nucleus & nerve connectivity  (the BRAIN's motor encoding — calibrated to
+# the plant's muscle geometry above, but NOT plant biomechanics, so it lives here
+# with the FCP, not in muscle_geometry).  Two-stage encode:
+#     Stage 1  M_NUCLEUS   (14×6): [version, vergence] → 14 nucleus activations
+#     Stage 2  M_NERVE_PROJ(12×14): nuclei → 12 nerve outputs
+# (This block may later split into a nucleus/MN module + a nerve module.)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_M_NERVE_L_np = np.asarray(M_NERVE_L)   # numpy views for the static encode build
+_M_NERVE_R_np = np.asarray(M_NERVE_R)
+
+# ── Motor nucleus index constants (0–13) ──────────────────────────────────────
+ABN_L, ABN_R       =  0,  1   # Abducens nucleus motoneurons (CN VI) → ipsilateral LR
+CN4_L, CN4_R       =  2,  3   # Trochlear nucleus (CN IV) — SO, contralateral projection
+CN3_MR_L, CN3_MR_R =  4,  5   # CN III — medial rectus subnucleus (vergence drive)
+CN3_SR_L, CN3_SR_R =  6,  7   # CN III — superior rectus subnucleus
+CN3_IR_L, CN3_IR_R =  8,  9   # CN III — inferior rectus subnucleus
+CN3_IO_L, CN3_IO_R = 10, 11   # CN III — inferior oblique subnucleus
+AIN_L, AIN_R       = 12, 13   # Abducens internuclear neurons → contralateral MR via MLF
+
+N_NUCLEI = 14
+
+# ── Stage 1 — M_NUCLEUS (14×6) [version, vergence] → nuclei ───────────────────
+# Healthy round-trip target (M_NERVE_PROJ @ M_NUCLEUS = M_FULL):
+#   M_FULL (12×6) = [[M_NERVE_L | +0.5·M_NERVE_L], [M_NERVE_R | −0.5·M_NERVE_R]]
+_M_FULL_np = np.vstack([
+    np.hstack([_M_NERVE_L_np,  0.5 * _M_NERVE_L_np]),   # left  nerves: version | vergence
+    np.hstack([_M_NERVE_R_np, -0.5 * _M_NERVE_R_np]),   # right nerves: version | vergence
+]).astype(np.float32)   # (12, 6)
+
+_M_NUCLEUS_np = np.zeros((N_NUCLEI, 6), dtype=np.float32)
+# ABN motoneurons: drive ipsilateral LR (version + vergence components).
+_M_NUCLEUS_np[ABN_L] = np.concatenate([_M_NERVE_L_np[LR, :],  0.5 * _M_NERVE_L_np[LR, :]])
+_M_NUCLEUS_np[ABN_R] = np.concatenate([_M_NERVE_R_np[LR, :], -0.5 * _M_NERVE_R_np[LR, :]])
+# AIN: pure version drive (no vergence column). Same sign as ABN version output.
+_M_NUCLEUS_np[AIN_L, :3] = _M_NERVE_L_np[LR, :]   # = [-1, 0, 0]
+_M_NUCLEUS_np[AIN_R, :3] = _M_NERVE_R_np[LR, :]   # = [+1, 0, 0]
+# CN3_MR: vergence-only drive (version arrives at MR via MLF from contralateral AIN).
+_M_NUCLEUS_np[CN3_MR_L, 3:] = +0.5 * _M_NERVE_L_np[MR, :]   # → [+½, 0, 0]
+_M_NUCLEUS_np[CN3_MR_R, 3:] = -0.5 * _M_NERVE_R_np[MR, :]   # → [+½, 0, 0]
+# CN4 (contralateral SO).
+_M_NUCLEUS_np[CN4_R] = np.concatenate([_M_NERVE_L_np[SO, :],  0.5 * _M_NERVE_L_np[SO, :]])
+_M_NUCLEUS_np[CN4_L] = np.concatenate([_M_NERVE_R_np[SO, :], -0.5 * _M_NERVE_R_np[SO, :]])
+# Remaining CN3 subdivisions (SR, IR, IO): direct ipsilateral, version + vergence.
+for _nuc, _mus in ((CN3_SR_L, SR), (CN3_IR_L, IR), (CN3_IO_L, IO)):
+    _M_NUCLEUS_np[_nuc] = np.concatenate([_M_NERVE_L_np[_mus, :],  0.5 * _M_NERVE_L_np[_mus, :]])
+for _nuc, _mus in ((CN3_SR_R, SR), (CN3_IR_R, IR), (CN3_IO_R, IO)):
+    _M_NUCLEUS_np[_nuc] = np.concatenate([_M_NERVE_R_np[_mus, :], -0.5 * _M_NERVE_R_np[_mus, :]])
+
+# ── Stage 2 — M_NERVE_PROJ (12×14) nucleus → nerve (unit MLF gain; fcp.step
+#    injects g_mlf_L/R into the AIN→MR entries at runtime) ─────────────────────
+_M_NERVE_PROJ_np = np.zeros((N_NERVES, N_NUCLEI), dtype=np.float32)
+_M_NERVE_PROJ_np[LR_L, ABN_L] = 1.0     # ABN → ipsilateral LR (CN VI, uncrossed)
+_M_NERVE_PROJ_np[LR_R, ABN_R] = 1.0
+_M_NERVE_PROJ_np[MR_R, AIN_L] = 1.0     # AIN → contralateral MR via MLF (right MLF)
+_M_NERVE_PROJ_np[MR_L, AIN_R] = 1.0     # left MLF
+_M_NERVE_PROJ_np[SO_R, CN4_L] = 1.0     # CN4 → contralateral SO (CN IV decussates)
+_M_NERVE_PROJ_np[SO_L, CN4_R] = 1.0
+_M_NERVE_PROJ_np[MR_L, CN3_MR_L] = 1.0  # CN3 vergence/version → ipsilateral (uncrossed)
+_M_NERVE_PROJ_np[MR_R, CN3_MR_R] = 1.0
+_M_NERVE_PROJ_np[SR_L, CN3_SR_L] = 1.0
+_M_NERVE_PROJ_np[SR_R, CN3_SR_R] = 1.0
+_M_NERVE_PROJ_np[IR_L, CN3_IR_L] = 1.0
+_M_NERVE_PROJ_np[IR_R, CN3_IR_R] = 1.0
+_M_NERVE_PROJ_np[IO_L, CN3_IO_L] = 1.0
+_M_NERVE_PROJ_np[IO_R, CN3_IO_R] = 1.0
+
+# Sanity check: healthy round-trip preserves the version+½·vergence command.
+_check = _M_NERVE_PROJ_np @ _M_NUCLEUS_np
+assert np.allclose(_check, _M_FULL_np, atol=1e-6), \
+    f"FCP healthy round-trip broken: max diff {np.abs(_check - _M_FULL_np).max():.3e}"
+
+M_NUCLEUS    = jnp.array(_M_NUCLEUS_np)    # (14, 6) brain → nuclei
+M_NERVE_PROJ = jnp.array(_M_NERVE_PROJ_np) # (12,14) nuclei → nerves (g_mlf=1 default)
+
+# ── Lesion-gain defaults + per-nucleus tonic baseline ─────────────────────────
+# g_nucleus is (12,) — one gain per anatomical nucleus.  AIN_L/AIN_R share their
+# gain with ABN_L/ABN_R (intermingled abducens populations); the FCP expands
+# (12,) → (14,) at runtime.
+N_GAINS_NUCLEUS    = 12
+G_NUCLEUS_DEFAULT  = jnp.ones(N_GAINS_NUCLEUS, dtype=jnp.float32)   # healthy: all = 1
+G_NERVE_DEFAULT    = jnp.ones(N_NERVES, dtype=jnp.float32)          # healthy: all = 1
+R_BASELINE_DEFAULT = jnp.full(N_GAINS_NUCLEUS, 50.0, dtype=jnp.float32)  # tonic firing
+
+# CN III subnucleus indices in g_nucleus (MR, SR, IR, IO subnuclei per side).
+_CN3_NUC_L = jnp.array([CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L])
+_CN3_NUC_R = jnp.array([CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R])
+
+
+def cn3_nucleus_integrity(g_nucleus):
+    """Per-side CN III (oculomotor) NUCLEUS integrity from the shared g_nucleus gains.
+
+    The central caudal nucleus (which drives the levator palpebrae) sits inside the
+    oculomotor nuclear complex, so the levator's central drive follows the CN III
+    subnucleus gains rather than a duplicate lid-nucleus knob. A nuclear lesion on
+    one side drops the shared (midline, bilateral) levator drive → bilateral partial
+    ptosis.  Returns (left, right) ∈ [0,1] = mean of that side's CN III subnucleus gains.
+    """
+    gn = jnp.asarray(g_nucleus)
+    return jnp.mean(gn[_CN3_NUC_L]), jnp.mean(gn[_CN3_NUC_R])
+
+
+def nerve_gains_from_trunks(g_cn3_L, g_cn3_R, g_cn4_L, g_cn4_R, g_cn6_L, g_cn6_R):
+    """Expand per-cranial-nerve-TRUNK integrity gains → the (12,) per-muscle g_nerve.
+
+    Every extraocular muscle is served by exactly ONE cranial nerve, so this is a
+    pure gather (each muscle-nerve copies its trunk's gain — no sums, no products):
+
+        CN VI → LR        CN III → MR, SR, IR, IO        CN IV → SO      (per side)
+
+    The other CN III effectors that travel with the trunk — levator (lid) and the
+    pupilloconstrictor parasympathetics — read the SAME CN III integrity downstream
+    (from the trunk gains directly), so one g_cn3 gain covers the whole trunk.
+    """
+    g = jnp.ones(N_NERVES, dtype=jnp.float32)
+    return (g.at[LR_L].set(g_cn6_L)
+             .at[LR_R].set(g_cn6_R)
+             .at[MR_L].set(g_cn3_L)
+             .at[SR_L].set(g_cn3_L)
+             .at[IR_L].set(g_cn3_L)
+             .at[IO_L].set(g_cn3_L)
+             .at[MR_R].set(g_cn3_R)
+             .at[SR_R].set(g_cn3_R)
+             .at[IR_R].set(g_cn3_R)
+             .at[IO_R].set(g_cn3_R)
+             .at[SO_L].set(g_cn4_L)
+             .at[SO_R].set(g_cn4_R))
 
 __all__ = ['G_NUCLEUS_DEFAULT', 'G_NERVE_DEFAULT', 'N_STATES', 'step', 'rest_state',
            'Activations', 'read_activations']

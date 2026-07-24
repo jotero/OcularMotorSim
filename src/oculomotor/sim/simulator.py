@@ -326,7 +326,7 @@ def with_cn3_palsy(params: Params, side: str = 'right') -> Params:
     'down and out' (LR via CN VI and SO via CN IV intact) — and, because the levator
     palpebrae AND the pupillary parasympathetics travel with the SAME trunk, the
     ptosis and fixed dilated ('blown') pupil follow automatically (both read the
-    CN III integrity via cn3_nerve_integrity). No duplicate lid/pupil-nerve knobs.
+    same CN III trunk gain g_cn3). No duplicate lid/pupil-nerve knobs.
     For a NUCLEAR CN III lesion (bilateral partial ptosis) use with_cn3_nuclear_palsy.
     """
     if side == 'left':
@@ -346,7 +346,7 @@ def with_cn3_nuclear_palsy(params: Params, side: str = 'left') -> Params:
     per eyelid_levator_contra_frac). The pupil follows the CN III NERVE (g_nerve),
     intact here, so a nuclear lesion spares the pupil (dorsal-midbrain sparing).
     """
-    from oculomotor.models.plant_models.muscle_geometry import (
+    from oculomotor.models.brain_models.final_common_pathway import (
         G_NUCLEUS_DEFAULT, CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L,
         CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R,
     )

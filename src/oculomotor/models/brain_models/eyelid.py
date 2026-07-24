@@ -44,9 +44,7 @@ References:
 
 import jax.numpy as jnp
 
-from oculomotor.models.plant_models.muscle_geometry import (
-    cn3_nerve_integrity, cn3_nucleus_integrity,
-)
+from oculomotor.models.brain_models.final_common_pathway import cn3_nucleus_integrity
 
 N_STATES  = 0   # stateless — the dynamics live in the eyelid plant (eyelid_plant.py)
 N_OUTPUTS = 2   # commanded lid closure per eye [L, R]
@@ -86,7 +84,7 @@ def command(blink_drive, pitch_L, pitch_R, brain_params):
     # the peripheral nerve stage follows the CN III nerve gains (g_nerve) per lid.
     # So a NERVE palsy → unilateral complete ptosis; a NUCLEAR lesion → bilateral
     # (asymmetric, ipsi-dominant) partial ptosis.
-    cn3_nerve_L, cn3_nerve_R = cn3_nerve_integrity(bp.g_nerve)
+    cn3_nerve_L, cn3_nerve_R = bp.g_cn3_L, bp.g_cn3_R   # CN III nerve-trunk integrity (per side)
     nuc3_L, nuc3_R           = cn3_nucleus_integrity(bp.g_nucleus)
     c      = bp.eyelid_levator_contra_frac          # fraction of each levator's nuclear drive from CONTRA
     lev_L  = cn3_nerve_L * ((1.0 - c) * nuc3_L + c * nuc3_R)
