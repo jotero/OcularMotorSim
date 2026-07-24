@@ -63,7 +63,7 @@ References:
 import jax.numpy as jnp
 
 N_STATES  = 0   # stateless — the dynamics live in the iris plants (pupil_plant.py)
-N_OUTPUTS = 2   # two per-eye iris nerve DRIVES: sphincter (constrictor) + dilator
+N_OUTPUTS = 4   # two per-eye iris nerve DRIVES: sphincter (2,) + dilator (2,)
 
 
 def command(light_drive, accom_level, brain_params):
