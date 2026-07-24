@@ -55,14 +55,19 @@ import jax.numpy as jnp
 import numpy as np
 
 # Plant biomechanics this module's motor encoding is calibrated against (the eye's
-# muscle rotation axes + the per-eye/nerve index vocabulary).
+# per-eye muscle action + its 6-muscle index vocabulary).
 from oculomotor.models.plant_models.muscle_geometry import (
-    M_NERVE_L, M_NERVE_R,                                    # (6,3) per-eye muscle rotation axes
-    LR, MR, SR, IR, SO, IO,                                  # per-eye muscle indices
-    LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,                      # combined 12-D nerve-output indices
-    LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
-    N_NERVES,
+    M_MUSCLE_ACTION_L, M_MUSCLE_ACTION_R,   # (6,3) per-eye muscle action (rotation axes)
+    LR, MR, SR, IR, SO, IO,                 # per-eye muscle indices (row order of M_MUSCLE_ACTION)
 )
+
+# ── Combined 12-D bilateral nerve-output layout  [L eye 0–5 | R eye 6–11] ──────
+# The brain's nerve-output vector lives here (not in muscle_geometry, which is
+# per-eye only): the L-eye half IS the per-eye muscle order, the R-eye half is
+# offset by 6.  These index the 12-row M_NERVE_PROJ and the (12,) nerve output.
+N_NERVES = 12
+LR_L, MR_L, SR_L, IR_L, SO_L, IO_L = LR, MR, SR, IR, SO, IO
+LR_R, MR_R, SR_R, IR_R, SO_R, IO_R = LR + 6, MR + 6, SR + 6, IR + 6, SO + 6, IO + 6
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -74,8 +79,8 @@ from oculomotor.models.plant_models.muscle_geometry import (
 # (This block may later split into a nucleus/MN module + a nerve module.)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_M_NERVE_L_np = np.asarray(M_NERVE_L)   # numpy views for the static encode build
-_M_NERVE_R_np = np.asarray(M_NERVE_R)
+_M_MUSCLE_ACTION_L_np = np.asarray(M_MUSCLE_ACTION_L)   # numpy views for the static encode build
+_M_MUSCLE_ACTION_R_np = np.asarray(M_MUSCLE_ACTION_R)
 
 # ── Motor nucleus index constants (0–13) ──────────────────────────────────────
 ABN_L, ABN_R       =  0,  1   # Abducens nucleus motoneurons (CN VI) → ipsilateral LR
@@ -90,30 +95,30 @@ N_NUCLEI = 14
 
 # ── Stage 1 — M_NUCLEUS (14×6) [version, vergence] → nuclei ───────────────────
 # Healthy round-trip target (M_NERVE_PROJ @ M_NUCLEUS = M_FULL):
-#   M_FULL (12×6) = [[M_NERVE_L | +0.5·M_NERVE_L], [M_NERVE_R | −0.5·M_NERVE_R]]
+#   M_FULL (12×6) = [[M_MUSCLE_ACTION_L | +0.5·M_MUSCLE_ACTION_L], [M_MUSCLE_ACTION_R | −0.5·M_MUSCLE_ACTION_R]]
 _M_FULL_np = np.vstack([
-    np.hstack([_M_NERVE_L_np,  0.5 * _M_NERVE_L_np]),   # left  nerves: version | vergence
-    np.hstack([_M_NERVE_R_np, -0.5 * _M_NERVE_R_np]),   # right nerves: version | vergence
+    np.hstack([_M_MUSCLE_ACTION_L_np,  0.5 * _M_MUSCLE_ACTION_L_np]),   # left  nerves: version | vergence
+    np.hstack([_M_MUSCLE_ACTION_R_np, -0.5 * _M_MUSCLE_ACTION_R_np]),   # right nerves: version | vergence
 ]).astype(np.float32)   # (12, 6)
 
 _M_NUCLEUS_np = np.zeros((N_NUCLEI, 6), dtype=np.float32)
 # ABN motoneurons: drive ipsilateral LR (version + vergence components).
-_M_NUCLEUS_np[ABN_L] = np.concatenate([_M_NERVE_L_np[LR, :],  0.5 * _M_NERVE_L_np[LR, :]])
-_M_NUCLEUS_np[ABN_R] = np.concatenate([_M_NERVE_R_np[LR, :], -0.5 * _M_NERVE_R_np[LR, :]])
+_M_NUCLEUS_np[ABN_L] = np.concatenate([_M_MUSCLE_ACTION_L_np[LR, :],  0.5 * _M_MUSCLE_ACTION_L_np[LR, :]])
+_M_NUCLEUS_np[ABN_R] = np.concatenate([_M_MUSCLE_ACTION_R_np[LR, :], -0.5 * _M_MUSCLE_ACTION_R_np[LR, :]])
 # AIN: pure version drive (no vergence column). Same sign as ABN version output.
-_M_NUCLEUS_np[AIN_L, :3] = _M_NERVE_L_np[LR, :]   # = [-1, 0, 0]
-_M_NUCLEUS_np[AIN_R, :3] = _M_NERVE_R_np[LR, :]   # = [+1, 0, 0]
+_M_NUCLEUS_np[AIN_L, :3] = _M_MUSCLE_ACTION_L_np[LR, :]   # = [-1, 0, 0]
+_M_NUCLEUS_np[AIN_R, :3] = _M_MUSCLE_ACTION_R_np[LR, :]   # = [+1, 0, 0]
 # CN3_MR: vergence-only drive (version arrives at MR via MLF from contralateral AIN).
-_M_NUCLEUS_np[CN3_MR_L, 3:] = +0.5 * _M_NERVE_L_np[MR, :]   # → [+½, 0, 0]
-_M_NUCLEUS_np[CN3_MR_R, 3:] = -0.5 * _M_NERVE_R_np[MR, :]   # → [+½, 0, 0]
+_M_NUCLEUS_np[CN3_MR_L, 3:] = +0.5 * _M_MUSCLE_ACTION_L_np[MR, :]   # → [+½, 0, 0]
+_M_NUCLEUS_np[CN3_MR_R, 3:] = -0.5 * _M_MUSCLE_ACTION_R_np[MR, :]   # → [+½, 0, 0]
 # CN4 (contralateral SO).
-_M_NUCLEUS_np[CN4_R] = np.concatenate([_M_NERVE_L_np[SO, :],  0.5 * _M_NERVE_L_np[SO, :]])
-_M_NUCLEUS_np[CN4_L] = np.concatenate([_M_NERVE_R_np[SO, :], -0.5 * _M_NERVE_R_np[SO, :]])
+_M_NUCLEUS_np[CN4_R] = np.concatenate([_M_MUSCLE_ACTION_L_np[SO, :],  0.5 * _M_MUSCLE_ACTION_L_np[SO, :]])
+_M_NUCLEUS_np[CN4_L] = np.concatenate([_M_MUSCLE_ACTION_R_np[SO, :], -0.5 * _M_MUSCLE_ACTION_R_np[SO, :]])
 # Remaining CN3 subdivisions (SR, IR, IO): direct ipsilateral, version + vergence.
 for _nuc, _mus in ((CN3_SR_L, SR), (CN3_IR_L, IR), (CN3_IO_L, IO)):
-    _M_NUCLEUS_np[_nuc] = np.concatenate([_M_NERVE_L_np[_mus, :],  0.5 * _M_NERVE_L_np[_mus, :]])
+    _M_NUCLEUS_np[_nuc] = np.concatenate([_M_MUSCLE_ACTION_L_np[_mus, :],  0.5 * _M_MUSCLE_ACTION_L_np[_mus, :]])
 for _nuc, _mus in ((CN3_SR_R, SR), (CN3_IR_R, IR), (CN3_IO_R, IO)):
-    _M_NUCLEUS_np[_nuc] = np.concatenate([_M_NERVE_R_np[_mus, :], -0.5 * _M_NERVE_R_np[_mus, :]])
+    _M_NUCLEUS_np[_nuc] = np.concatenate([_M_MUSCLE_ACTION_R_np[_mus, :], -0.5 * _M_MUSCLE_ACTION_R_np[_mus, :]])
 
 # ── Stage 2 — M_NERVE_PROJ (12×14) nucleus → nerve (unit MLF gain; fcp.step
 #    injects g_mlf_L/R into the AIN→MR entries at runtime) ─────────────────────
@@ -411,7 +416,7 @@ def step(state, premotor_activity, brain_params):
     # via M_NUCLEUS, scaled by g_nucleus (cell-loss gain; AIN_L/R inherit
     # ABN_L/R gain — intermingled populations).  No ×2 here: the antagonist
     # MEMBRANE goes negative (push-pull symmetric in the signed membrane), so the
-    # L−R differential carries the command and `M_PLANT_EYE @ nerves` round-trips
+    # L−R differential carries the command and `M_MUSCLE_ACTION_INV @ nerves` round-trips
     # to motor_cmd without a reciprocal-compensation factor (the pull-only lift
     # moves the differential onto the agonist in read_activations).  No ceiling
     # here — the synaptic drive (~motor_cmd) stays well under NERVE_MAX; the f-I

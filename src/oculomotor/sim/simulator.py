@@ -72,7 +72,7 @@ from oculomotor.models.sensory_models               import otolith   as _otolith
 from oculomotor.models.sensory_models               import retina    as _retina
 from oculomotor.models.brain_models.brain_model    import BrainParams
 from oculomotor.models.plant_models.plant_model_first_order import PlantParams
-from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLANT_EYE_R
+from oculomotor.models.plant_models.muscle_geometry import M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R
 from oculomotor.models.sensory_models import sensory_model
 from oculomotor.models.brain_models   import brain_model
 from oculomotor.models.plant_models   import plant_model_second_order as plant_model
@@ -525,7 +525,7 @@ def ODE_ocular_motor(t, state, args):
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
     # Binocular step returns ONLY the state derivative.  Position is the state
     # (C = I); eye velocity is the position derivative (reused, not recomputed).
-    dplant = plant_model.step(state.plant, nerves, theta.plant, M_PLANT_EYE_L, M_PLANT_EYE_R)
+    dplant = plant_model.step(state.plant, nerves, theta.plant, M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R)
     q_eye_L, q_eye_R = state.plant.left, state.plant.right
     w_eye_L, w_eye_R = dplant.left,      dplant.right
 

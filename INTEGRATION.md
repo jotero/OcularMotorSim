@@ -123,7 +123,7 @@ import jax.numpy as jnp
 from oculomotor.models.brain_models import brain_model
 from oculomotor.models.plant_models import plant_model_first_order as plant_model
 from oculomotor.models.plant_models import accommodation_plant as acc_plant
-from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLANT_EYE_R
+from oculomotor.models.plant_models.muscle_geometry import M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R
 
 def derivatives(brain_x, plant_x, acc_x, sensory_out, params):
     # 1. Brain: sensory bundle -> per-muscle nerve activations + efference copies
@@ -131,9 +131,9 @@ def derivatives(brain_x, plant_x, acc_x, sensory_out, params):
         brain_x, sensory_out, params.brain)          # noise_acc defaults to 0.0
 
     # 2. Plant (per eye): nerves[:6] drive L, nerves[6:] drive R.
-    #    M_PLANT_EYE_* decode the 6 muscle activations into a 3-D motor command.
-    dL, q_eye_L, w_eye_L = plant_model.step(plant_x.left,  nerves[:6], params.plant, M_PLANT_EYE_L)
-    dR, q_eye_R, w_eye_R = plant_model.step(plant_x.right, nerves[6:], params.plant, M_PLANT_EYE_R)
+    #    M_MUSCLE_ACTION_INV_* decode the 6 muscle activations into a 3-D motor command.
+    dL, q_eye_L, w_eye_L = plant_model.step(plant_x.left,  nerves[:6], params.plant, M_MUSCLE_ACTION_INV_L)
+    dR, q_eye_R, w_eye_R = plant_model.step(plant_x.right, nerves[6:], params.plant, M_MUSCLE_ACTION_INV_R)
 
     # 3. Accommodation plant (lens): driven by the brain's accommodation command.
     dacc, _ = acc_plant.step(acc_x, u_acc, params.brain.tau_acc_plant)
@@ -145,7 +145,7 @@ def derivatives(brain_x, plant_x, acc_x, sensory_out, params):
 Key facts:
 
 - **`nerves` is `(12,)`, ordered `[L muscles 6 | R muscles 6]`.** Slice `[:6]` / `[6:]`.
-- **`M_PLANT_EYE_L/R` is the `(3, 6)` decode matrix** (muscle pulling-direction
+- **`M_MUSCLE_ACTION_INV_L/R` is the `(3, 6)` decode matrix** (muscle pulling-direction
   pseudo-inverse). Passing it as the 4th arg makes the plant accept the 6-vector;
   omit it only if you pre-decode to a 3-vector yourself.
 - **`q_eye` (position, deg) and `w_eye` (velocity, deg/s) are algebraic outputs** of
@@ -174,7 +174,7 @@ from oculomotor.models.sensory_models.retina import RetinaOut
 from oculomotor.models.brain_models import brain_model
 from oculomotor.models.plant_models import plant_model_first_order as plant_model
 from oculomotor.models.plant_models import accommodation_plant as acc_plant
-from oculomotor.models.plant_models.muscle_geometry import M_PLANT_EYE_L, M_PLANT_EYE_R
+from oculomotor.models.plant_models.muscle_geometry import M_MUSCLE_ACTION_INV_L, M_MUSCLE_ACTION_INV_R
 
 params = default_params()
 dt     = 0.001                      # keep <= 0.001 s; the visual cascade is stiff
@@ -227,8 +227,8 @@ def step(carry, t):
         retina_L=retina, retina_R=retina)            # same image to both eyes (monocular case)
 
     dbrain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid = brain_model.step(brain_x, sens, params.brain)
-    dL, q_eye_L, w_eye_L = plant_model.step(plant_x.left,  nerves[:6], params.plant, M_PLANT_EYE_L)
-    dR, q_eye_R, w_eye_R = plant_model.step(plant_x.right, nerves[6:], params.plant, M_PLANT_EYE_R)
+    dL, q_eye_L, w_eye_L = plant_model.step(plant_x.left,  nerves[:6], params.plant, M_MUSCLE_ACTION_INV_L)
+    dR, q_eye_R, w_eye_R = plant_model.step(plant_x.right, nerves[6:], params.plant, M_MUSCLE_ACTION_INV_R)
     dacc, _ = acc_plant.step(acc_x, u_acc, params.brain.tau_acc_plant)
 
     brain_x = jax.tree_util.tree_map(lambda x, d: x + dt * d, brain_x, dbrain)
@@ -318,7 +318,7 @@ These all live in `CLAUDE.md`; the ones that matter most at the integration boun
 - **Gravity / `otolith`:** the brain wants the **GIA in head frame (m/s²)**, not
   zeros. Get the resting value from `read_outputs(rest_state, …, q_head=0, a_head=0)`
   rather than guessing the axis.
-- **`nerves` order is `[L6 | R6]`;** decode with `M_PLANT_EYE_L` / `M_PLANT_EYE_R`.
+- **`nerves` order is `[L6 | R6]`;** decode with `M_MUSCLE_ACTION_INV_L` / `M_MUSCLE_ACTION_INV_R`.
 - **`make_x0` / `rest_state` for every state** — never start from zeros.
 - **Normalise `b_vs` to `(6,)` before `make_x0` / `brain_model.step`.** `default_params()`
   leaves it a scalar; `simulate()` broadcasts it once up front and so must you, or
@@ -340,7 +340,7 @@ These all live in `CLAUDE.md`; the ones that matter most at the integration boun
 | Brain step signature | [`brain_model.step`](src/oculomotor/models/brain_models/brain_model.py#L860) |
 | Brain initial state | [`brain_model.make_x0`](src/oculomotor/models/brain_models/brain_model.py#L775) |
 | Plant step signature | [`plant_model_first_order.step`](src/oculomotor/models/plant_models/plant_model_first_order.py#L81) |
-| Muscle decode matrices | [`muscle_geometry.M_PLANT_EYE_L/R`](src/oculomotor/models/plant_models/muscle_geometry.py) |
+| Muscle decode matrices | [`muscle_geometry.M_MUSCLE_ACTION_INV_L/R`](src/oculomotor/models/plant_models/muscle_geometry.py) |
 | Sensory bundle / readout | [`sensory_model.SensoryOutput`](src/oculomotor/models/sensory_models/sensory_model.py#L162), [`read_outputs`](src/oculomotor/models/sensory_models/sensory_model.py#L189) |
 | Retina output / step | [`retina.RetinaOut`](src/oculomotor/models/sensory_models/retina.py#L448), [`retina.step`](src/oculomotor/models/sensory_models/retina.py#L464) |
 | Accommodation plant | [`accommodation_plant.step`](src/oculomotor/models/plant_models/accommodation_plant.py#L33) |

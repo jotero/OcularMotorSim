@@ -23,8 +23,8 @@ from oculomotor.sim.simulator import (
     PARAMS_DEFAULT, with_brain, with_sensory, simulate, SimConfig,
 )
 from oculomotor.sim import kinematics as km
-from oculomotor.models.plant_models.muscle_geometry import (
-    LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
+from oculomotor.models.brain_models.final_common_pathway import (
+    LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,   # combined 12-D nerve-output indices (R eye)
 )
 from oculomotor.analysis import ax_fmt
 

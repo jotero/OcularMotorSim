@@ -1,22 +1,24 @@
 """Extraocular muscle geometry — the eye's biomechanics (plant side).
 
-Per-muscle rotation axes and the plant decode:
+Per-eye muscle action and its inverse (the plant decode):
 
-    M_NERVE_{L,R}     (6×3)  per-eye muscle rotation-axis-per-unit-firing
-                             [yaw, pitch, roll], row order LR, MR, SR, IR, SO, IO.
-    M_PLANT_EYE_{L,R} (3×6)  plant decode = pinv(M_NERVE), so
-                             M_PLANT_EYE @ M_NERVE = I₃.  6 nerve activations →
-                             3-D effective motor command.
+    M_MUSCLE_ACTION_{L,R}     (6×3)  MUSCLE ACTION — each row is one muscle's
+                                     rotation axis per unit firing [yaw, pitch, roll]
+                                     (its primary/secondary/tertiary action), row
+                                     order LR, MR, SR, IR, SO, IO.
+    M_MUSCLE_ACTION_INV_{L,R} (3×6)  = pinv(M_MUSCLE_ACTION), the plant decode: 6
+                                     muscle (nerve) activations → 3-D eye-rotation
+                                     command.  M_MUSCLE_ACTION_INV @ M_MUSCLE_ACTION = I₃.
 
 The brain's motor ENCODE — version/vergence → motor nuclei → cranial nerves
-(M_NUCLEUS, M_NERVE_PROJ, the nucleus index constants, the lesion-gain defaults
-and the nerve/nucleus mapping helpers) — lives in
-``brain_models.final_common_pathway``.  That's the brain's motor code, calibrated
-to this geometry but NOT plant biomechanics, so it belongs with the FCP.
+(M_NUCLEUS, M_NERVE_PROJ, the nucleus/nerve index constants, the lesion-gain
+defaults and the mapping helpers) — lives in ``brain_models.final_common_pathway``.
+That's the brain's motor code, calibrated to this geometry but NOT plant
+biomechanics, so it belongs with the FCP.
 
-Muscle / nerve index vocabulary (shared with the FCP):
-    Per-eye muscle indices (0–5):  LR, MR, SR, IR, SO, IO
-    Nerve output indices (0–11):   L eye 0–5, R eye 6–11  (same muscle order)
+Index vocabulary: the per-eye muscle indices (0–5: LR, MR, SR, IR, SO, IO) — the
+row order of M_MUSCLE_ACTION — live here.  The combined 12-D bilateral nerve-output
+layout ([L 0–5 | R 6–11], LR_L…IO_R + N_NERVES) lives with the FCP.
 """
 
 import numpy as np
@@ -24,7 +26,7 @@ import jax.numpy as jnp
 
 
 # ── Per-muscle rotation-axis components ───────────────────────────────────────
-# Each row of M_NERVE is the rotation-axis-per-unit-firing for one muscle, in
+# Each row of M_MUSCLE_ACTION is the rotation-axis-per-unit-firing for one muscle, in
 # [yaw, pitch, roll] coords.  These are NOT the muscle pulling directions —
 # they're the eye's rotation axis when that muscle contracts, derived from
 # R × F (insertion position × force vector) biomechanics.  Specified
@@ -52,7 +54,7 @@ _OBL_ROLL  = 0.98    # primary torsional action (intorsion for SO, extorsion for
 # Row order: LR(0), MR(1), SR(2), IR(3), SO(4), IO(5)
 # Columns: [yaw, pitch, roll]
 
-_M_NERVE_R_np = np.array([
+_M_MUSCLE_ACTION_R_np = np.array([
     [+1.0,         0.0,         0.0       ],  # LR: pure abduction
     [-1.0,         0.0,         0.0       ],  # MR: pure adduction
     [ 0.0, +_VR_PITCH, -_VR_ROLL ],  # SR: dominant elevation + small intorsion
@@ -62,28 +64,26 @@ _M_NERVE_R_np = np.array([
 ], dtype=np.float32)
 
 # Left eye: mirror yaw (col 0) and roll (col 2)
-_M_NERVE_L_np = _M_NERVE_R_np * np.array([-1.0, +1.0, -1.0], dtype=np.float32)
+_M_MUSCLE_ACTION_L_np = _M_MUSCLE_ACTION_R_np * np.array([-1.0, +1.0, -1.0], dtype=np.float32)
 
-# Per-eye decode: M_PLANT_EYE = pinv(M_NERVE)  →  M_PLANT_EYE @ M_NERVE = I₃
+# Per-eye decode: M_MUSCLE_ACTION_INV = pinv(M_MUSCLE_ACTION)  →  M_MUSCLE_ACTION_INV @ M_MUSCLE_ACTION = I₃
 #
 # For reference: with symmetric 45°/45° angles (Q=0, pitch-roll decouple):
 #
-#   M_PLANT_EYE_R  (row=axis, col=muscle: LR    MR    SR     IR     SO     IO)
+#   M_MUSCLE_ACTION_INV_R  (row=axis, col=muscle: LR    MR    SR     IR     SO     IO)
 #     yaw:        [+1/2, -1/2,   0,     0,     0,     0   ]
 #     pitch:      [  0,    0,  +√2/4, -√2/4, -√2/4, +√2/4]
 #     roll:       [  0,    0,  -√2/4, +√2/4, -√2/4, +√2/4]
 #
-#   M_PLANT_EYE_L  (yaw and roll rows negated vs R):
+#   M_MUSCLE_ACTION_INV_L  (yaw and roll rows negated vs R):
 #     yaw:        [-1/2, +1/2,   0,     0,     0,     0   ]
 #     pitch:      [  0,    0,  +√2/4, -√2/4, -√2/4, +√2/4]
 #     roll:       [  0,    0,  +√2/4, -√2/4, +√2/4, -√2/4]
-_M_PLANT_EYE_R_np = np.linalg.pinv(_M_NERVE_R_np).astype(np.float32)  # (3, 6)
-_M_PLANT_EYE_L_np = np.linalg.pinv(_M_NERVE_L_np).astype(np.float32)  # (3, 6)
+_M_MUSCLE_ACTION_INV_R_np = np.linalg.pinv(_M_MUSCLE_ACTION_R_np).astype(np.float32)  # (3, 6)
+_M_MUSCLE_ACTION_INV_L_np = np.linalg.pinv(_M_MUSCLE_ACTION_L_np).astype(np.float32)  # (3, 6)
 
 
-# ── Muscle / nerve output index constants ─────────────────────────────────────
-
-# Per-eye muscle indices (used by both M_NERVE and combined nerve-output array)
+# ── Per-eye muscle indices — the row order of M_MUSCLE_ACTION (6 muscles) ──────
 LR = 0   # Lateral  Rectus  (CN VI)
 MR = 1   # Medial   Rectus  (CN III)
 SR = 2   # Superior Rectus  (CN III)
@@ -91,18 +91,10 @@ IR = 3   # Inferior Rectus  (CN III)
 SO = 4   # Superior Oblique (CN IV)
 IO = 5   # Inferior Oblique (CN III)
 
-# Combined 12-D nerve output row indices  [L eye 0–5 | R eye 6–11]
-LR_L, MR_L, SR_L, IR_L, SO_L, IO_L = 0, 1, 2, 3, 4, 5
-LR_R, MR_R, SR_R, IR_R, SO_R, IO_R = 6, 7, 8, 9, 10, 11
-
-N_NERVES = 12   # combined 12-D nerve outputs: 6 left-eye + 6 right-eye
-# (Motor-nucleus indexing + the version/vergence → nucleus → nerve encode moved
-#  to final_common_pathway.py — that's the brain's motor code, not plant geometry.)
-
 
 # ── JAX arrays (immutable; safe inside jit) ────────────────────────────────────
 
-M_NERVE_R     = jnp.array(_M_NERVE_R_np)             # (6, 3)  right-eye muscle geometry
-M_NERVE_L     = jnp.array(_M_NERVE_L_np)             # (6, 3)  left-eye  muscle geometry
-M_PLANT_EYE_R = jnp.array(_M_PLANT_EYE_R_np)        # (3, 6)  right-eye decode (plant)
-M_PLANT_EYE_L = jnp.array(_M_PLANT_EYE_L_np)        # (3, 6)  left-eye  decode (plant)
+M_MUSCLE_ACTION_R     = jnp.array(_M_MUSCLE_ACTION_R_np)             # (6, 3)  right-eye muscle geometry
+M_MUSCLE_ACTION_L     = jnp.array(_M_MUSCLE_ACTION_L_np)             # (6, 3)  left-eye  muscle geometry
+M_MUSCLE_ACTION_INV_R = jnp.array(_M_MUSCLE_ACTION_INV_R_np)        # (3, 6)  right-eye decode (plant)
+M_MUSCLE_ACTION_INV_L = jnp.array(_M_MUSCLE_ACTION_INV_L_np)        # (3, 6)  left-eye  decode (plant)

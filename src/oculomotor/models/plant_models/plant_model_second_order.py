@@ -135,7 +135,7 @@ def step(state, nerves, plant_params, decode_L=None, decode_R=None):
         state:        plant.State  binocular positions + muscle-force intermediates
         nerves:       (12,)  per-muscle activations [L6 | R6]  (split in half per eye)
         plant_params: PlantParams
-        decode_L/R:   (3, 6) muscle→command decode per eye (M_PLANT_EYE_L/R).
+        decode_L/R:   (3, 6) muscle→command decode per eye (M_MUSCLE_ACTION_INV_L/R).
                       None = use the per-eye command directly.
 
     Returns:

@@ -818,7 +818,7 @@ plant.eye_pos_L:
   anatomy:    "Left globe orientation in head frame"
   description: |
     Left eye position (rotation vector, deg).  First-order Robinson 1964
-    plant integrates motor command (via M_PLANT_EYE @ nerves) toward target.
+    plant integrates motor command (via M_MUSCLE_ACTION_INV @ nerves) toward target.
   state_slice: "plant[_IDX_P_L]"
   references: ["Robinson (1964)"]
   llm_plottable: true
@@ -1024,7 +1024,7 @@ derived.nerves:
   anatomy:    "Cranial-nerve axon outputs to extraocular muscles"
   description: |
     Per-muscle nerve firing rates after the axonal conduction cap
-    (g_nerve · NERVE_MAX).  Plant decodes via M_PLANT_EYE = pinv(M_NERVE).
+    (g_nerve · NERVE_MAX).  Plant decodes via M_MUSCLE_ACTION_INV = pinv(M_MUSCLE_ACTION).
   computation: "smooth_clip(M_NERVE_PROJ @ x_mn, g_nerve · NERVE_MAX)"
   llm_plottable: true
 
@@ -1039,9 +1039,9 @@ derived.eye_vel_L:
   units: "deg/s"
   anatomy:    "Left eye angular velocity (instantaneous)"
   description: |
-    Algebraic eye velocity = M_PLANT_EYE_L @ nerves_L − x_p_L/tau_p.
+    Algebraic eye velocity = M_MUSCLE_ACTION_INV_L @ nerves_L − x_p_L/tau_p.
     Used by retina (slip), efference copy, and plotting.
-  computation: "M_PLANT_EYE_L @ nerves[0:6] − eye_pos_L / tau_p"
+  computation: "M_MUSCLE_ACTION_INV_L @ nerves[0:6] − eye_pos_L / tau_p"
   llm_plottable: true
 
 derived.eye_vel_R:
@@ -1055,7 +1055,7 @@ derived.eye_vel_R:
   units: "deg/s"
   anatomy:    "Right eye angular velocity (instantaneous)"
   description: "Symmetric to eye_vel_L."
-  computation: "M_PLANT_EYE_R @ nerves[6:12] − eye_pos_R / tau_p"
+  computation: "M_MUSCLE_ACTION_INV_R @ nerves[6:12] − eye_pos_R / tau_p"
   llm_plottable: true
 
 derived.cyclopean_target_pos:
