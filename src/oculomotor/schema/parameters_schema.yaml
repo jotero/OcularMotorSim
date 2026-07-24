@@ -1230,26 +1230,78 @@ brain.g_nucleus:
     - {name: "CN III nucleus palsy (R)", value: "[1,1,1,1,1,0,1,1,1,1,1,0]", tag: cn}
     - {name: "Partial CN VI nucleus (R)", value: "[1,0.5,1,1,1,1,1,1,1,1,1,1]", tag: cn}
 
-brain.g_nerve:
+# Peripheral cranial-nerve integrity is parameterized PER TRUNK (one gain per
+# nerve per side), not per muscle. Each g ∈ [0,1] is the axonal conduction ceiling
+# as a fraction of NERVE_MAX (frequency-selective: burst clipped, tonic preserved);
+# 0 = axon transmits nothing → paralysis, 1 = transparent. The trunk gain
+# propagates to every muscle the nerve serves via muscle_geometry (the per-muscle
+# g_nerve vector is derived from these). CN III also carries the levator + pupil,
+# so g_cn3 covers ptosis + blown pupil too.
+brain.g_cn3_L:
   range: [0, 1]
-  length: 12
   group: final_common_pathway
   units: "—"
-  anatomy: "12 cranial nerve axon ceiling (axonal conduction block)"
+  anatomy: "LEFT oculomotor nerve (CN III) → MR, SR, IR, IO (+ levator, pupil)"
   description: |
-    Per-nerve max firing rate as a fraction of NERVE_MAX (250 deg/s).
-    Models conduction block / demyelination of the cranial nerve axon —
-    frequency-selective (burst clipped, tonic preserved).  At g=0 the axon
-    transmits nothing → muscle paralysis.  At g=1 the axon is transparent
-    (cap above normal firing range).
-    12 elements (left then right):
-    [LR_L, MR_L, SR_L, IR_L, SO_L, IO_L,
-     LR_R, MR_R, SR_R, IR_R, SO_R, IO_R].
+    Left CN III nerve-trunk integrity [0..1]. One knob for the whole trunk: it
+    weakens the four CN III eye muscles (eye rests down-and-out) AND — because the
+    levator palpebrae and pupilloconstrictor parasympathetics travel with the
+    nerve — produces ptosis and a fixed dilated ('blown') pupil on the same side.
+    0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_nucleus.)
   disorders:
-    - {name: "CN VI palsy (R)", value: "[1,1,1,1,1,1, 0,1,1,1,1,1]", tag: cn}
-    - {name: "CN III palsy (R)", value: "[1,1,1,1,1,1, 1,0,0,0,1,0]", tag: cn}
-    - {name: "CN IV palsy (R, SO)", value: "[1,1,1,1,1,1, 1,1,1,1,0,1]", tag: cn}
-    - {name: "Recovering CN VI (R)", value: "[1,1,1,1,1,1, 0.4,1,1,1,1,1]", tag: cn}
+    - {name: "CN III palsy (L)", value: 0.0, tag: cn}
+
+brain.g_cn3_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT oculomotor nerve (CN III)"
+  description: "Right CN III nerve-trunk integrity (symmetric to g_cn3_L)."
+  disorders:
+    - {name: "CN III palsy (R)", value: 0.0, tag: cn}
+
+brain.g_cn4_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT trochlear nerve (CN IV) → SO"
+  description: |
+    Left CN IV nerve integrity [0..1]. 0 = superior-oblique palsy → hypertropia
+    (worst in adduction / contralateral head tilt) and loss of intorsion.
+  disorders:
+    - {name: "CN IV palsy (L, SO)", value: 0.0, tag: cn}
+
+brain.g_cn4_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT trochlear nerve (CN IV) → SO"
+  description: "Right CN IV nerve integrity (symmetric to g_cn4_L)."
+  disorders:
+    - {name: "CN IV palsy (R, SO)", value: 0.0, tag: cn}
+
+brain.g_cn6_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT abducens nerve (CN VI) → LR"
+  description: |
+    Left CN VI nerve integrity [0..1]. 0 = lateral-rectus palsy → esotropia and an
+    abduction deficit on that side; partial = recovering. (A NUCLEAR lesion is a
+    horizontal gaze palsy — g_nucleus[ABN].)
+  disorders:
+    - {name: "CN VI palsy (L)", value: 0.0, tag: cn}
+    - {name: "Recovering CN VI (L)", value: 0.4, tag: cn}
+
+brain.g_cn6_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT abducens nerve (CN VI) → LR"
+  description: "Right CN VI nerve integrity (symmetric to g_cn6_L)."
+  disorders:
+    - {name: "CN VI palsy (R)", value: 0.0, tag: cn}
+    - {name: "Recovering CN VI (R)", value: 0.4, tag: cn}
 
 brain.g_cn7_L:
   range: [0, 1]

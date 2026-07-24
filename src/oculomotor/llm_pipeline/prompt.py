@@ -293,12 +293,14 @@ The final common pathway has THREE distinct lesion types, each with different ph
   Partial value (e.g. 0.5) automatically produces both saccade slowing AND tonic strabismus
   via the now-asymmetric baseline — no separate phoria parameter needed.
 
-**g_nerve** (12-element list [0..1]) — axonal CONDUCTION CAP, frequency-selective.
-  Models demyelination / fascicular lesion of the cranial nerve axon.  Burst (high
-  firing rate) is clipped, tonic (low firing rate) gets through → slow saccades but
-  intact fixation hold.  Indices:
-  Left eye 0–5: [LR_L, MR_L, SR_L, IR_L, SO_L, IO_L]  (CN VI/III/III/III/IV/III)
-  Right eye 6–11: [LR_R, MR_R, SR_R, IR_R, SO_R, IO_R]
+**g_cn3_L / g_cn3_R / g_cn4_L / g_cn4_R / g_cn6_L / g_cn6_R** (scalars [0..1]) —
+  per-cranial-nerve-TRUNK axonal conduction cap (frequency-selective: burst clipped,
+  tonic preserved → slow saccades but intact fixation hold).  ONE gain per nerve per
+  side; it propagates to every muscle that nerve serves:
+    g_cn3 → CN III (MR, SR, IR, IO) — the levator + pupil travel with it, so a CN III
+            palsy ALSO gives ptosis + a fixed dilated pupil on that side, automatically.
+    g_cn4 → CN IV (superior oblique).        g_cn6 → CN VI (lateral rectus).
+  0 = complete palsy; partial (e.g. 0.4) = recovering.  (NUCLEAR lesion → g_nucleus.)
 
 **g_mlf_L / g_mlf_R** (scalars [0..1]) — MLF axon CONDUCTION CAP, frequency-selective.
   AIN motoneurons project across midline through the MLF to contralateral CN3_MR
@@ -344,12 +346,12 @@ The table below maps all conditions to parameters — use it:
 | Bilateral INO | g_mlf_L=0.3, g_mlf_R=0.3 |
 | Mild / recovering INO | g_mlf_L=0.5  (or g_mlf_R=0.5) |
 | Complete INO (block) / WEBINO | g_mlf_L=0.0  (both = 0.0 for WEBINO) |
-| CN VI nerve palsy (R) | g_nerve=[1,1,1,1,1,1,0,1,1,1,1,1] |
+| CN VI nerve palsy (R) | g_cn6_R=0.0 |
 | CN VI nucleus palsy (R) → horizontal gaze palsy R | g_nucleus=[1,0,1,1,1,1,1,1,1,1,1,1] |
 | Partial CN VI nucleus (R) → eso + slow saccades | g_nucleus=[1,0.5,1,1,1,1,1,1,1,1,1,1] |
-| CN III nerve palsy (R) | g_nerve=[1,1,1,1,1,1,1,0,0,0,1,0] |
-| CN IV nerve palsy (R) → R hypertropia | g_nerve=[1,1,1,1,1,1,1,1,1,1,0,1] |
-| Partial CN VI palsy (recovering) | g_nerve=[1,1,1,1,1,1,0.4,1,1,1,1,1] |
+| CN III nerve palsy (R) → down-and-out + ptosis + blown pupil | g_cn3_R=0.0 |
+| CN IV nerve palsy (R) → R hypertropia | g_cn4_R=0.0 |
+| Partial CN VI palsy (recovering) | g_cn6_R=0.4 |
 | Right exotropia (extra LR_R tone) | r_baseline=[50,80,50,50,50,50,50,50,50,50,50,50] |
 | Right esotropia (extra MR_R tone) | r_baseline=[50,50,50,50,50,80,50,50,50,50,50,50] |
 | Right hypertropia (extra SR_R tone) | r_baseline=[50,50,50,50,50,50,50,80,50,50,50,50] |

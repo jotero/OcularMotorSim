@@ -50,21 +50,17 @@ SECTION = dict(
 # ── Lesion parameters ─────────────────────────────────────────────────────────
 
 # CN VI nerve (R): LR_R paretic only (nucleus and fellow-eye MR intact)
-THETA_CN6_NERVE = with_brain(THETA,
-    g_nerve=G_NERVE_DEFAULT.at[LR_R].set(0.0))
+THETA_CN6_NERVE = with_brain(THETA, g_cn6_R=0.0)
 
 # CN VI nucleus (R): ABN_R → only ipsilateral LR_R affected (no MLF in model)
 THETA_CN6_NUC = with_brain(THETA,
     g_nucleus=G_NUCLEUS_DEFAULT.at[ABN_R].set(0.0))
 
 # CN III nerve (R): MR/SR/IR/IO all paretic; LR (CN VI) and SO (CN IV) intact
-_CN3_R = jnp.array([MR_R, SR_R, IR_R, IO_R])
-THETA_CN3 = with_brain(THETA,
-    g_nerve=G_NERVE_DEFAULT.at[_CN3_R].set(0.0))
+THETA_CN3 = with_brain(THETA, g_cn3_R=0.0)
 
 # CN IV nerve (R): SO_R paretic → hypertropia in adduction, loss of intorsion
-THETA_CN4 = with_brain(THETA,
-    g_nerve=G_NERVE_DEFAULT.at[SO_R].set(0.0))
+THETA_CN4 = with_brain(THETA, g_cn4_R=0.0)
 
 # Left INO: left MLF cut (AIN_R → MR_L synaptic gain = 0)
 #   Rightward saccade: R eye abducts normally, L eye adduction slow/absent
@@ -442,7 +438,7 @@ def _graded_palsy(show):
             return_states=False,
         ))
 
-    cn6_eyes = [_sim_seq(with_brain(THETA, g_nerve=G_NERVE_DEFAULT.at[LR_R].set(float(g))))
+    cn6_eyes = [_sim_seq(with_brain(THETA, g_cn6_R=float(g)))
                 for g in gains]
     ino_eyes = [_sim_seq(with_brain(THETA, g_mlf_L=float(g)))
                 for g in gains]

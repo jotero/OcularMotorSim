@@ -407,7 +407,7 @@ class SimulationScenario(BaseModel):
     ## CN lesion recipes (9-positions or saccade trajectory)
 
     CN VI nerve palsy (right LR only):
-        patient: {g_nerve: [1,1,1,1,1,1, 0,1,1,1,1,1]}      ← index 6 = LR_R = 0
+        patient: {g_cn6_R: 0.0}                              ← abducens nerve trunk (R)
         plot: {panels: ['eye_position', 'eye_velocity']}
 
     CN VI nucleus palsy (right abducens nucleus → right LR only):
@@ -415,13 +415,16 @@ class SimulationScenario(BaseModel):
         Note: in this model ABN nucleus lesion only affects ipsilateral LR (no MLF
         modelled at this level). For a full horizontal gaze palsy with conjugate
         MR involvement, model with both CN VI nerve AND right CN3_MR_R zeroed.
+        (The nucleus is still per-nucleus g_nucleus[12]; only the NERVE stage is
+        parameterized per-trunk.)
 
     CN III nerve palsy (right):
-        patient: {g_nerve: [1,1,1,1,1,1, 1,0,0,0,1,0]}       ← MR_R(7), SR_R(8), IR_R(9), IO_R(11) = 0
-        Right eye will sit lateral (LR unopposed) and slightly depressed (SO intact).
+        patient: {g_cn3_R: 0.0}                              ← oculomotor nerve trunk (R)
+        Right eye sits 'down and out' (LR + SO intact); the levator + pupil travel
+        with CN III, so this ALSO gives right ptosis + a fixed dilated pupil.
 
     CN IV nerve palsy (right SO palsy):
-        patient: {g_nerve: [1,1,1,1,1,1, 1,1,1,1,0,1]}       ← index 10 = SO_R = 0
+        patient: {g_cn4_R: 0.0}                              ← trochlear nerve trunk (R)
         Right hypertropia worst in left gaze and left head tilt.
 
     Left INO (right eye adducts normally, LEFT eye adduction lag on rightward gaze):
@@ -436,11 +439,13 @@ class SimulationScenario(BaseModel):
         patient: {g_mlf_L: 0.0, g_mlf_R: 0.0}
 
     Partial CN VI nerve palsy (incomplete, recovering):
-        patient: {g_nerve: [1,1,1,1,1,1, 0.3,1,1,1,1,1]}     ← LR_R at 30%
+        patient: {g_cn6_R: 0.3}                              ← abducens nerve (R) at 30%
 
-    Horizontal gaze palsy (CN VI nucleus + conjugate MR, simulated):
-        patient: {g_nucleus: [1,0,1,1,1,1,1,1,1,1,1,1],
-                  g_nerve:   [1,1,1,1,1,1, 1,0,1,1,1,1]}      ← ABN_R=0, MR_R nerve=0
+    Horizontal gaze palsy (right — via the abducens nucleus):
+        patient: {g_nucleus: [1,0,1,1,1,1,1,1,1,1,1,1]}      ← ABN_R = 0
+        The abducens nucleus lesion carries the gaze palsy. (This recipe used to
+        also zero a single MR_R nerve fibre; nerve lesions are per-TRUNK now, so an
+        isolated single-muscle nerve cut is no longer expressible.)
     """
 
     description: str = Field(description="One-sentence plain-English description (used as figure title).")

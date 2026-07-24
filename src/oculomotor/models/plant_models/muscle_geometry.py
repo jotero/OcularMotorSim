@@ -297,6 +297,34 @@ def cn3_nucleus_integrity(g_nucleus):
     gn = jnp.asarray(g_nucleus)
     return jnp.mean(gn[_CN3_NUC_L]), jnp.mean(gn[_CN3_NUC_R])
 
+
+def nerve_gains_from_trunks(g_cn3_L, g_cn3_R, g_cn4_L, g_cn4_R, g_cn6_L, g_cn6_R):
+    """Expand per-cranial-nerve-TRUNK integrity gains → the (12,) per-muscle g_nerve.
+
+    Every extraocular muscle is served by exactly ONE cranial nerve, so this is a
+    pure gather (each muscle-nerve copies its trunk's gain — no sums, no products):
+
+        CN VI → LR        CN III → MR, SR, IR, IO        CN IV → SO      (per side)
+
+    The other CN III effectors that travel with the trunk — levator (lid) and the
+    pupilloconstrictor parasympathetics — read the SAME CN III integrity downstream
+    via cn3_nerve_integrity, so one g_cn3 gain covers the whole trunk (a CN III
+    palsy weakens the eye AND drops the lid AND blows the pupil, from one knob).
+    """
+    g = jnp.ones(N_NERVES, dtype=jnp.float32)
+    return (g.at[LR_L].set(g_cn6_L)
+             .at[LR_R].set(g_cn6_R)
+             .at[MR_L].set(g_cn3_L)
+             .at[SR_L].set(g_cn3_L)
+             .at[IR_L].set(g_cn3_L)
+             .at[IO_L].set(g_cn3_L)
+             .at[MR_R].set(g_cn3_R)
+             .at[SR_R].set(g_cn3_R)
+             .at[IR_R].set(g_cn3_R)
+             .at[IO_R].set(g_cn3_R)
+             .at[SO_L].set(g_cn4_L)
+             .at[SO_R].set(g_cn4_R))
+
 # Per-nucleus tonic baseline firing rate (deg/s equivalent).  Each motoneuron
 # pool fires at this rate at primary position (no version drive).  Symmetric
 # defaults give zero plant effect (uniform baseline → zero-sum decode), but

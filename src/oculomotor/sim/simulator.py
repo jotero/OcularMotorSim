@@ -321,26 +321,19 @@ def with_vn_lesion(params: Params, side: str = 'left') -> Params:
 def with_cn3_palsy(params: Params, side: str = 'right') -> Params:
     """Oculomotor (CN III) nerve palsy — one lesion, shared consequences.
 
-    Silences the CN III-innervated eye muscles (MR, SR, IR, IO) on `side` by
-    zeroing their g_nerve gains, so the eye rests 'down and out' (LR via CN VI and
-    SO via CN IV are intact). Because the levator palpebrae AND the pupillary
-    parasympathetics travel with the SAME nerve, ptosis and a fixed dilated
-    ('blown') pupil on that side follow automatically (derived from the g_nerve
-    gains via cn3_nerve_integrity) — there are no duplicate lid/pupil-nerve knobs.
+    Zeroes the CN III nerve-trunk gain on `side` (g_cn3_L/R). That one knob
+    silences the CN III-innervated eye muscles (MR, SR, IR, IO) — so the eye rests
+    'down and out' (LR via CN VI and SO via CN IV intact) — and, because the levator
+    palpebrae AND the pupillary parasympathetics travel with the SAME trunk, the
+    ptosis and fixed dilated ('blown') pupil follow automatically (both read the
+    CN III integrity via cn3_nerve_integrity). No duplicate lid/pupil-nerve knobs.
     For a NUCLEAR CN III lesion (bilateral partial ptosis) use with_cn3_nuclear_palsy.
     """
-    from oculomotor.models.plant_models.muscle_geometry import (
-        MR_L, SR_L, IR_L, IO_L, MR_R, SR_R, IR_R, IO_R,
-    )
     if side == 'left':
-        idx = jnp.array([MR_L, SR_L, IR_L, IO_L])
+        return with_brain(params, g_cn3_L=0.0)
     elif side == 'right':
-        idx = jnp.array([MR_R, SR_R, IR_R, IO_R])
-    else:
-        raise ValueError(f"side must be 'left' or 'right', got {side!r}")
-
-    g_nerve = jnp.asarray(params.brain.g_nerve, dtype=jnp.float32).at[idx].set(0.0)
-    return with_brain(params, g_nerve=g_nerve)
+        return with_brain(params, g_cn3_R=0.0)
+    raise ValueError(f"side must be 'left' or 'right', got {side!r}")
 
 
 def with_cn3_nuclear_palsy(params: Params, side: str = 'left') -> Params:

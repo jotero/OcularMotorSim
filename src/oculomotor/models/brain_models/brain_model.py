@@ -94,8 +94,8 @@ from oculomotor.models.brain_models  import cerebellum               as cb
 from oculomotor.models.brain_models  import listing
 
 from oculomotor.models.sensory_models.sensory_model import SensoryOutput
-from oculomotor.models.brain_models.final_common_pathway import G_NUCLEUS_DEFAULT, G_NERVE_DEFAULT
-from oculomotor.models.plant_models.muscle_geometry           import R_BASELINE_DEFAULT
+from oculomotor.models.brain_models.final_common_pathway import G_NUCLEUS_DEFAULT
+from oculomotor.models.plant_models.muscle_geometry           import R_BASELINE_DEFAULT, nerve_gains_from_trunks
 # EC cascade math (rotation, saturation, cascade_lp_step) and the cascade
 # state both live in `cerebellum.py` now — same module that owns the pursuit
 # forward model (which uses the cascade tails as its prediction).
@@ -711,7 +711,28 @@ class BrainParams(NamedTuple):
     #   CN nerve lesion isolates individual muscles without affecting other nuclei.
     # Healthy default: all ones → transparent round-trip through plant.
     g_nucleus:             jnp.ndarray  = G_NUCLEUS_DEFAULT  # (12,) motor nucleus gains (one per side)
-    g_nerve:               jnp.ndarray  = G_NERVE_DEFAULT    # (12,) per-nerve ceiling fraction: clips nerve at g_nerve×_NERVE_MAX
+    # Stage 2 nerve integrity is parameterized PER CRANIAL-NERVE TRUNK, not per
+    # muscle: each trunk gain ∈ [0,1] propagates to every muscle it serves via
+    # muscle_geometry.nerve_gains_from_trunks. A CN III palsy is one knob
+    # (g_cn3_R=0) that also drops the lid + blows the pupil (they read the same
+    # CN III integrity). The (12,) `g_nerve` the FCP/pupil/lid consume is DERIVED
+    # from these — see the g_nerve property below.
+    g_cn3_L:               float = 1.0   # LEFT  oculomotor nerve (CN III) → MR,SR,IR,IO (+ levator, pupil)
+    g_cn3_R:               float = 1.0   # RIGHT oculomotor nerve (CN III)
+    g_cn4_L:               float = 1.0   # LEFT  trochlear  nerve (CN IV)  → SO
+    g_cn4_R:               float = 1.0   # RIGHT trochlear  nerve (CN IV)
+    g_cn6_L:               float = 1.0   # LEFT  abducens   nerve (CN VI)  → LR
+    g_cn6_R:               float = 1.0   # RIGHT abducens   nerve (CN VI)
+
+    @property
+    def g_nerve(self):
+        """(12,) per-muscle nerve ceiling — DERIVED from the CN III/IV/VI trunk
+        gains via muscle_geometry.nerve_gains_from_trunks.  Consumers (FCP, pupil,
+        lid) read this unchanged; the per-trunk g_cn3/cn4/cn6_{L,R} are the source
+        of truth (set a palsy with e.g. with_brain(θ, g_cn3_R=0))."""
+        return nerve_gains_from_trunks(self.g_cn3_L, self.g_cn3_R,
+                                       self.g_cn4_L, self.g_cn4_R,
+                                       self.g_cn6_L, self.g_cn6_R)
     # Facial nerve (CN VII) integrity — drives orbicularis oculi (lid closure / blink).
     # Not an extraocular muscle, so it lives here rather than in g_nerve. 0 = Bell's
     # palsy on that side (lagophthalmos: can't blink/close). See eyelid.py / with_facial_palsy.
