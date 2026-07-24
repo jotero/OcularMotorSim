@@ -94,7 +94,7 @@ def set_brain_step(fn):
 
     Pass any callable with the same signature as brain_model.step:
         fn(x_brain, sensory_out, brain_params, noise_acc, blink_drive) ->
-            (dx_brain, nerves, ec_vel, ec_pos, ec_verg, u_acc, u_pupil, u_lid)
+            (dx_brain, MotorOut)   # MotorOut = (nerves, u_acc, u_pupil, u_lid)
 
     Call set_brain_step(brain_model.step) to restore the default.
     """
@@ -523,9 +523,10 @@ def ODE_ocular_motor(t, state, args):
     )
 
     # ── Brain: VS + NI + SG + pursuit + vergence + accommodation + pupil ──────
-    dbrain, nerves, _, _, _, u_acc, u_pupil, u_lid = _BRAIN_STEP(
+    dbrain, mout = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t),
         blink_drive_interp.evaluate(t))
+    nerves, u_acc, u_pupil, u_lid = mout.nerves, mout.u_acc, mout.u_pupil, mout.u_lid
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
     # Binocular step returns ONLY the state derivative.  Position is the state

@@ -1002,6 +1002,19 @@ def make_x0(brain_params=None):
 
 # ── Step function ──────────────────────────────────────────────────────────────
 
+class MotorOut(NamedTuple):
+    """Brain motor efference — one field per peripheral plant target.
+
+    Replaces the old positional 8-tuple return.  The ec_* efference copies are
+    gone from the output: cb.step / perception_cyclopean consume the internal
+    ec_vel / ec_pos locals directly, and the returned copies had no consumer.
+    """
+    nerves:  jnp.ndarray   # (12,) extraocular nerve activations [L6 | R6] → eye plant
+    u_acc:   jnp.ndarray   # accommodation neural command (D, neural + CA/C) → lens plant
+    u_pupil: jnp.ndarray   # (2,) commanded per-eye pupil diameter (mm) [L,R] → iris plants
+    u_lid:   jnp.ndarray   # (2,) commanded per-eye lid closure [L,R] → eyelid plants
+
+
 def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0):
     """Single ODE step for the brain subsystem.
 
@@ -1019,15 +1032,11 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
 
     Returns:
         dbrain_state: BrainState  state derivative
-        nerves:       (12,)  per-muscle nerve activations [L6 | R6] → plant
-        ec_vel:       (3,)   version velocity efference (head frame, deg/s)
-        ec_pos:       (3,)   eye position efference
-        ec_verg:      (3,)   vergence efference
-        u_acc:        scalar total lens-plant input (D) — neural + CA/C, drives acc_plant
-        u_pupil:      (2,)   commanded per-eye pupil diameter (mm) [L, R] — light
-                             reflex + near response, drives the iris plants
-        u_lid:        (2,)   commanded per-eye lid closure [L, R] (0=open..1=closed)
-                             — posture + blink + downgaze lid-follow, drives eyelid plant
+        motor_out:    MotorOut  the brain's motor efference (see the NamedTuple above):
+            nerves  (12,)  extraocular nerve activations [L6 | R6] → eye plant
+            u_acc   scalar accommodation command (D, neural + CA/C) → lens plant
+            u_pupil (2,)   commanded per-eye pupil diameter (mm) → iris plants
+            u_lid   (2,)   commanded per-eye lid closure → eyelid plants
     """
     # ── Activation / Decoded / Weights registries ────────────────────────────
     # Built once per step.  Subsystems read these instead of raw state.
@@ -1250,15 +1259,11 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
                       brain_params)
     nerves = fcp.read_outputs(brain_state.fcp, brain_params)
 
-    # ── Cerebellum: cascade advance + return signals ─────────────────────────
+    # ── Cerebellum: cascade advance ──────────────────────────────────────────
     # ec_vel = version-velocity efference; drives both EC cascades inside cb.step
     # (which applies frame rotation, retinal saturation, and matched LP cascades).
     # ec_pos was assembled at the top from decoded.ni.net (same as x_ni_net).
-    # ec_verg returned to caller is the FULL vergence command (u_verg from
-    # va.step) — distinct from the lagged ec_verg used by perception_cyclopean
-    # at the top of step (which was state-based to break the va↔pc loop).
     ec_vel       = u_burst + u_pursuit + omega_tvor
-    ec_verg_cmd  = u_verg
     ni_net_full  = sm.CANAL2CARDINAL @ (brain_state.ni.L - brain_state.ni.R)  # canal→cardinal
     ni_null_full = sm.CANAL2CARDINAL @ brain_state.ni.null                    # canal→cardinal
     vs_net_full  = sm.CANAL2CARDINAL @ (brain_state.sm.vs_L - brain_state.sm.vs_R)  # canal→cardinal
@@ -1300,4 +1305,4 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
         cb   = dcb,
     )
 
-    return dbrain, nerves, ec_vel, ec_pos, ec_verg_cmd, u_acc, u_pupil, u_lid
+    return dbrain, MotorOut(nerves=nerves, u_acc=u_acc, u_pupil=u_pupil, u_lid=u_lid)
