@@ -146,13 +146,3 @@ N_INPUTS  = 3
 N_OUTPUTS = 3
 
 
-def from_array(x_pursuit):
-    """(6,) flat array → pursuit.State."""
-    return State(R=x_pursuit[0:3], L=x_pursuit[3:6])
-
-
-def to_array(state):
-    """pursuit.State → (6,) flat array."""
-    return jnp.concatenate([state.R, state.L])
-
-

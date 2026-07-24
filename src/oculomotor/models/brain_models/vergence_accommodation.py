@@ -303,15 +303,7 @@ def step(activations, defocus, target_disparity, verg_rate_tvor, z_act,
 N_STATES  = 9 + 2   # 11
 
 
-def to_array(state):
-    """va.State → (11,) flat array — legacy adapter."""
-    return jnp.concatenate([
-        state.verg_fast, state.verg_tonic, state.verg_copy,
-        jnp.array([state.acc_fast, state.acc_slow]),
-    ])
-
-
 __all__ = [
     "step", "State", "Activations", "rest_state", "read_activations",
-    "to_array", "N_STATES", "N_OUTPUTS",
+    "N_STATES", "N_OUTPUTS",
 ]

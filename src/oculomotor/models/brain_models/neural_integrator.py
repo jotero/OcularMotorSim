@@ -257,13 +257,3 @@ def step(activations, weights, u_vel, brain_params, u_tonic=0.0):
 N_STATES  = 12  # x_L(3) + x_R(3) + x_null(3) + u_lp(3)
 N_INPUTS  = 3
 N_OUTPUTS = 3
-
-
-def from_array(x_ni):
-    """(12,) flat array → ni.State."""
-    return State(L=x_ni[0:3], R=x_ni[3:6], null=x_ni[6:9], u_lp=x_ni[9:12])
-
-
-def to_array(state):
-    """ni.State → (12,) flat array."""
-    return jnp.concatenate([state.L, state.R, state.null, state.u_lp])

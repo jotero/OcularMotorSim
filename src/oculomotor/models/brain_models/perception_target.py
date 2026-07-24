@@ -112,13 +112,3 @@ def step(activations,
 # ── Legacy flat-array adapters (deleted once brain_model migrates to BrainState) ─
 
 N_STATES = 4   # 3-D last-seen position + 1 trust scalar
-
-
-def from_array(x_target_mem):
-    """(4,) flat array → pt.State."""
-    return State(mem_pos=x_target_mem[0:3], mem_trust=x_target_mem[3])
-
-
-def to_array(state):
-    """pt.State → (4,) flat array."""
-    return jnp.concatenate([state.mem_pos, jnp.array([state.mem_trust])])

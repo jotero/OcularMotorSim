@@ -298,18 +298,6 @@ def step(state, premotor_activity, brain_params):
     return State(mn=dx_mn), nerve
 
 
-# ── Legacy flat-array adapters (deleted once brain_model migrates to BrainState) ─
-
-def from_array(x_mn):
-    """(14,) flat array → fcp.State."""
-    return State(mn=x_mn)
-
-
-def to_array(state):
-    """fcp.State → (14,) flat array."""
-    return state.mn
-
-
 def rest_state(premotor_activity, brain_params):
     """Steady-state MN membrane for a given resting premotor command.
 

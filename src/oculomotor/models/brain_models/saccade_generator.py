@@ -450,28 +450,3 @@ def step(activations, weights, pos_delayed, target_visible, x_ni, ocr, w_est,
 N_STATES  = 20
 N_INPUTS  = 9
 N_OUTPUTS = 3
-
-
-def from_array(x_sg):
-    """(20,) flat array → sg.State."""
-    return State(
-        e_held = x_sg[0:3],
-        z_opn  = x_sg[3],
-        z_acc  = x_sg[4],
-        z_trig = x_sg[5],
-        z_fac  = x_sg[6],
-        z_dep  = x_sg[7],
-        ebn_R  = x_sg[8:11],
-        ebn_L  = x_sg[11:14],
-        ibn_R  = x_sg[14:17],
-        ibn_L  = x_sg[17:20],
-    )
-
-
-def to_array(state):
-    """sg.State → (20,) flat array."""
-    return jnp.concatenate([
-        state.e_held,
-        jnp.array([state.z_opn, state.z_acc, state.z_trig, state.z_fac, state.z_dep]),
-        state.ebn_R, state.ebn_L, state.ibn_R, state.ibn_L,
-    ])

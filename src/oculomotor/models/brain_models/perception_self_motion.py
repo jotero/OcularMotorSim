@@ -482,34 +482,9 @@ _IDX_GRAV = slice(9, 18)
 _IDX_HEAD = slice(18, 21)
 
 
-def from_array(x_self_motion):
-    """(21,) flat array → sm.State."""
-    x_vs   = x_self_motion[_IDX_VS]
-    x_grav = x_self_motion[_IDX_GRAV]
-    return State(
-        vs_L    = x_vs[_VS_IDX_A],
-        vs_R    = x_vs[_VS_IDX_B],
-        vs_null = x_vs[_VS_IDX_NULL],
-        g_est   = x_grav[_GE_IDX_G],
-        a_lin   = x_grav[_GE_IDX_A],
-        rf      = x_grav[_GE_IDX_RF],
-        v_lin   = x_self_motion[_IDX_HEAD],
-    )
-
-
-def to_array(state):
-    """sm.State → (21,) flat array."""
-    return jnp.concatenate([
-        state.vs_L, state.vs_R, state.vs_null,
-        state.g_est, state.a_lin, state.rf,
-        state.v_lin,
-    ])
-
-
 __all__ = [
     "step", "State", "Activations", "Decoded", "Weights",
     "rest_state", "read_activations", "decode_states", "read_weights",
-    "from_array", "to_array",
     "X0", "GRAV_X0", "G0",
     "N_STATES", "N_INPUTS", "N_OUTPUTS",
     "_IDX_VS", "_IDX_GRAV", "_IDX_HEAD",

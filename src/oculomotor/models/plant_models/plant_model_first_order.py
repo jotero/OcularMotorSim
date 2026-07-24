@@ -82,11 +82,6 @@ def rest_state():
     return State(left=jnp.zeros(3), right=jnp.zeros(3))
 
 
-def to_array(state):
-    """plant.State → (6,) flat array — legacy adapter."""
-    return jnp.concatenate([state.left, state.right])
-
-
 def step(x_p, motor_cmd, plant_params, decode_matrix=None):
     """Single ODE step: state derivative + eye position/velocity outputs.
 

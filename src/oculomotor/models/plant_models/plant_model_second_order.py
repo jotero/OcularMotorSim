@@ -76,11 +76,6 @@ def rest_state():
                  left_musc=jnp.zeros(3), right_musc=jnp.zeros(3))
 
 
-def to_array(state):
-    """plant.State → (12,) flat array — legacy adapter (pos L|R then musc L|R)."""
-    return jnp.concatenate([state.left, state.right, state.left_musc, state.right_musc])
-
-
 def step(x_musc, x_pos, motor_cmd, plant_params, decode_matrix=None):
     """Single ODE step for one eye — two cascaded viscoelastic LPs.
 
