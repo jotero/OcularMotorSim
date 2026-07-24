@@ -1206,37 +1206,116 @@ brain.eyelid_blink_rate:
 # BrainParams — Final Common Pathway (cranial nerves, MLF)
 # ─────────────────────────────────────────────────────────────────────────────
 
-brain.g_nucleus:
+# Motor NUCLEUS integrity is parameterized PER NUCLEUS COMPLEX (one gain per nucleus
+# per side), mirroring the nerve trunks below. Each g ∈ [0,1] is a cell-loss gain
+# (burst AND tonic baseline both attenuated). The (12,) per-subnucleus g_nucleus the
+# FCP consumes is DERIVED from these. A NUCLEUS lesion differs from the matching NERVE
+# lesion: a CN VI nucleus lesion is a horizontal GAZE palsy (ABN + co-located AIN/MLF),
+# not an isolated LR palsy. The CN III complex splits into somatic (eye muscles),
+# central caudal (levator/lid), and Edinger-Westphal (pupil sphincter + ciliary).
+brain.g_nuc_cn3_L:
   range: [0, 1]
-  length: 12
   group: final_common_pathway
   units: "—"
-  anatomy: "12 motor nuclei: ABN, CN4, CN3 subnuclei (L/R)"
+  anatomy: "LEFT oculomotor SOMATIC subnuclei (MR, SR, IR, IO)"
   description: |
-    Per-nucleus multiplicative gain [0..1].  Models cell-loss in a motor
-    nucleus — burst firing AND tonic baseline are both attenuated by this
-    gain (cells fire less, fewer cells fire).  Gain shared between ABN
-    motoneurons and AIN (intermingled abducens populations).
-    12 elements:
-    [ABN_L, ABN_R, CN4_L, CN4_R,
-     CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R,
-     CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R].
-    0 = nucleus silenced (full lesion).  Partial gain produces graded
-    weakness AND tonic strabismus (asymmetric baseline → eye drift).
-    CN VI nucleus lesion = horizontal gaze palsy (silences ABN motoneurons
-    AND AIN MLF outflow on the same side).
+    Left CN III somatic oculomotor nucleus integrity [0..1]. 0 = somatic
+    ophthalmoplegia of the four CN III eye muscles. Pair with g_nuc_ccn_L for the
+    accompanying ptosis; leave g_nuc_ew_L intact for dorsal-midbrain pupil sparing.
   disorders:
-    - {name: "CN VI nucleus palsy (R)", value: "[1,0,1,1,1,1,1,1,1,1,1,1]", tag: cn}
-    - {name: "CN III nucleus palsy (R)", value: "[1,1,1,1,1,0,1,1,1,1,1,0]", tag: cn}
-    - {name: "Partial CN VI nucleus (R)", value: "[1,0.5,1,1,1,1,1,1,1,1,1,1]", tag: cn}
+    - {name: "CN III nucleus palsy (L, somatic)", value: 0.0, tag: cn}
+brain.g_nuc_cn3_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT oculomotor somatic subnuclei"
+  description: "Right CN III somatic nucleus integrity (symmetric to g_nuc_cn3_L)."
+  disorders:
+    - {name: "CN III nucleus palsy (R, somatic)", value: 0.0, tag: cn}
+brain.g_nuc_cn4_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT trochlear nucleus (CN IV) → SO"
+  description: "Left CN IV nucleus integrity [0..1]. 0 = trochlear nuclear palsy."
+  disorders:
+    - {name: "CN IV nucleus palsy (L)", value: 0.0, tag: cn}
+brain.g_nuc_cn4_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT trochlear nucleus (CN IV)"
+  description: "Right CN IV nucleus integrity (symmetric to g_nuc_cn4_L)."
+  disorders:
+    - {name: "CN IV nucleus palsy (R)", value: 0.0, tag: cn}
+brain.g_nuc_cn6_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT abducens nucleus (CN VI) → LR + AIN(MLF)"
+  description: |
+    Left abducens nucleus integrity [0..1]. Covers BOTH the ipsilateral LR
+    motoneurons AND the co-located AIN whose axons cross in the MLF to the
+    contralateral MR, so 0 = LEFT horizontal GAZE palsy (both eyes fail to look
+    left) — distinct from a CN VI NERVE palsy (isolated LR weakness, g_cn6_L).
+  disorders:
+    - {name: "CN VI nucleus palsy (L) → gaze palsy", value: 0.0, tag: cn}
+    - {name: "Partial CN VI nucleus (L)", value: 0.5, tag: cn}
+brain.g_nuc_cn6_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT abducens nucleus (CN VI)"
+  description: "Right abducens nucleus integrity (symmetric to g_nuc_cn6_L)."
+  disorders:
+    - {name: "CN VI nucleus palsy (R) → gaze palsy", value: 0.0, tag: cn}
+    - {name: "Partial CN VI nucleus (R)", value: 0.5, tag: cn}
+brain.g_nuc_ccn_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT central caudal nucleus (CN III) → levator palpebrae"
+  description: |
+    Left central caudal nucleus integrity [0..1] → levator (lid). The CCN is a
+    midline structure projecting to BOTH levators, so a one-sided lesion → bilateral
+    partial ptosis (asymmetric, ipsi-dominant per eyelid_levator_contra_frac).
+  disorders:
+    - {name: "Central caudal nucleus ptosis (L)", value: 0.0, tag: cn}
+brain.g_nuc_ccn_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT central caudal nucleus (CN III)"
+  description: "Right central caudal nucleus integrity (symmetric to g_nuc_ccn_L)."
+  disorders:
+    - {name: "Central caudal nucleus ptosis (R)", value: 0.0, tag: cn}
+brain.g_nuc_ew_L:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "LEFT Edinger-Westphal (CN III parasymp) → pupil sphincter + ciliary"
+  description: |
+    Left Edinger-Westphal (parasympathetic) nucleus integrity [0..1] → pupil
+    sphincter + ciliary muscle. 0 = internal ophthalmoplegia: fixed dilated pupil +
+    cycloplegia, with the somatic eye muscles and lid spared.
+  disorders:
+    - {name: "Internal ophthalmoplegia (L)", value: 0.0, tag: cn}
+brain.g_nuc_ew_R:
+  range: [0, 1]
+  group: final_common_pathway
+  units: "—"
+  anatomy: "RIGHT Edinger-Westphal (CN III parasympathetic)"
+  description: "Right Edinger-Westphal integrity (symmetric to g_nuc_ew_L)."
+  disorders:
+    - {name: "Internal ophthalmoplegia (R)", value: 0.0, tag: cn}
 
 # Peripheral cranial-nerve integrity is parameterized PER TRUNK (one gain per
 # nerve per side), not per muscle. Each g ∈ [0,1] is the axonal conduction ceiling
 # as a fraction of NERVE_MAX (frequency-selective: burst clipped, tonic preserved);
 # 0 = axon transmits nothing → paralysis, 1 = transparent. The trunk gain
 # propagates to every muscle the nerve serves via muscle_geometry (the per-muscle
-# g_nerve vector is derived from these). CN III also carries the levator + pupil,
-# so g_cn3 covers ptosis + blown pupil too.
+# g_nerve vector is derived from these). CN III also carries the levator + pupil +
+# ciliary, so g_cn3 covers ptosis + blown pupil + cycloplegia too.
 brain.g_cn3_L:
   range: [0, 1]
   group: final_common_pathway
@@ -1247,7 +1326,7 @@ brain.g_cn3_L:
     weakens the four CN III eye muscles (eye rests down-and-out) AND — because the
     levator palpebrae and pupilloconstrictor parasympathetics travel with the
     nerve — produces ptosis and a fixed dilated ('blown') pupil on the same side.
-    0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_nucleus.)
+    0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_nuc_cn3.)
   disorders:
     - {name: "CN III palsy (L)", value: 0.0, tag: cn}
 
@@ -1288,7 +1367,7 @@ brain.g_cn6_L:
   description: |
     Left CN VI nerve integrity [0..1]. 0 = lateral-rectus palsy → esotropia and an
     abduction deficit on that side; partial = recovering. (A NUCLEAR lesion is a
-    horizontal gaze palsy — g_nucleus[ABN].)
+    horizontal gaze palsy — g_nuc_cn6.)
   disorders:
     - {name: "CN VI palsy (L)", value: 0.0, tag: cn}
     - {name: "Recovering CN VI (L)", value: 0.4, tag: cn}
@@ -1337,8 +1416,10 @@ brain.r_baseline:
     columns — the plant only sees agonist−antagonist differences, so
     uniform baselines cancel.  Asymmetric baselines produce tonic
     strabismus directly without needing to lesion a gain.
-    Default: 50 across all 12 nuclei.  Indices match g_nucleus.
-    Note: g_nucleus also scales the baseline (cell loss reduces tone too),
+    Default: 50 across all 12 nuclei.  Index order (nucleus order):
+    [ABN_L, ABN_R, CN4_L, CN4_R, CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R,
+     CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R].
+    Note: the nucleus gains also scale the baseline (cell loss reduces tone too),
     so partial nuclear lesions automatically produce both saccade
     slowing AND tonic strabismus.
   disorders:

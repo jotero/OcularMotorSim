@@ -150,22 +150,35 @@ G_NUCLEUS_DEFAULT  = jnp.ones(N_GAINS_NUCLEUS, dtype=jnp.float32)   # healthy: a
 G_NERVE_DEFAULT    = jnp.ones(N_NERVES, dtype=jnp.float32)          # healthy: all = 1
 R_BASELINE_DEFAULT = jnp.full(N_GAINS_NUCLEUS, 50.0, dtype=jnp.float32)  # tonic firing
 
-# CN III subnucleus indices in g_nucleus (MR, SR, IR, IO subnuclei per side).
-_CN3_NUC_L = jnp.array([CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L])
-_CN3_NUC_R = jnp.array([CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R])
+def nucleus_gains_from_trunks(g_cn3_L, g_cn3_R, g_cn4_L, g_cn4_R, g_cn6_L, g_cn6_R):
+    """Expand per-motor-NUCLEUS-complex integrity gains → the (12,) per-nucleus g_nucleus.
 
+    Mirror of nerve_gains_from_trunks, one stage upstream: a nuclear lesion hits a
+    whole nucleus complex on one side, so this is a pure gather (each subnucleus
+    copies its complex's gain — no sums, no products):
 
-def cn3_nucleus_integrity(g_nucleus):
-    """Per-side CN III (oculomotor) NUCLEUS integrity from the shared g_nucleus gains.
+        CN VI → ABN      CN III → MR, SR, IR, IO subnuclei      CN IV → CN4   (per side)
 
-    The central caudal nucleus (which drives the levator palpebrae) sits inside the
-    oculomotor nuclear complex, so the levator's central drive follows the CN III
-    subnucleus gains rather than a duplicate lid-nucleus knob. A nuclear lesion on
-    one side drops the shared (midline, bilateral) levator drive → bilateral partial
-    ptosis.  Returns (left, right) ∈ [0,1] = mean of that side's CN III subnucleus gains.
+    The abducens (ABN) gain is shared with the co-located AIN downstream (the FCP
+    expands (12,)→(14,) with AIN inheriting ABN), so a CN VI NUCLEAR lesion silences
+    BOTH the ipsilateral LR motoneurons AND the MLF outflow to the contralateral MR
+    → horizontal gaze palsy (vs an isolated LR palsy from a CN VI NERVE lesion).  The
+    central caudal nucleus (levator) reads the CN III complex gain directly downstream
+    (eyelid_nerves), so one g_nuc_cn3 covers the whole complex → bilateral partial ptosis.
     """
-    gn = jnp.asarray(g_nucleus)
-    return jnp.mean(gn[_CN3_NUC_L]), jnp.mean(gn[_CN3_NUC_R])
+    g = jnp.ones(N_GAINS_NUCLEUS, dtype=jnp.float32)
+    return (g.at[ABN_L].set(g_cn6_L)
+             .at[ABN_R].set(g_cn6_R)
+             .at[CN4_L].set(g_cn4_L)
+             .at[CN4_R].set(g_cn4_R)
+             .at[CN3_MR_L].set(g_cn3_L)
+             .at[CN3_SR_L].set(g_cn3_L)
+             .at[CN3_IR_L].set(g_cn3_L)
+             .at[CN3_IO_L].set(g_cn3_L)
+             .at[CN3_MR_R].set(g_cn3_R)
+             .at[CN3_SR_R].set(g_cn3_R)
+             .at[CN3_IR_R].set(g_cn3_R)
+             .at[CN3_IO_R].set(g_cn3_R))
 
 
 def nerve_gains_from_trunks(g_cn3_L, g_cn3_R, g_cn4_L, g_cn4_R, g_cn6_L, g_cn6_R):
@@ -461,14 +474,19 @@ def iris_nerves(sphincter_raw, dilator_raw, brain_params):
     """Apply the peripheral iris-nerve lesions to the raw drives (pupil.command).
 
     The iris is an antagonist pair whose two nerves are lesioned here, exactly like
-    the extraocular nerves above:
-        sphincter (constrictor) — CN III parasympathetic → gated by g_cn3
-        dilator                 — sympathetic            → gated by g_ocular_symp (Horner)
+    the extraocular nerves above — each in TWO stages (nucleus × nerve):
+        sphincter (constrictor) — CN III parasympathetic. NUCLEUS = Edinger-Westphal
+                    (g_nuc_ew: 0 → internal ophthalmoplegia, fixed pupil, somatic
+                    spared); NERVE = the CN III trunk (g_cn3: blown pupil with a nerve
+                    palsy). A dorsal-midbrain (nuclear-somatic) lesion spares EW → the
+                    pupil stays reactive.
+        dilator                 — sympathetic → gated by g_ocular_symp (Horner miosis).
     Per eye [L, R].  Returns (sphincter, dilator) nerve activations; the iris plant
     does the push-pull decode (diam = pupil_min + dilator − sphincter).
     """
     bp = brain_params
-    sphincter = sphincter_raw * jnp.array([bp.g_cn3_L, bp.g_cn3_R])
+    sphincter = sphincter_raw * jnp.array([bp.g_nuc_ew_L * bp.g_cn3_L,
+                                           bp.g_nuc_ew_R * bp.g_cn3_R])
     dilator   = dilator_raw   * jnp.array([bp.g_ocular_symp_L, bp.g_ocular_symp_R])
     return sphincter, dilator
 
@@ -477,39 +495,40 @@ def eyelid_nerves(levator, muller, orbicularis, brain_params):
     """Apply the peripheral eyelid-nerve lesions to the raw drives (eyelid.command).
 
     Three antagonist muscles, each lesioned here like every other nerve:
-        levator     (CN III somatic) — TWO stages: the central caudal nucleus
-                    projects to BOTH levators (ipsi + contra, → bilateral partial
-                    ptosis on a nuclear lesion) and follows the CN III subnucleus
-                    gains (g_nucleus); the peripheral nerve follows the CN III
-                    trunk gains (g_cn3, → unilateral complete ptosis on a nerve
-                    palsy).  Mixing fraction: eyelid_levator_contra_frac.
+        levator     (CN III somatic) — TWO stages: the NUCLEUS is the central caudal
+                    nucleus (g_nuc_ccn), which projects to BOTH levators (ipsi +
+                    contra, → bilateral partial ptosis on a nuclear lesion); the NERVE
+                    follows the CN III trunk (g_cn3, → unilateral complete ptosis on a
+                    nerve palsy).  Mixing fraction: eyelid_levator_contra_frac.
         muller      (sympathetic)    — gated by g_ocular_symp (Horner mild ptosis).
         orbicularis (CN VII facial)  — gated by g_cn7 (lagophthalmos / Bell's palsy).
     Per eye [L, R].  Returns (levator, muller, orbicularis) tone/drives; the eyelid
     plant decodes them into a lid closure.
     """
     bp = brain_params
-    nuc3_L, nuc3_R = cn3_nucleus_integrity(bp.g_nucleus)
+    ccn_L, ccn_R = bp.g_nuc_ccn_L, bp.g_nuc_ccn_R   # central caudal nucleus integrity
     c = bp.eyelid_levator_contra_frac   # fraction of each levator's nuclear drive from CONTRA
-    levator = levator * jnp.array([bp.g_cn3_L * ((1.0 - c) * nuc3_L + c * nuc3_R),
-                                   bp.g_cn3_R * ((1.0 - c) * nuc3_R + c * nuc3_L)])
+    levator = levator * jnp.array([bp.g_cn3_L * ((1.0 - c) * ccn_L + c * ccn_R),
+                                   bp.g_cn3_R * ((1.0 - c) * ccn_R + c * ccn_L)])
     muller      = muller      * jnp.array([bp.g_ocular_symp_L, bp.g_ocular_symp_R])
     orbicularis = orbicularis * jnp.array([bp.g_cn7_L, bp.g_cn7_R])
     return levator, muller, orbicularis
 
 
 def ciliary_nerve(u_acc, brain_params):
-    """Apply the CN III (ciliary / accommodation) lesion to the accommodation command.
+    """Apply the CN III (ciliary / accommodation) lesions to the accommodation command.
 
-    The ciliary muscle is CN III parasympathetic (like the iris sphincter), so a
-    CN III palsy cyclopleges that eye.  The lens is a single BINOCULAR state, so
-    gate by the BETTER eye's CN III integrity: bilateral CN III palsy → cycloplegia;
-    unilateral → preserved (the intact eye drives the shared near response).
-    (Monocular cycloplegia would need per-eye lens states.)  Completes the CN III
-    triad → ophthalmoplegia + ptosis + blown pupil + cycloplegia.
+    The ciliary muscle is CN III parasympathetic (like the iris sphincter), lesioned
+    in TWO stages: NUCLEUS = Edinger-Westphal (g_nuc_ew — shared with the sphincter,
+    so an EW lesion gives internal ophthalmoplegia = fixed pupil + cycloplegia) and
+    NERVE = the CN III trunk (g_cn3).  The lens is a single BINOCULAR state, so gate
+    by the BETTER eye's combined EW-nucleus × CN III-nerve integrity: bilateral loss →
+    cycloplegia; unilateral → preserved (the intact eye drives the shared near
+    response).  (Monocular cycloplegia would need per-eye lens states.)  Completes the
+    CN III triad → ophthalmoplegia + ptosis + blown pupil + cycloplegia.
     """
     bp = brain_params
-    return u_acc * jnp.maximum(bp.g_cn3_L, bp.g_cn3_R)
+    return u_acc * jnp.maximum(bp.g_nuc_ew_L * bp.g_cn3_L, bp.g_nuc_ew_R * bp.g_cn3_R)
 
 
 def rest_state(premotor_activity, brain_params):

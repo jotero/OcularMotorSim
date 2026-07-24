@@ -338,31 +338,21 @@ def with_cn3_palsy(params: Params, side: str = 'right') -> Params:
 
 
 def with_cn3_nuclear_palsy(params: Params, side: str = 'left') -> Params:
-    """CN III NUCLEAR palsy — bilateral partial ptosis (central caudal nucleus).
+    """CN III NUCLEAR palsy — somatic ophthalmoplegia + bilateral partial ptosis.
 
-    Zeroes that side's CN III eye-muscle subnuclei (g_nucleus: MR/SR/IR/IO). The
-    levator's central drive follows those SHARED subnucleus gains (no duplicate
-    lid-nucleus knob): the central caudal nucleus projects to BOTH lids, so a
-    one-sided nuclear lesion → BILATERAL PARTIAL ptosis (asymmetric, ipsi-dominant
-    per eyelid_levator_contra_frac). The pupil follows the CN III NERVE (g_nerve),
-    intact here, so a nuclear lesion spares the pupil (dorsal-midbrain sparing).
+    Zeroes that side's SOMATIC oculomotor nucleus (g_nuc_cn3, → MR/SR/IR/IO weakness)
+    AND its central caudal nucleus (g_nuc_ccn, → levator). The CCN projects to BOTH
+    lids, so a one-sided nuclear lesion → BILATERAL PARTIAL ptosis (asymmetric,
+    ipsi-dominant per eyelid_levator_contra_frac). The Edinger-Westphal nucleus
+    (g_nuc_ew) is LEFT INTACT → the pupil stays reactive (dorsal-midbrain sparing).
+    For internal ophthalmoplegia instead (fixed pupil + cycloplegia, somatic spared),
+    zero g_nuc_ew_<side>.
     """
-    from oculomotor.models.brain_models.final_common_pathway import (
-        G_NUCLEUS_DEFAULT, CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L,
-        CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R,
-    )
     if side == 'left':
-        nuc_idx = jnp.array([CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L])
+        return with_brain(params, g_nuc_cn3_L=0.0, g_nuc_ccn_L=0.0)
     elif side == 'right':
-        nuc_idx = jnp.array([CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R])
-    else:
-        raise ValueError(f"side must be 'left' or 'right', got {side!r}")
-
-    g_nucleus = jnp.asarray(params.brain.g_nucleus, dtype=jnp.float32)
-    if g_nucleus.shape != (12,):
-        g_nucleus = jnp.asarray(G_NUCLEUS_DEFAULT, dtype=jnp.float32)
-    g_nucleus = g_nucleus.at[nuc_idx].set(0.0)
-    return with_brain(params, g_nucleus=g_nucleus)
+        return with_brain(params, g_nuc_cn3_R=0.0, g_nuc_ccn_R=0.0)
+    raise ValueError(f"side must be 'left' or 'right', got {side!r}")
 
 
 def with_facial_palsy(params: Params, side: str = 'left') -> Params:

@@ -23,7 +23,6 @@ from oculomotor.sim.simulator import (
     PARAMS_DEFAULT, with_brain, with_sensory, simulate, SimConfig,
 )
 from oculomotor.sim import kinematics as km
-from oculomotor.models.brain_models.final_common_pathway import ABN_R, G_NUCLEUS_DEFAULT
 from oculomotor.models.plant_models.muscle_geometry import (
     LR_R, MR_R, SR_R, IR_R, SO_R, IO_R,
 )
@@ -51,9 +50,9 @@ SECTION = dict(
 # CN VI nerve (R): LR_R paretic only (nucleus and fellow-eye MR intact)
 THETA_CN6_NERVE = with_brain(THETA, g_cn6_R=0.0)
 
-# CN VI nucleus (R): ABN_R → only ipsilateral LR_R affected (no MLF in model)
-THETA_CN6_NUC = with_brain(THETA,
-    g_nucleus=G_NUCLEUS_DEFAULT.at[ABN_R].set(0.0))
+# CN VI nucleus (R): g_nuc_cn6_R → abducens nucleus. Silences ipsilateral LR_R AND
+# the co-located AIN (MLF outflow to contra MR_L) → rightward horizontal GAZE palsy.
+THETA_CN6_NUC = with_brain(THETA, g_nuc_cn6_R=0.0)
 
 # CN III nerve (R): MR/SR/IR/IO all paretic; LR (CN VI) and SO (CN IV) intact
 THETA_CN3 = with_brain(THETA, g_cn3_R=0.0)

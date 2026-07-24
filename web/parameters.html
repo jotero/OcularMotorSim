@@ -94,7 +94,7 @@ tr:last-child { border-bottom: none; }
     <a href="#brainparams-accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Accommodation <span style="color:#666">(9)</span></a>
     <a href="#brainparams-pupil" style="padding-left:32px;font-size:11px;color:#aaa">Pupil <span style="color:#666">(12)</span></a>
     <a href="#brainparams-eyelid" style="padding-left:32px;font-size:11px;color:#aaa">Eyelid <span style="color:#666">(2)</span></a>
-    <a href="#brainparams-final_common_pathway" style="padding-left:32px;font-size:11px;color:#aaa">Final Common Pathway <span style="color:#666">(15)</span></a>
+    <a href="#brainparams-final_common_pathway" style="padding-left:32px;font-size:11px;color:#aaa">Final Common Pathway <span style="color:#666">(24)</span></a>
     <a href="#brainparams-cerebellum" style="padding-left:32px;font-size:11px;color:#aaa">Cerebellum <span style="color:#666">(4)</span></a>
     <div style="height:8px"></div>
     <a href="#sensoryparams">SensoryParams</a>
@@ -119,8 +119,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-07-24 12:59</strong> &nbsp;|&nbsp;
-      Version: <strong>4254d85-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-24 14:54</strong> &nbsp;|&nbsp;
+      Version: <strong>702900f-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - Documents\JOM\Code\OcularMotorSim\src\oculomotor\schema\parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -128,7 +128,7 @@ tr:last-child { border-bottom: none; }
     <div class="warning"><b>28 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
     
   <section class="section" id="brainparams">
-    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(148 fields)</small></h2>
+    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(157 fields)</small></h2>
     <p class="desc">Central neural model parameters — VS, NI, SG, gravity, vergence, accommodation, T-VOR, OCR, CN/MLF gains. Read by every brain submodule's <code>step()</code>.</p>
     
     <div class="subsection" id="brainparams-self_motion_estimation">
@@ -1614,7 +1614,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="brainparams-final_common_pathway">
-      <h3>Final Common Pathway <small style="font-size:11px;font-weight:400;color:#888">(15 fields)</small></h3>
+      <h3>Final Common Pathway <small style="font-size:11px;font-weight:400;color:#888">(24 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -1627,13 +1627,103 @@ tr:last-child { border-bottom: none; }
         </tr></thead>
         <tbody>
         <tr>
-          <td class="param-name">g_nucleus<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
-          <td><span class="default">[1, 1, 1, … (12 total)]</span></td>
+          <td class="param-name">g_nuc_cn3_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
           <td class="units">—</td>
-          <td class="range-cell">[0, 1] <small>(len 12)</small></td>
-          <td class="desc-cell"><p>Per-nucleus multiplicative gain [0..1].  Models cell-loss in a motor nucleus — burst firing AND tonic baseline are both attenuated by this gain (cells fire less, fewer cells fire).  Gain shared between ABN motoneurons and AIN (intermingled abducens populations). 12 elements: [ABN_L, ABN_R, CN4_L, CN4_R,  CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R,  CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R]. 0 = nucleus silenced (full lesion).  Partial gain produces graded weakness AND tonic strabismus (asymmetric baseline → eye drift). CN VI nucleus lesion = horizontal gaze palsy (silences ABN motoneurons AND AIN MLF outflow on the same side).</p></td>
-          <td class="anatomy-cell">12 motor nuclei: ABN, CN4, CN3 subnuclei (L/R)</td>
-          <td><span class="tag tag-cn">CN VI nucleus palsy (R): [1,0,1,1,1,1,1,1,1,1,1,1]</span> <span class="tag tag-cn">CN III nucleus palsy (R): [1,1,1,1,1,0,1,1,1,1,1,0]</span> <span class="tag tag-cn">Partial CN VI nucleus (R): [1,0.5,1,1,1,1,1,1,1,1,1,1]</span></td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left CN III somatic oculomotor nucleus integrity [0..1]. 0 = somatic ophthalmoplegia of the four CN III eye muscles. Pair with g_nuc_ccn_L for the accompanying ptosis; leave g_nuc_ew_L intact for dorsal-midbrain pupil sparing.</p></td>
+          <td class="anatomy-cell">LEFT oculomotor SOMATIC subnuclei (MR, SR, IR, IO)</td>
+          <td><span class="tag tag-cn">CN III nucleus palsy (L, somatic): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_cn3_R<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right CN III somatic nucleus integrity (symmetric to g_nuc_cn3_L).</p></td>
+          <td class="anatomy-cell">RIGHT oculomotor somatic subnuclei</td>
+          <td><span class="tag tag-cn">CN III nucleus palsy (R, somatic): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_cn4_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left CN IV nucleus integrity [0..1]. 0 = trochlear nuclear palsy.</p></td>
+          <td class="anatomy-cell">LEFT trochlear nucleus (CN IV) → SO</td>
+          <td><span class="tag tag-cn">CN IV nucleus palsy (L): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_cn4_R<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right CN IV nucleus integrity (symmetric to g_nuc_cn4_L).</p></td>
+          <td class="anatomy-cell">RIGHT trochlear nucleus (CN IV)</td>
+          <td><span class="tag tag-cn">CN IV nucleus palsy (R): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_cn6_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left abducens nucleus integrity [0..1]. Covers BOTH the ipsilateral LR motoneurons AND the co-located AIN whose axons cross in the MLF to the contralateral MR, so 0 = LEFT horizontal GAZE palsy (both eyes fail to look left) — distinct from a CN VI NERVE palsy (isolated LR weakness, g_cn6_L).</p></td>
+          <td class="anatomy-cell">LEFT abducens nucleus (CN VI) → LR + AIN(MLF)</td>
+          <td><span class="tag tag-cn">CN VI nucleus palsy (L) → gaze palsy: 0.0</span> <span class="tag tag-cn">Partial CN VI nucleus (L): 0.5</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_cn6_R<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right abducens nucleus integrity (symmetric to g_nuc_cn6_L).</p></td>
+          <td class="anatomy-cell">RIGHT abducens nucleus (CN VI)</td>
+          <td><span class="tag tag-cn">CN VI nucleus palsy (R) → gaze palsy: 0.0</span> <span class="tag tag-cn">Partial CN VI nucleus (R): 0.5</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_ccn_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left central caudal nucleus integrity [0..1] → levator (lid). The CCN is a midline structure projecting to BOTH levators, so a one-sided lesion → bilateral partial ptosis (asymmetric, ipsi-dominant per eyelid_levator_contra_frac).</p></td>
+          <td class="anatomy-cell">LEFT central caudal nucleus (CN III) → levator palpebrae</td>
+          <td><span class="tag tag-cn">Central caudal nucleus ptosis (L): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_ccn_R<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right central caudal nucleus integrity (symmetric to g_nuc_ccn_L).</p></td>
+          <td class="anatomy-cell">RIGHT central caudal nucleus (CN III)</td>
+          <td><span class="tag tag-cn">Central caudal nucleus ptosis (R): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_ew_L<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Left Edinger-Westphal (parasympathetic) nucleus integrity [0..1] → pupil sphincter + ciliary muscle. 0 = internal ophthalmoplegia: fixed dilated pupil + cycloplegia, with the somatic eye muscles and lid spared.</p></td>
+          <td class="anatomy-cell">LEFT Edinger-Westphal (CN III parasymp) → pupil sphincter + ciliary</td>
+          <td><span class="tag tag-cn">Internal ophthalmoplegia (L): 0.0</span></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">g_nuc_ew_R<span class="llm-tag" title="Exposed in the LLM Patient schema">LLM</span></td>
+          <td><span class="default">1</span></td>
+          <td class="units">—</td>
+          <td class="range-cell">[0, 1]</td>
+          <td class="desc-cell"><p>Right Edinger-Westphal integrity (symmetric to g_nuc_ew_L).</p></td>
+          <td class="anatomy-cell">RIGHT Edinger-Westphal (CN III parasympathetic)</td>
+          <td><span class="tag tag-cn">Internal ophthalmoplegia (R): 0.0</span></td>
         </tr>
 
         <tr>
@@ -1641,7 +1731,7 @@ tr:last-child { border-bottom: none; }
           <td><span class="default">1</span></td>
           <td class="units">—</td>
           <td class="range-cell">[0, 1]</td>
-          <td class="desc-cell"><p>Left CN III nerve-trunk integrity [0..1]. One knob for the whole trunk: it weakens the four CN III eye muscles (eye rests down-and-out) AND — because the levator palpebrae and pupilloconstrictor parasympathetics travel with the nerve — produces ptosis and a fixed dilated ('blown') pupil on the same side. 0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_nucleus.)</p></td>
+          <td class="desc-cell"><p>Left CN III nerve-trunk integrity [0..1]. One knob for the whole trunk: it weakens the four CN III eye muscles (eye rests down-and-out) AND — because the levator palpebrae and pupilloconstrictor parasympathetics travel with the nerve — produces ptosis and a fixed dilated ('blown') pupil on the same side. 0 = complete CN III palsy; partial = graded. (A NUCLEAR lesion → g_nuc_cn3.)</p></td>
           <td class="anatomy-cell">LEFT oculomotor nerve (CN III) → MR, SR, IR, IO (+ levator, pupil)</td>
           <td><span class="tag tag-cn">CN III palsy (L): 0.0</span></td>
         </tr>
@@ -1681,7 +1771,7 @@ tr:last-child { border-bottom: none; }
           <td><span class="default">1</span></td>
           <td class="units">—</td>
           <td class="range-cell">[0, 1]</td>
-          <td class="desc-cell"><p>Left CN VI nerve integrity [0..1]. 0 = lateral-rectus palsy → esotropia and an abduction deficit on that side; partial = recovering. (A NUCLEAR lesion is a horizontal gaze palsy — g_nucleus[ABN].)</p></td>
+          <td class="desc-cell"><p>Left CN VI nerve integrity [0..1]. 0 = lateral-rectus palsy → esotropia and an abduction deficit on that side; partial = recovering. (A NUCLEAR lesion is a horizontal gaze palsy — g_nuc_cn6.)</p></td>
           <td class="anatomy-cell">LEFT abducens nerve (CN VI) → LR</td>
           <td><span class="tag tag-cn">CN VI palsy (L): 0.0</span> <span class="tag tag-cn">Recovering CN VI (L): 0.4</span></td>
         </tr>
@@ -1721,7 +1811,7 @@ tr:last-child { border-bottom: none; }
           <td><span class="default">[50, 50, 50, … (12 total)]</span></td>
           <td class="units">deg/s equivalent</td>
           <td class="range-cell">[0, 200] <small>(len 12)</small></td>
-          <td class="desc-cell"><p>Per-nucleus tonic baseline firing rate at primary position (12,). Symmetric default (50) is invisible at the plant via zero-sum decode columns — the plant only sees agonist−antagonist differences, so uniform baselines cancel.  Asymmetric baselines produce tonic strabismus directly without needing to lesion a gain. Default: 50 across all 12 nuclei.  Indices match g_nucleus. Note: g_nucleus also scales the baseline (cell loss reduces tone too), so partial nuclear lesions automatically produce both saccade slowing AND tonic strabismus.</p></td>
+          <td class="desc-cell"><p>Per-nucleus tonic baseline firing rate at primary position (12,). Symmetric default (50) is invisible at the plant via zero-sum decode columns — the plant only sees agonist−antagonist differences, so uniform baselines cancel.  Asymmetric baselines produce tonic strabismus directly without needing to lesion a gain. Default: 50 across all 12 nuclei.  Index order (nucleus order): [ABN_L, ABN_R, CN4_L, CN4_R, CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R,  CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R]. Note: the nucleus gains also scale the baseline (cell loss reduces tone too), so partial nuclear lesions automatically produce both saccade slowing AND tonic strabismus.</p></td>
           <td class="anatomy-cell">Per-nucleus tonic baseline firing (deg/s)</td>
           <td><span class="tag tag-phoria">Right exotropia (extra LR_R tone): [50,80,50,50,50,50,50,50,50,50,50,50]</span> <span class="tag tag-phoria">Right esotropia (extra MR_R tone): [50,50,50,50,50,80,50,50,50,50,50,50]</span></td>
         </tr>

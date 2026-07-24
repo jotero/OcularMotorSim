@@ -95,7 +95,7 @@ from oculomotor.models.brain_models  import listing
 
 from oculomotor.models.sensory_models.sensory_model import SensoryOutput
 from oculomotor.models.brain_models.final_common_pathway import (
-    G_NUCLEUS_DEFAULT, R_BASELINE_DEFAULT, nerve_gains_from_trunks)
+    R_BASELINE_DEFAULT, nerve_gains_from_trunks, nucleus_gains_from_trunks)
 # EC cascade math (rotation, saturation, cascade_lp_step) and the cascade
 # state both live in `cerebellum.py` now — same module that owns the pursuit
 # forward model (which uses the cascade tails as its prediction).
@@ -688,36 +688,46 @@ class BrainParams(NamedTuple):
 
     # Eyelid (eyelid.py → eyelid_plant.py). Closure per eye in [0,1] (0 = open,
     # 1 = closed) = posture (levator + Müller) − orbicularis blink + downgaze
-    # lid-follow. The levator has NO dedicated knobs — both its stages follow the
-    # shared CN III gains: the central caudal nucleus stage from g_nucleus (CN III
-    # subnuclei, projects to BOTH lids) and the peripheral nerve stage from g_nerve.
-    # The orbicularis follows the CN VII gain g_cn7; Müller ptosis reuses g_ocular_symp.
+    # lid-follow. The levator is lesioned in TWO stages: the central caudal nucleus
+    # (g_nuc_ccn, projects to BOTH lids → bilateral partial ptosis) and the peripheral
+    # CN III nerve (g_cn3 → unilateral complete ptosis). The orbicularis follows the
+    # CN VII gain g_cn7; Müller ptosis reuses g_ocular_symp.
     eyelid_levator_contra_frac: float = 0.3  # fraction of each levator's nuclear (CCN) drive from the CONTRA side
                                           #   (0.3 → 70/30 ipsi/contra: a nuclear lesion → asymmetric, ipsi-dominant
                                           #   bilateral ptosis; 0.5 = fully symmetric).
     eyelid_blink_rate:     float = 15.0   # spontaneous blink rate (blinks/min); 0 = no spontaneous blinks
 
-    # Motor nucleus and nerve gains — two-stage encode (see muscle_geometry.py)
-    # Stage 1 — g_nucleus (12,): per-nucleus gain [0,1]. Zero = nucleus lesion.
-    #   Nucleus order: ABN_L(0), ABN_R(1), CN4_L(2), CN4_R(3),
-    #                  CN3_MR_L(4), CN3_MR_R(5), CN3_SR_L(6), CN3_SR_R(7),
-    #                  CN3_IR_L(8), CN3_IR_R(9), CN3_IO_L(10), CN3_IO_R(11)
-    #   ABN gain is shared with the co-located AIN (abducens internuclear neurons)
-    #   on the same side: any real abducens-nucleus lesion silences BOTH
-    #   ipsilateral LR motoneurons AND the MLF outflow to contralateral MR
-    #   (textbook horizontal gaze palsy — neither eye saccades to that side).
-    # Stage 2 — g_nerve (12,): per-nerve gain [0,1]. Zero = nerve/fascicular lesion.
-    #   Nerve order: [LR_L,MR_L,SR_L,IR_L,SO_L,IO_L, LR_R,MR_R,SR_R,IR_R,SO_R,IO_R]
-    #   CN nerve lesion isolates individual muscles without affecting other nuclei.
-    # Healthy default: all ones → transparent round-trip through plant.
-    g_nucleus:             jnp.ndarray  = G_NUCLEUS_DEFAULT  # (12,) motor nucleus gains (one per side)
-    # Stage 2 nerve integrity is parameterized PER CRANIAL-NERVE TRUNK, not per
-    # muscle: each trunk gain ∈ [0,1] propagates to every muscle it serves via
-    # muscle_geometry.nerve_gains_from_trunks. A CN III palsy is one knob
-    # (g_cn3_R=0) that also drops the lid + blows the pupil (they read the same
-    # CN III integrity). The (12,) `g_nerve` the FCP/pupil/lid consume is DERIVED
-    # from these — see the g_nerve property below.
-    g_cn3_L:               float = 1.0   # LEFT  oculomotor nerve (CN III) → MR,SR,IR,IO (+ levator, pupil)
+    # ── Motor nucleus + nerve gains — two-stage encode (see final_common_pathway.py).
+    # BOTH stages are parameterized per cranial-nerve TRUNK / nucleus-complex (per
+    # side), not per muscle. The (12,) vectors the FCP consumes (g_nucleus, g_nerve)
+    # are DERIVED from the trunk gains via nucleus_gains_from_trunks /
+    # nerve_gains_from_trunks — see the properties below. Set any lesion with
+    # with_brain(θ, g_nuc_cn6_R=0) / with_brain(θ, g_cn3_R=0).
+    #
+    # Stage 1 — NUCLEUS (cell loss). Distinct from the nerve stage: a CN VI NUCLEUS
+    # lesion (g_nuc_cn6_R=0) → horizontal GAZE palsy (the ABN gain is shared with the
+    # co-located AIN → ipsi LR + contra MR both silenced), vs an isolated LR palsy from
+    # a CN VI NERVE lesion. The CN III complex has separable subnuclei so the classic
+    # dissociations fall out: somatic eye muscles, central caudal (levator → ptosis),
+    # and Edinger-Westphal (pupil sphincter + ciliary → accommodation). E.g. dorsal-
+    # midbrain sparing = somatic/CCN out, EW spared (reactive pupil); internal
+    # ophthalmoplegia = EW out (fixed pupil + cycloplegia), somatic spared.
+    g_nuc_cn3_L:  float = 1.0   # LEFT  oculomotor SOMATIC subnuclei (MR,SR,IR,IO) → eye muscles
+    g_nuc_cn3_R:  float = 1.0   # RIGHT oculomotor somatic subnuclei
+    g_nuc_cn4_L:  float = 1.0   # LEFT  trochlear nucleus (CN IV) → SO
+    g_nuc_cn4_R:  float = 1.0   # RIGHT trochlear nucleus
+    g_nuc_cn6_L:  float = 1.0   # LEFT  abducens nucleus (CN VI) → LR + AIN(MLF) → gaze palsy
+    g_nuc_cn6_R:  float = 1.0   # RIGHT abducens nucleus
+    g_nuc_ccn_L:  float = 1.0   # LEFT  central caudal nucleus (CN III) → levator palpebrae (lid)
+    g_nuc_ccn_R:  float = 1.0   # RIGHT central caudal nucleus
+    g_nuc_ew_L:   float = 1.0   # LEFT  Edinger-Westphal (CN III parasymp) → pupil sphincter + ciliary
+    g_nuc_ew_R:   float = 1.0   # RIGHT Edinger-Westphal
+    #
+    # Stage 2 — NERVE (axon conduction block / fascicular lesion). g_cn<n>_<side>
+    # isolates the muscles a trunk serves without affecting the nucleus; a CN III palsy
+    # (g_cn3_R=0) is one knob that also drops the lid + blows the pupil + cyclopleges
+    # (they read the same trunk). The (12,) g_nerve is DERIVED — see the property below.
+    g_cn3_L:               float = 1.0   # LEFT  oculomotor nerve (CN III) → MR,SR,IR,IO (+ levator, pupil, ciliary)
     g_cn3_R:               float = 1.0   # RIGHT oculomotor nerve (CN III)
     g_cn4_L:               float = 1.0   # LEFT  trochlear  nerve (CN IV)  → SO
     g_cn4_R:               float = 1.0   # RIGHT trochlear  nerve (CN IV)
@@ -725,11 +735,21 @@ class BrainParams(NamedTuple):
     g_cn6_R:               float = 1.0   # RIGHT abducens   nerve (CN VI)
 
     @property
+    def g_nucleus(self):
+        """(12,) per-nucleus cell-loss gain for the EXTRAOCULAR motoneurons — DERIVED
+        from the CN III/IV/VI nucleus-complex trunk gains via nucleus_gains_from_trunks.
+        Consumers (FCP read_activations/step) read this unchanged; the CCN (lid) and EW
+        (pupil/accom) subnuclei are read separately by the eyelid/iris/ciliary helpers.
+        Source of truth: g_nuc_cn3/cn4/cn6_{L,R}."""
+        return nucleus_gains_from_trunks(self.g_nuc_cn3_L, self.g_nuc_cn3_R,
+                                         self.g_nuc_cn4_L, self.g_nuc_cn4_R,
+                                         self.g_nuc_cn6_L, self.g_nuc_cn6_R)
+
+    @property
     def g_nerve(self):
         """(12,) per-muscle nerve ceiling — DERIVED from the CN III/IV/VI trunk
-        gains via muscle_geometry.nerve_gains_from_trunks.  Consumers (FCP, pupil,
-        lid) read this unchanged; the per-trunk g_cn3/cn4/cn6_{L,R} are the source
-        of truth (set a palsy with e.g. with_brain(θ, g_cn3_R=0))."""
+        gains via nerve_gains_from_trunks.  Consumers (FCP, pupil, lid) read this
+        unchanged; the per-trunk g_cn3/cn4/cn6_{L,R} are the source of truth."""
         return nerve_gains_from_trunks(self.g_cn3_L, self.g_cn3_R,
                                        self.g_cn4_L, self.g_cn4_R,
                                        self.g_cn6_L, self.g_cn6_R)
