@@ -1009,11 +1009,13 @@ class MotorOut(NamedTuple):
     gone from the output: cb.step / perception_cyclopean consume the internal
     ec_vel / ec_pos locals directly, and the returned copies had no consumer.
     """
-    nerves:         jnp.ndarray   # (12,) extraocular nerve activations [L6 | R6] → eye plant
-    u_acc:          jnp.ndarray   # accommodation neural command (D, neural + CA/C) → lens plant
-    iris_sphincter: jnp.ndarray   # (2,) CN III constrictor nerve drive (mm) [L,R] → iris plants
-    iris_dilator:   jnp.ndarray   # (2,) sympathetic dilator nerve drive (mm) [L,R] → iris plants
-    u_lid:          jnp.ndarray   # (2,) commanded per-eye lid closure [L,R] → eyelid plants
+    nerves:          jnp.ndarray   # (12,) extraocular nerve activations [L6 | R6] → eye plant
+    u_acc:           jnp.ndarray   # accommodation neural command (D, neural + CA/C) → lens plant
+    iris_sphincter:  jnp.ndarray   # (2,) CN III constrictor nerve drive (mm) [L,R] → iris plants
+    iris_dilator:    jnp.ndarray   # (2,) sympathetic dilator nerve drive (mm) [L,R] → iris plants
+    lid_levator:     jnp.ndarray   # (2,) CN III levator opener tone [L,R] → eyelid plants
+    lid_muller:      jnp.ndarray   # (2,) sympathetic Müller opener tone [L,R] → eyelid plants
+    lid_orbicularis: jnp.ndarray   # (2,) CN VII orbicularis closer drive [L,R] → eyelid plants
 
 
 def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0):
@@ -1034,11 +1036,13 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     Returns:
         dbrain_state: BrainState  state derivative
         motor_out:    MotorOut  the brain's motor efference (see the NamedTuple above):
-            nerves         (12,)  extraocular nerve activations [L6 | R6] → eye plant
-            u_acc          scalar accommodation command (D, neural + CA/C) → lens plant
-            iris_sphincter (2,)   CN III constrictor nerve drive (mm) → iris plants
-            iris_dilator   (2,)   sympathetic dilator nerve drive (mm) → iris plants
-            u_lid          (2,)   commanded per-eye lid closure → eyelid plants
+            nerves          (12,)  extraocular nerve activations [L6 | R6] → eye plant
+            u_acc           scalar accommodation command (D, neural + CA/C) → lens plant
+            iris_sphincter  (2,)   CN III constrictor nerve drive (mm) → iris plants
+            iris_dilator    (2,)   sympathetic dilator nerve drive (mm) → iris plants
+            lid_levator     (2,)   CN III levator opener tone → eyelid plants
+            lid_muller      (2,)   sympathetic Müller opener tone → eyelid plants
+            lid_orbicularis (2,)   CN VII orbicularis closer drive → eyelid plants
     """
     # ── Activation / Decoded / Weights registries ────────────────────────────
     # Built once per step.  Subsystems read these instead of raw state.
@@ -1247,13 +1251,18 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     )
     iris_sphincter, iris_dilator = fcp.iris_nerves(sphincter_raw, dilator_raw, brain_params)
 
-    # ── Eyelid: posture + blink + downgaze lid-follow → commanded lid closure ──
-    # Stateless (eyelid.py); dynamics live in the eyelid plant. blink_drive is the
-    # central (pre-generated) spontaneous-blink command. Lid-follow reads the
-    # brain's own vertical-gaze efference (ec_pos pitch) — the upper lid follows
-    # the eye by co-innervation with the superior rectus, so it's efference-driven,
-    # not proprioceptive. Conjugate (same pitch to both lids).
-    u_lid = eyelid.command(blink_drive, ec_pos[1], ec_pos[1], brain_params)
+    # ── Eyelid: posture + blink + downgaze lid-follow → antagonist muscle drives ─
+    # Stateless (eyelid.py) emits the three raw lid-muscle drives (levator, Müller,
+    # orbicularis); fcp.eyelid_nerves applies the peripheral nerve lesions (CN III +
+    # nucleus on the levator, sympathetic on Müller, CN VII on orbicularis) like the
+    # other nerves, and the eyelid plant decodes the balance into a closure.
+    # blink_drive is the central (pre-generated) spontaneous-blink command.
+    # Lid-follow reads the brain's own vertical-gaze efference (ec_pos pitch) — the
+    # upper lid follows the eye by co-innervation with the superior rectus, so it's
+    # efference-driven, not proprioceptive. Conjugate (same pitch to both lids).
+    lev_raw, mul_raw, orb_raw = eyelid.command(blink_drive, ec_pos[1], ec_pos[1], brain_params)
+    lid_levator, lid_muller, lid_orbicularis = fcp.eyelid_nerves(
+        lev_raw, mul_raw, orb_raw, brain_params)
 
     # ── Final common pathway: nucleus encode → MN low-pass → nerve transmission ─
     # step is STATE-driven: it derives the signed leak/nerve rate from
@@ -1312,4 +1321,5 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
 
     return dbrain, MotorOut(nerves=nerves, u_acc=u_acc,
                             iris_sphincter=iris_sphincter, iris_dilator=iris_dilator,
-                            u_lid=u_lid)
+                            lid_levator=lid_levator, lid_muller=lid_muller,
+                            lid_orbicularis=lid_orbicularis)

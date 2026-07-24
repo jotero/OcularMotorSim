@@ -94,7 +94,8 @@ def set_brain_step(fn):
 
     Pass any callable with the same signature as brain_model.step:
         fn(x_brain, sensory_out, brain_params, noise_acc, blink_drive) ->
-            (dx_brain, MotorOut)   # MotorOut = (nerves, u_acc, iris_sphincter, iris_dilator, u_lid)
+            (dx_brain, MotorOut)   # MotorOut = (nerves, u_acc, iris_sphincter/dilator,
+                                   #            lid_levator/muller/orbicularis)
 
     Call set_brain_step(brain_model.step) to restore the default.
     """
@@ -526,8 +527,10 @@ def ODE_ocular_motor(t, state, args):
     dbrain, mout = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t),
         blink_drive_interp.evaluate(t))
-    nerves, u_acc, u_lid = mout.nerves, mout.u_acc, mout.u_lid
+    nerves, u_acc = mout.nerves, mout.u_acc
     iris_sphincter, iris_dilator = mout.iris_sphincter, mout.iris_dilator
+    lid_levator, lid_muller, lid_orbicularis = (
+        mout.lid_levator, mout.lid_muller, mout.lid_orbicularis)
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
     # Binocular step returns ONLY the state derivative.  Position is the state
@@ -553,10 +556,12 @@ def ODE_ocular_motor(t, state, args):
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
     # ── Eyelid plants — per eye [L, R] ───────────────────────────────────────────
-    # u_lid = (2,) commanded lid closure, now computed IN the brain
-    # (brain_model.step: posture + blink + downgaze lid-follow off the vertical-gaze
-    # efference) alongside the iris drives. Each lid low-passes it (fast close / slow open).
-    dx_eyelid_plant = eyelid_plant_mod.step(state.eyelid_plant, u_lid)
+    # The brain emits the three antagonist lid-muscle drives (levator = CN III
+    # opener, Müller = sympathetic opener, orbicularis = CN VII closer), already
+    # lesioned in the FCP. The eyelid plant decodes the balance into a commanded
+    # closure and low-passes it (fast close / slow open).
+    dx_eyelid_plant = eyelid_plant_mod.step(
+        state.eyelid_plant, lid_levator, lid_muller, lid_orbicularis)
 
     # ── Optical interventions — applied after plant, before sensory step ─────
     # Prisms are head-frame mounted (glasses); they rotate the apparent gaze direction
@@ -873,9 +878,12 @@ def simulate(
     _rest_L   = _pupil_lo + _bp.g_ocular_symp_L * (_bp.pupil_baseline - _pupil_lo)
     _rest_R   = _pupil_lo + _bp.g_ocular_symp_R * (_bp.pupil_baseline - _pupil_lo)
 
-    # Per-eye resting lid closure — the eyelid command with no blink and centred
-    # gaze (so a ptosis lesion starts already drooped).
-    _lid0 = eyelid_ctrl.command(0.0, 0.0, 0.0, params.brain)
+    # Per-eye resting lid closure — the eyelid drives (no blink, centred gaze) run
+    # through the FCP nerve lesions and the plant's push-pull decode, so a ptosis
+    # lesion starts already drooped.
+    from oculomotor.models.brain_models import final_common_pathway as _fcp
+    _lev0, _mul0, _orb0 = eyelid_ctrl.command(0.0, 0.0, 0.0, params.brain)
+    _lid0 = eyelid_plant_mod.decode(*_fcp.eyelid_nerves(_lev0, _mul0, _orb0, params.brain))
 
     x0 = SimState(
         sensory      = sensory_x0,

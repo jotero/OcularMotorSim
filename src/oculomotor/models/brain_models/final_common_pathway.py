@@ -456,6 +456,31 @@ def iris_nerves(sphincter_raw, dilator_raw, brain_params):
     return sphincter, dilator
 
 
+def eyelid_nerves(levator, muller, orbicularis, brain_params):
+    """Apply the peripheral eyelid-nerve lesions to the raw drives (eyelid.command).
+
+    Three antagonist muscles, each lesioned here like every other nerve:
+        levator     (CN III somatic) — TWO stages: the central caudal nucleus
+                    projects to BOTH levators (ipsi + contra, → bilateral partial
+                    ptosis on a nuclear lesion) and follows the CN III subnucleus
+                    gains (g_nucleus); the peripheral nerve follows the CN III
+                    trunk gains (g_cn3, → unilateral complete ptosis on a nerve
+                    palsy).  Mixing fraction: eyelid_levator_contra_frac.
+        muller      (sympathetic)    — gated by g_ocular_symp (Horner mild ptosis).
+        orbicularis (CN VII facial)  — gated by g_cn7 (lagophthalmos / Bell's palsy).
+    Per eye [L, R].  Returns (levator, muller, orbicularis) tone/drives; the eyelid
+    plant decodes them into a lid closure.
+    """
+    bp = brain_params
+    nuc3_L, nuc3_R = cn3_nucleus_integrity(bp.g_nucleus)
+    c = bp.eyelid_levator_contra_frac   # fraction of each levator's nuclear drive from CONTRA
+    levator = levator * jnp.array([bp.g_cn3_L * ((1.0 - c) * nuc3_L + c * nuc3_R),
+                                   bp.g_cn3_R * ((1.0 - c) * nuc3_R + c * nuc3_L)])
+    muller      = muller      * jnp.array([bp.g_ocular_symp_L, bp.g_ocular_symp_R])
+    orbicularis = orbicularis * jnp.array([bp.g_cn7_L, bp.g_cn7_R])
+    return levator, muller, orbicularis
+
+
 def rest_state(premotor_activity, brain_params):
     """Steady-state MN membrane for a given resting premotor command.
 
