@@ -1009,10 +1009,11 @@ class MotorOut(NamedTuple):
     gone from the output: cb.step / perception_cyclopean consume the internal
     ec_vel / ec_pos locals directly, and the returned copies had no consumer.
     """
-    nerves:  jnp.ndarray   # (12,) extraocular nerve activations [L6 | R6] → eye plant
-    u_acc:   jnp.ndarray   # accommodation neural command (D, neural + CA/C) → lens plant
-    u_pupil: jnp.ndarray   # (2,) commanded per-eye pupil diameter (mm) [L,R] → iris plants
-    u_lid:   jnp.ndarray   # (2,) commanded per-eye lid closure [L,R] → eyelid plants
+    nerves:         jnp.ndarray   # (12,) extraocular nerve activations [L6 | R6] → eye plant
+    u_acc:          jnp.ndarray   # accommodation neural command (D, neural + CA/C) → lens plant
+    iris_sphincter: jnp.ndarray   # (2,) CN III constrictor nerve drive (mm) [L,R] → iris plants
+    iris_dilator:   jnp.ndarray   # (2,) sympathetic dilator nerve drive (mm) [L,R] → iris plants
+    u_lid:          jnp.ndarray   # (2,) commanded per-eye lid closure [L,R] → eyelid plants
 
 
 def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0):
@@ -1033,10 +1034,11 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     Returns:
         dbrain_state: BrainState  state derivative
         motor_out:    MotorOut  the brain's motor efference (see the NamedTuple above):
-            nerves  (12,)  extraocular nerve activations [L6 | R6] → eye plant
-            u_acc   scalar accommodation command (D, neural + CA/C) → lens plant
-            u_pupil (2,)   commanded per-eye pupil diameter (mm) → iris plants
-            u_lid   (2,)   commanded per-eye lid closure → eyelid plants
+            nerves         (12,)  extraocular nerve activations [L6 | R6] → eye plant
+            u_acc          scalar accommodation command (D, neural + CA/C) → lens plant
+            iris_sphincter (2,)   CN III constrictor nerve drive (mm) → iris plants
+            iris_dilator   (2,)   sympathetic dilator nerve drive (mm) → iris plants
+            u_lid          (2,)   commanded per-eye lid closure → eyelid plants
     """
     # ── Activation / Decoded / Weights registries ────────────────────────────
     # Built once per step.  Subsystems read these instead of raw state.
@@ -1230,17 +1232,20 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     # pupil + cycloplegia. (Monocular cycloplegia would need per-eye lens states.)
     u_acc = u_acc * jnp.maximum(brain_params.g_cn3_L, brain_params.g_cn3_R)
 
-    # ── Pupil: light reflex + near response → commanded per-eye iris diameter ──
-    # Stateless (pupil.py); dynamics live in the two iris plants (pupil_plant).
-    # Consensual light reflex reads the single pretectal light drive — the
-    # binocular afferent sum (with RAPD gains) computed in perception_cyclopean
-    # (cyc.light_drive); the near response reads total accommodation. Returns (2,)
-    # [L, R] — separate pupils so an efferent (CN III / iris) lesion → anisocoria.
-    u_pupil = pupil.command(
+    # ── Pupil: light reflex + near response → antagonist iris nerve drives ─────
+    # Stateless (pupil.py) emits the raw sphincter (constrictor) + dilator drives;
+    # fcp.iris_nerves then applies the two PERIPHERAL nerve lesions (CN III on the
+    # sphincter, sympathetic on the dilator) exactly like the extraocular nerves,
+    # and the iris plant decodes the pair (diam = pupil_min + dilator − sphincter).
+    # Consensual light reflex reads the single pretectal light drive (cyc.light_drive,
+    # RAPD gains already applied); the near response reads total accommodation. The
+    # per-eye split (→ anisocoria) now lives entirely in the FCP nerve gains.
+    sphincter_raw, dilator_raw = pupil.command(
         cyc.light_drive,
         acts.va.acc_fast + acts.va.acc_slow,
         brain_params,
     )
+    iris_sphincter, iris_dilator = fcp.iris_nerves(sphincter_raw, dilator_raw, brain_params)
 
     # ── Eyelid: posture + blink + downgaze lid-follow → commanded lid closure ──
     # Stateless (eyelid.py); dynamics live in the eyelid plant. blink_drive is the
@@ -1305,4 +1310,6 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
         cb   = dcb,
     )
 
-    return dbrain, MotorOut(nerves=nerves, u_acc=u_acc, u_pupil=u_pupil, u_lid=u_lid)
+    return dbrain, MotorOut(nerves=nerves, u_acc=u_acc,
+                            iris_sphincter=iris_sphincter, iris_dilator=iris_dilator,
+                            u_lid=u_lid)

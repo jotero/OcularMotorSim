@@ -440,6 +440,22 @@ def read_outputs(state, brain_params):
     return _smooth_clip(_ROUTE @ activation, brain_params.g_nerve * _NERVE_MAX)        # project + axon lesion
 
 
+def iris_nerves(sphincter_raw, dilator_raw, brain_params):
+    """Apply the peripheral iris-nerve lesions to the raw drives (pupil.command).
+
+    The iris is an antagonist pair whose two nerves are lesioned here, exactly like
+    the extraocular nerves above:
+        sphincter (constrictor) — CN III parasympathetic → gated by g_cn3
+        dilator                 — sympathetic            → gated by g_ocular_symp (Horner)
+    Per eye [L, R].  Returns (sphincter, dilator) nerve activations; the iris plant
+    does the push-pull decode (diam = pupil_min + dilator − sphincter).
+    """
+    bp = brain_params
+    sphincter = sphincter_raw * jnp.array([bp.g_cn3_L, bp.g_cn3_R])
+    dilator   = dilator_raw   * jnp.array([bp.g_ocular_symp_L, bp.g_ocular_symp_R])
+    return sphincter, dilator
+
+
 def rest_state(premotor_activity, brain_params):
     """Steady-state MN membrane for a given resting premotor command.
 

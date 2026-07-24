@@ -94,7 +94,7 @@ def set_brain_step(fn):
 
     Pass any callable with the same signature as brain_model.step:
         fn(x_brain, sensory_out, brain_params, noise_acc, blink_drive) ->
-            (dx_brain, MotorOut)   # MotorOut = (nerves, u_acc, u_pupil, u_lid)
+            (dx_brain, MotorOut)   # MotorOut = (nerves, u_acc, iris_sphincter, iris_dilator, u_lid)
 
     Call set_brain_step(brain_model.step) to restore the default.
     """
@@ -526,7 +526,8 @@ def ODE_ocular_motor(t, state, args):
     dbrain, mout = _BRAIN_STEP(
         state.brain, sensory_out, theta.brain, noise_acc_interp.evaluate(t),
         blink_drive_interp.evaluate(t))
-    nerves, u_acc, u_pupil, u_lid = mout.nerves, mout.u_acc, mout.u_pupil, mout.u_lid
+    nerves, u_acc, u_lid = mout.nerves, mout.u_acc, mout.u_lid
+    iris_sphincter, iris_dilator = mout.iris_sphincter, mout.iris_dilator
 
     # ── Plant (2nd-order: muscle-force + orbital state per eye) ──────────────────
     # Binocular step returns ONLY the state derivative.  Position is the state
@@ -541,17 +542,20 @@ def ODE_ocular_motor(t, state, args):
         state.acc_plant, u_acc, theta.brain.tau_acc_plant)
 
     # ── Pupil (iris) plants — per eye [L, R] ─────────────────────────────────────
-    # u_pupil = (2,) commanded per-eye pupil diameter (mm) from the pupil
-    # controller (light reflex + near response); each iris low-passes it with a
-    # rate-asymmetric TC (fast constriction, slow re-dilation).
+    # The brain emits the antagonist iris NERVE drives (sphincter = CN III
+    # constrictor, dilator = sympathetic), already lesioned in the FCP. The iris
+    # plant decodes the pair to a commanded diameter (pupil_min + dilator −
+    # sphincter) and low-passes it with a rate-asymmetric TC (fast constriction,
+    # slow re-dilation).
     dx_pupil_plant = pupil_plant_mod.step(
-        state.pupil_plant, u_pupil,
+        state.pupil_plant, iris_sphincter, iris_dilator,
+        theta.brain.pupil_min, theta.brain.pupil_max,
         theta.brain.tau_pupil_constrict, theta.brain.tau_pupil_dilate)
 
     # ── Eyelid plants — per eye [L, R] ───────────────────────────────────────────
     # u_lid = (2,) commanded lid closure, now computed IN the brain
     # (brain_model.step: posture + blink + downgaze lid-follow off the vertical-gaze
-    # efference) alongside u_pupil. Each lid low-passes it (fast close / slow open).
+    # efference) alongside the iris drives. Each lid low-passes it (fast close / slow open).
     dx_eyelid_plant = eyelid_plant_mod.step(state.eyelid_plant, u_lid)
 
     # ── Optical interventions — applied after plant, before sensory step ─────

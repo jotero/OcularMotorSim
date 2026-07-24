@@ -63,49 +63,44 @@ References:
 import jax.numpy as jnp
 
 N_STATES  = 0   # stateless — the dynamics live in the iris plants (pupil_plant.py)
-N_OUTPUTS = 2   # commanded pupil diameter (mm), per eye [L, R]
+N_OUTPUTS = 2   # two per-eye iris nerve DRIVES: sphincter (constrictor) + dilator
 
 
 def command(light_drive, accom_level, brain_params):
-    """Commanded per-eye pupil diameter (mm) from light reflex + near response.
+    """Per-eye iris nerve DRIVES (pre-lesion): sphincter (constrictor) + dilator.
+
+    The iris is an antagonist pair, modelled like the extraocular muscles: this
+    emits the two raw drives, and the peripheral NERVE lesions — CN III on the
+    sphincter (g_cn3), sympathetic on the dilator (g_ocular_symp) — are applied
+    downstream in the FCP (fcp.iris_nerves).  The iris plant then does the
+    push-pull decode:  diam = pupil_min + dilator − sphincter.
+
+    A blown pupil (g_cn3=0) → sphincter off → dilator wins → dilated; Horner
+    (g_ocular_symp=0) → dilator off → pupil_min (miosis).  Both EMERGE from the
+    push-pull — no hardcoded resting diameter.
 
     Args:
         light_drive:  scalar  consensual pretectal light drive (~[0,1]) — the
-                              binocular afferent sum (with the monocular afferent
-                              gains / RAPD already applied), from
-                              perception_cyclopean (cyc.light_drive)
+                              binocular afferent sum (RAPD gains already applied),
+                              from perception_cyclopean (cyc.light_drive)
         accom_level:  scalar  accommodation level (D) — acts.va.acc_fast + acc_slow
-        brain_params: BrainParams (reads pupil_baseline, K_pupil_light,
-                                   K_pupil_near, pupil_min, pupil_max, g_nerve
-                                   (CN III efferent), g_ocular_symp_{L,R},
-                                   g_pupil_light_reflex)
+        brain_params: BrainParams (pupil_baseline, pupil_min, K_pupil_light,
+                                   K_pupil_near, g_pupil_light_reflex — the
+                                   CENTRAL/pretectal relay, NOT a peripheral nerve,
+                                   so it stays here)
 
     Returns:
-        u_pupil: (2,)  commanded pupil diameter (mm) [L, R] → iris plant low-pass
+        sphincter: (2,)  constrictor drive (mm) [L, R] = light + near (shared)
+        dilator:   (2,)  tonic dilation drive (mm) [L, R]
     """
     bp = brain_params
-
-    # Efferent parasympathetic (pupilloconstrictor) integrity per eye — travels
-    # with CN III, so it follows the SHARED oculomotor nerve gains (no separate
-    # pupil-nerve knob). A CN III palsy → that side's pupil is blown → anisocoria.
-    cn3_L, cn3_R = bp.g_cn3_L, bp.g_cn3_R   # CN III nerve-trunk integrity (per side)
-
-    # ── Consensual light drive (shared by both pupils) ────────────────────────
-    # The binocular afferent sum (with RAPD gains) is the pretectal combination,
-    # now computed in perception_cyclopean (cyc.light_drive). Here we only apply
-    # the central pretectal-relay integrity (g_pupil_light_reflex — Argyll Robertson
-    # when 0) and the constriction gain; the drive is shared by BOTH pupils.
+    # Constrictor drive = pretectal light + central near. g_pupil_light_reflex is
+    # the CENTRAL relay integrity (Argyll Robertson) — a pre-nerve gate, so it
+    # stays here; the CN III sphincter-NERVE lesion is applied in the FCP.
     light = bp.g_pupil_light_reflex * bp.K_pupil_light * light_drive
-
-    # ── Near drive (central, symmetric) ───────────────────────────────────────
-    near = bp.K_pupil_near * accom_level
-
-    # ── Per-eye output: resting (sympathetic) size − ipsilateral parasympathetic
-    # (CN III) constriction of the shared light + near drive ──────────────────
-    def _eye(cn3, g_symp):
-        rest = bp.pupil_min + g_symp * (bp.pupil_baseline - bp.pupil_min)
-        diam = rest - cn3 * (light + near)
-        return jnp.clip(diam, bp.pupil_min, bp.pupil_max)
-
-    return jnp.array([_eye(cn3_L, bp.g_ocular_symp_L),
-                      _eye(cn3_R, bp.g_ocular_symp_R)])
+    near  = bp.K_pupil_near * accom_level
+    sphincter = jnp.full(2, light + near)                       # shared by both eyes
+    # Tonic dilation (dilator + relaxed baseline). The sympathetic NERVE lesion
+    # (Horner) is applied in the FCP.
+    dilator   = jnp.full(2, bp.pupil_baseline - bp.pupil_min)
+    return sphincter, dilator

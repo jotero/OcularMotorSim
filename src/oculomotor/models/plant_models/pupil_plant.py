@@ -16,18 +16,30 @@ motion: τ_constrict when the command is smaller than the current diameter,
 and stepped elementwise, so each iris relaxes independently (an efferent lesion
 on one side produces anisocoria).
 
+The plant receives the two iris NERVE drives (already lesioned in the FCP) and
+does the push-pull DECODE to a commanded diameter before the low-pass:
+
+    diam_cmd = clip(pupil_min + dilator − sphincter, pupil_min, pupil_max)
+
+so a blown pupil (sphincter drive gone) settles toward pupil_max and Horner
+miosis (dilator drive gone) toward pupil_min — both EMERGE from the antagonist
+balance rather than a hardcoded resting size.
+
 Dynamics (elementwise over [L, R]):
-    τ  = τ_constrict  where u_pupil < x   (pupil shrinking, fast)
-         τ_dilate     where u_pupil ≥ x   (pupil enlarging, slow)
-    dx = (u_pupil − x) / τ
+    diam_cmd = clip(pupil_min + dilator − sphincter, pupil_min, pupil_max)
+    τ  = τ_constrict  where diam_cmd < x   (pupil shrinking, fast)
+         τ_dilate     where diam_cmd ≥ x   (pupil enlarging, slow)
+    dx = (diam_cmd − x) / τ
 
 State:   x  (2,)   actual pupil diameter (mm) [L, R]
-Input:   u_pupil  (2,)  commanded pupil diameter (mm) [L, R] from pupil.command()
-Output:  x        (2,)  current pupil diameter (mm) → readout / avatar / plots
+Input:   sphincter (2,)  CN III constrictor nerve drive (mm) [L, R]  (fcp.iris_nerves)
+         dilator   (2,)  sympathetic dilator nerve drive (mm) [L, R] (fcp.iris_nerves)
+Output:  x         (2,)  current pupil diameter (mm) → readout / avatar / plots
 
 Parameters:
     tau_pupil_constrict (s)  fast sphincter constriction TC; ~0.3 s
     tau_pupil_dilate    (s)  slow (dilator + viscoelastic recoil) TC; ~1.0 s
+    pupil_min, pupil_max (mm)  push-pull decode clamp (physiological ~3–8 mm)
 
 References:
     Loewenfeld IE (1993) The Pupil: Anatomy, Physiology, and Clinical Applications
@@ -38,23 +50,30 @@ References:
 import jax.numpy as jnp
 
 N_STATES  = 2   # [x_L, x_R] — actual pupil diameter (mm), per eye
-N_INPUTS  = 2   # u_pupil (mm) — commanded diameter per eye
+N_INPUTS  = 4   # sphincter (2,) + dilator (2,) — iris nerve drives (mm), per eye
 N_OUTPUTS = 2   # x (mm)       — current pupil diameter per eye
 
 
-def step(x, u_pupil, tau_constrict, tau_dilate):
+def step(x, sphincter, dilator, pupil_min, pupil_max, tau_constrict, tau_dilate):
     """Single ODE step for the (bilateral) rate-asymmetric iris plant.
+
+    Decodes the antagonist nerve pair to a commanded diameter, then low-passes
+    toward it with direction-dependent τ (fast constrict / slow dilate).
 
     Args:
         x:             (2,)   current pupil diameter (mm) [L, R]
-        u_pupil:       (2,)   commanded pupil diameter (mm) [L, R]
-        tau_constrict: scalar fast constriction TC (s) — used where u < x
-        tau_dilate:    scalar slow dilation TC (s)     — used where u ≥ x
+        sphincter:     (2,)   CN III constrictor nerve drive (mm) [L, R]
+        dilator:       (2,)   sympathetic dilator nerve drive (mm) [L, R]
+        pupil_min:     scalar smallest pupil diameter (mm) — decode floor
+        pupil_max:     scalar largest pupil diameter (mm)  — decode ceiling
+        tau_constrict: scalar fast constriction TC (s) — used where cmd < x
+        tau_dilate:    scalar slow dilation TC (s)     — used where cmd ≥ x
 
     Returns:
         dx: (2,)  state derivative (mm/s).  The observable (current pupil
                   diameter) IS the state (C = I) — the caller reads x directly.
     """
-    tau = jnp.where(u_pupil < x, tau_constrict, tau_dilate)   # fast in, slow out
-    dx  = (u_pupil - x) / tau
+    diam_cmd = jnp.clip(pupil_min + dilator - sphincter, pupil_min, pupil_max)
+    tau = jnp.where(diam_cmd < x, tau_constrict, tau_dilate)   # fast in, slow out
+    dx  = (diam_cmd - x) / tau
     return dx
