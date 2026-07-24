@@ -296,6 +296,23 @@ class Activations(NamedTuple):
     mn: jnp.ndarray   # (14,) firing rates, nucleus order; muscle MNs ≥0, AIN_L/R signed
 
 
+class Nerves(NamedTuple):
+    """The brain's complete efferent output — every peripheral nerve channel, all
+    lesioned in this module (the final common pathway).  One field per plant target.
+
+    Assembled by brain_model.step from the FCP lesion helpers (read_outputs,
+    ciliary_nerve, iris_nerves, eyelid_nerves); it replaces the old positional
+    MotorOut bag.  Each plant reads the field(s) it consumes.
+    """
+    extraocular:     jnp.ndarray   # (12,) extraocular nerve activations [L6|R6]   → eye plant
+    ciliary:         jnp.ndarray   # (1,)  accommodation (ciliary) command (D)      → lens plant
+    iris_sphincter:  jnp.ndarray   # (2,)  CN III constrictor drive (mm) [L,R]      → iris plants
+    iris_dilator:    jnp.ndarray   # (2,)  sympathetic dilator drive (mm) [L,R]     → iris plants
+    lid_levator:     jnp.ndarray   # (2,)  CN III levator opener tone [L,R]         → eyelid plants
+    lid_muller:      jnp.ndarray   # (2,)  sympathetic Müller opener tone [L,R]     → eyelid plants
+    lid_orbicularis: jnp.ndarray   # (2,)  CN VII orbicularis closer drive [L,R]    → eyelid plants
+
+
 def zero_state():
     """All-zero state — useful as a NT-PyTree shape template."""
     return State(mn=jnp.zeros(14))
@@ -479,6 +496,20 @@ def eyelid_nerves(levator, muller, orbicularis, brain_params):
     muller      = muller      * jnp.array([bp.g_ocular_symp_L, bp.g_ocular_symp_R])
     orbicularis = orbicularis * jnp.array([bp.g_cn7_L, bp.g_cn7_R])
     return levator, muller, orbicularis
+
+
+def ciliary_nerve(u_acc, brain_params):
+    """Apply the CN III (ciliary / accommodation) lesion to the accommodation command.
+
+    The ciliary muscle is CN III parasympathetic (like the iris sphincter), so a
+    CN III palsy cyclopleges that eye.  The lens is a single BINOCULAR state, so
+    gate by the BETTER eye's CN III integrity: bilateral CN III palsy → cycloplegia;
+    unilateral → preserved (the intact eye drives the shared near response).
+    (Monocular cycloplegia would need per-eye lens states.)  Completes the CN III
+    triad → ophthalmoplegia + ptosis + blown pupil + cycloplegia.
+    """
+    bp = brain_params
+    return u_acc * jnp.maximum(bp.g_cn3_L, bp.g_cn3_R)
 
 
 def rest_state(premotor_activity, brain_params):

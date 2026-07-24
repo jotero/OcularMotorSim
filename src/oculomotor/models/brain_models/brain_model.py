@@ -1002,20 +1002,8 @@ def make_x0(brain_params=None):
 
 # ── Step function ──────────────────────────────────────────────────────────────
 
-class MotorOut(NamedTuple):
-    """Brain motor efference — one field per peripheral plant target.
-
-    Replaces the old positional 8-tuple return.  The ec_* efference copies are
-    gone from the output: cb.step / perception_cyclopean consume the internal
-    ec_vel / ec_pos locals directly, and the returned copies had no consumer.
-    """
-    nerves:          jnp.ndarray   # (12,) extraocular nerve activations [L6 | R6] → eye plant
-    u_acc:           jnp.ndarray   # accommodation neural command (D, neural + CA/C) → lens plant
-    iris_sphincter:  jnp.ndarray   # (2,) CN III constrictor nerve drive (mm) [L,R] → iris plants
-    iris_dilator:    jnp.ndarray   # (2,) sympathetic dilator nerve drive (mm) [L,R] → iris plants
-    lid_levator:     jnp.ndarray   # (2,) CN III levator opener tone [L,R] → eyelid plants
-    lid_muller:      jnp.ndarray   # (2,) sympathetic Müller opener tone [L,R] → eyelid plants
-    lid_orbicularis: jnp.ndarray   # (2,) CN VII orbicularis closer drive [L,R] → eyelid plants
+# The brain's efferent output is fcp.Nerves — a single bundle of every peripheral
+# nerve channel (extraocular, ciliary, iris, lid), all lesioned in the FCP.
 
 
 def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0):
@@ -1035,9 +1023,10 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
 
     Returns:
         dbrain_state: BrainState  state derivative
-        motor_out:    MotorOut  the brain's motor efference (see the NamedTuple above):
-            nerves          (12,)  extraocular nerve activations [L6 | R6] → eye plant
-            u_acc           scalar accommodation command (D, neural + CA/C) → lens plant
+        nerves:       fcp.Nerves  the brain's complete efferent output — every
+                      peripheral nerve channel, all lesioned in the FCP:
+            extraocular     (12,)  extraocular nerve activations [L6 | R6] → eye plant
+            ciliary         (1,)   accommodation command (D, neural + CA/C) → lens plant
             iris_sphincter  (2,)   CN III constrictor nerve drive (mm) → iris plants
             iris_dilator    (2,)   sympathetic dilator nerve drive (mm) → iris plants
             lid_levator     (2,)   CN III levator opener tone → eyelid plants
@@ -1229,12 +1218,9 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     )
 
     # Ciliary muscle (accommodation) is CN III parasympathetic — a CN III palsy
-    # cyclopleges that eye. The lens is a single (binocular) state, so gate the
-    # accommodation drive by the BETTER eye's CN III integrity: BILATERAL CN III
-    # palsy → cycloplegia; unilateral → preserved (the intact eye drives the shared
-    # near response). Completes the CN III triad → ophthalmoplegia + ptosis + blown
-    # pupil + cycloplegia. (Monocular cycloplegia would need per-eye lens states.)
-    u_acc = u_acc * jnp.maximum(brain_params.g_cn3_L, brain_params.g_cn3_R)
+    # cyclopleges that eye. The lesion is applied in the FCP like every other nerve
+    # (fcp.ciliary_nerve); see there for the better-eye gating rationale.
+    u_acc = fcp.ciliary_nerve(u_acc, brain_params)
 
     # ── Pupil: light reflex + near response → antagonist iris nerve drives ─────
     # Stateless (pupil.py) emits the raw sphincter (constrictor) + dilator drives;
@@ -1319,7 +1305,7 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
         cb   = dcb,
     )
 
-    return dbrain, MotorOut(nerves=nerves, u_acc=u_acc,
-                            iris_sphincter=iris_sphincter, iris_dilator=iris_dilator,
-                            lid_levator=lid_levator, lid_muller=lid_muller,
-                            lid_orbicularis=lid_orbicularis)
+    return dbrain, fcp.Nerves(extraocular=nerves, ciliary=u_acc,
+                              iris_sphincter=iris_sphincter, iris_dilator=iris_dilator,
+                              lid_levator=lid_levator, lid_muller=lid_muller,
+                              lid_orbicularis=lid_orbicularis)
