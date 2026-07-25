@@ -655,8 +655,8 @@ class BrainParams(NamedTuple):
                                           # CA/C only contributes a small, hard-to-measure perturbation.
                                           # When enabled (≈0.08): drives accommodation when vergence is
                                           # disparity-driven; AC_A·CA_C ≈ 0.4 D/D < 1 keeps the cross-loop stable.
-    # (refractive_error moved to PlantParams — it's an optical property of the eye,
-    #  not a neural parameter.)
+    # (refractive_error moved to SensoryParams — it's an optical property of the eye
+    #  read by the retina's defocus, not a neural parameter.)
 
     # Pupil — light reflex + near-response constriction (pupil.py → pupil_plant.py).
     # Per-eye commanded diameter = rest − cn3·(consensual light + near), where cn3

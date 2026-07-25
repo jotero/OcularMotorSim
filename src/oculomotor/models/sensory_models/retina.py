@@ -451,7 +451,7 @@ def step(state,
          eye_offset_head, q_head, w_head, x_head, v_head,
          q_eye, w_eye,
          w_scene, v_scene, p_target, dp_dt,
-         defocus_eye,
+         x_acc_eff,
          scene_present, target_present, target_strobed,
          sensory_params):
     """Per-eye retina step: world_to_retina + sensor saturation + sharp cascade.
@@ -466,7 +466,10 @@ def step(state,
         q_head, w_head, x_head, v_head: head pose / velocity (world frame)
         q_eye, w_eye:    eye pose / velocity (head frame)
         w_scene, v_scene, p_target, dp_dt: world-frame scene / target stimulus
-        defocus_eye:     scalar — instantaneous per-eye defocus (D)
+        x_acc_eff:       scalar — effective accommodation for this eye (D): the lens
+                         plant's accommodation already offset by any external lens
+                         (simulator._apply_lens). refractive_error comes from
+                         sensory_params.
         scene_present, target_present: scalar visibility flags (this eye)
         target_strobed:  scalar global strobe gate; (1−strobed) gates target_vel only
         sensory_params:  SensoryParams — reads tau_vis_sharp, v_max_scene_vel,
@@ -495,7 +498,11 @@ def step(state,
     target_vel_in      = velocity_saturation(target_vel * target_motion_vis, sensory_params.v_max_target_vel)
     scene_linear_in    = scene_linear_vel * scene_vis
     target_pos_in      = target_pos * target_vis
-    defocus_in         = defocus_eye
+    # Retinal defocus (blur, D) is computed HERE from the optics — the dioptric
+    # demand (1/target-distance + the eye's refractive error) minus the effective
+    # accommodation (accommodation already lens-adjusted upstream). Mirrors how
+    # slip/position are derived from the physical eye + world.
+    defocus_in         = 1.0 / (jnp.linalg.norm(p_target) + 1e-9) + sensory_params.refractive_error - x_acc_eff
 
     # ── 3. Advance sharp cascades (N stages × τ_retina, per signal) ──────────
     tau_retina = sensory_params.tau_vis_sharp

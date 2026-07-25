@@ -1033,14 +1033,15 @@ brain.CA_C:
     - "Schor & Kotulak (1986)"
     - "Schor (1992) J Opt Soc Am"
 
-plant.refractive_error:
+sensory.refractive_error:
   group: accommodation
   units: "D"
   anatomy: "Eye refractive error (optical property of the eyeball)"
   description: |
     Refractive error — a fixed optical property of the eye (axial length vs corneal
-    power), so it lives in PlantParams, not the brain. >0 hyperopia (needs more
-    accommodation at every distance), <0 myopia (natural far point = 1/|RE| m).
+    power). It lives in SensoryParams because the retina reads it to compute retinal
+    defocus. >0 hyperopia (needs more accommodation at every distance), <0 myopia
+    (natural far point = 1/|RE| m).
   disorders:
     - {name: "+2 D hyperope (uncorrected)", value: 2.0, tag: other}
     - {name: "−2 D myope (uncorrected)", value: -2.0, tag: other}

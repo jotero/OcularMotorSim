@@ -33,7 +33,7 @@ if '--show' not in sys.argv:
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from oculomotor.sim.simulator import PARAMS_DEFAULT, simulate, with_brain, with_plant
+from oculomotor.sim.simulator import PARAMS_DEFAULT, simulate, with_brain, with_sensory
 from oculomotor.sim import kinematics as km
 from oculomotor.sim.stimuli import build_cover_flags
 from oculomotor.analysis import ax_fmt
@@ -758,9 +758,9 @@ def _refractive_error(show):
     tgt = km.build_target(t, lin_pos=pt)
 
     groups = {
-        'Emmetrope (RE=0)':         with_plant(PARAMS_DEFAULT, refractive_error=0.0),
-        'Hyperope +2D (uncorrected)': with_plant(PARAMS_DEFAULT, refractive_error=2.0),
-        'Myope −2D (uncorrected)':    with_plant(PARAMS_DEFAULT, refractive_error=-2.0),
+        'Emmetrope (RE=0)':         with_sensory(PARAMS_DEFAULT, refractive_error=0.0),
+        'Hyperope +2D (uncorrected)': with_sensory(PARAMS_DEFAULT, refractive_error=2.0),
+        'Myope −2D (uncorrected)':    with_sensory(PARAMS_DEFAULT, refractive_error=-2.0),
     }
     colors  = [utils.C['vs'], utils.C['ni'], utils.C['eye']]
     styles  = ['-', '--', '-.']

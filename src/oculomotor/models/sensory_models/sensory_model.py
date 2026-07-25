@@ -103,6 +103,10 @@ class SensoryParams(NamedTuple):
     v_max_target_vel:   float       = 40.0   # MT/MST speed ceiling (deg/s)
     v_max_scene_vel:    float       = 80.0   # NOT/AOS speed ceiling (deg/s)
 
+    # Eye optics — read by the retina's defocus (blur) computation.
+    refractive_error:   float       = 0.0    # (D) eye's fixed optical error; >0 hyperopia, <0 myopia.
+                                             # Enters retinal defocus = 1/z + refractive_error − accommodation.
+
 # ── Re-exports for external callers ────────────────────────────────────────────
 
 # Canal
@@ -211,8 +215,9 @@ def step(state,
          # ── Target stimulus (per eye — L/R split enables stereoscopic displays) ─
          p_target_L, dp_dt_L,
          p_target_R, dp_dt_R,
-         # ── Defocus (per eye; = acc_demand + refractive_error − x_acc_plant) ──
-         defocus_L, defocus_R,
+         # ── Effective accommodation per eye (lens-adjusted; retina reads
+         #    refractive_error from sensory_params and computes defocus) ────────
+         x_acc_eff_L, x_acc_eff_R,
          # ── Visibility flags ──────────────────────────────────────────────────
          scene_present_L, scene_present_R,
          target_present_L, target_present_R, target_strobed,
@@ -237,12 +242,12 @@ def step(state,
     dretina_L = _retina.step(
         state.retina_L, eye_off_L, q_head, w_head, x_head, v_head,
         q_eye_L, w_eye_L, w_scene_L, v_scene_L, p_target_L, dp_dt_L,
-        defocus_L, scene_present_L, target_present_L, target_strobed,
+        x_acc_eff_L, scene_present_L, target_present_L, target_strobed,
         sensory_params)
     dretina_R = _retina.step(
         state.retina_R, eye_off_R, q_head, w_head, x_head, v_head,
         q_eye_R, w_eye_R, w_scene_R, v_scene_R, p_target_R, dp_dt_R,
-        defocus_R, scene_present_R, target_present_R, target_strobed,
+        x_acc_eff_R, scene_present_R, target_present_R, target_strobed,
         sensory_params)
 
     # Per-eye afferent luminance (pupillary light reflex) is advanced inside each

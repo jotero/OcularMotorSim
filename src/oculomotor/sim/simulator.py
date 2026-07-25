@@ -153,6 +153,18 @@ def _apply_prism(q_eye_ypr, prism_ypr):
     return xyz_to_ypr(q_xyz_deg)
 
 
+def _apply_lens(x_acc, lens):
+    """Effective accommodation seen by the retina after an external corrective lens.
+
+    Mirror of _apply_prism (prism-shifts the eye ORIENTATION): an external lens
+    offsets the eye's optical POWER, so the retina's defocus uses this lens-adjusted
+    accommodation rather than the raw lens-plant state. Per eye. Sign preserves the
+    model's blur = 1/z + refractive_error − x_acc_eff convention (a positive lens
+    adds to the residual defocus, like a hyperopic demand shift).
+    """
+    return x_acc - lens
+
+
 def _add_sensory_noise(sensory_out, ncanal, nslip, nvel, npos):
     """Add pre-generated OU noise to the sensory outputs before the brain step.
 
@@ -549,18 +561,17 @@ def ODE_ocular_motor(t, state, args):
         state.eyelid_plant, nerves.lid_levator, nerves.lid_muller, nerves.lid_orbicularis)
 
     # ── Optical interventions (after plant, before sensory) ─────────────────────
-    # Prism is head-frame (glasses): rotates the apparent field, not the physical eye.
+    # Each acts on a plant output before it reaches the retina, not on the physical eye:
+    #   prism → shifts the apparent field (eye ORIENTATION);
+    #   lens  → offsets the eye's optical POWER → effective accommodation (per eye).
     q_eye_L_eff = _apply_prism(q_eye_L, prism_L_interp.evaluate(t))
     q_eye_R_eff = _apply_prism(q_eye_R, prism_R_interp.evaluate(t))
-
-    # ── Per-eye defocus → retina: blur = 1/dist + lens + refractive_error − accom ──
-    # refractive_error (D): >0 hyperopia (needs more accom), <0 myopia.
-    x_plant_now = state.acc_plant[0]
-    re = theta.plant.refractive_error
-    defocus_L = 1.0 / (jnp.linalg.norm(p_target_L) + 1e-9) + lens_L + re - x_plant_now
-    defocus_R = 1.0 / (jnp.linalg.norm(p_target_R) + 1e-9) + lens_R + re - x_plant_now
+    x_acc_eff_L = _apply_lens(state.acc_plant[0], lens_L)
+    x_acc_eff_R = _apply_lens(state.acc_plant[0], lens_R)
 
     # ── Sensory: ODE step — must follow plant ────────────────────────────────
+    # The retina computes its own defocus from the lens-adjusted accommodation
+    # (x_acc_eff) and refractive_error (a SensoryParam).
     dx_sensory = sensory_model.step(
         state.sensory,
         q_head, w_head, x_head, v_head, a_head,
@@ -569,7 +580,7 @@ def ODE_ocular_motor(t, state, args):
         q_scene_R, w_scene_R, x_scene_R, v_scene_R,
         p_target_L, dp_dt_L,
         p_target_R, dp_dt_R,
-        defocus_L, defocus_R,
+        x_acc_eff_L, x_acc_eff_R,
         scene_present_L, scene_present_R,
         target_present_L, target_present_R, target_strobed,
         theta.sensory)
