@@ -354,7 +354,7 @@ tr:last-child { border-bottom: none; }
           <td class="units">deg/s equivalent</td>
           <td><div class="encodes-cell">motor neuron firing rates (12 muscle-MNs + 2 abducens internuclear)</div><div class="frame-cell">frame: per-MN (firing rate, deg/s equiv)</div></td>
           <td><span class="repr-tag repr-rectified">rectified-firing-rate</span><div class="activation-cell">activation: state  (LP-tracks the f-I curve target; already rectified + saturated by smooth_clip)</div></td>
-          <td class="desc-cell"><p>14 motor neuron firing rates: 12 muscle-driving MNs (in nucleus order) + 2 abducens internuclear (AIN) populations whose axons cross via the MLF to contralateral CN3_MR.  Output `nerves[12]` is the MN firing rate clipped by g_nerve · NERVE_MAX (axon conduction cap).</p><div class="population">ABN MNs, AIN, CN3 subnuclei (MR/SR/IR/IO), CN4 MNs</div><div class="refs">Robinson (1981) · Sylvestre & Cullen (1999)</div></td>
+          <td class="desc-cell"><p>14 motor neuron firing rates: 12 muscle-driving MNs (in nucleus order) + 2 abducens internuclear (AIN) populations whose axons cross via the MLF to contralateral OMN_MR.  Output `nerves[12]` is the MN firing rate clipped by g_nerve · NERVE_MAX (axon conduction cap).</p><div class="population">ABN MNs, AIN, OMN subnuclei (MR/SR/IR/IO), TRN MNs</div><div class="refs">Robinson (1981) · Sylvestre & Cullen (1999)</div></td>
           <td class="anatomy-cell">Motor neurons in CN VI / III / IV nuclei + AIN</td>
           <td><span class="computation">brain[_IDX_MN]</span></td>
         </tr>
@@ -865,7 +865,7 @@ tr:last-child { border-bottom: none; }
           <td class="units">deg</td>
           <td><div class="encodes-cell">left globe orientation (rotation vector)</div><div class="frame-cell">frame: head</div></td>
           <td><span class="repr-tag repr-position">position-equivalent</span><div class="activation-cell">activation: state  (rotation vector — direction-encoded; no rectification)</div></td>
-          <td class="desc-cell"><p>Left eye position (rotation vector, deg).  First-order Robinson 1964 plant integrates motor command (via M_PLANT_EYE @ nerves) toward target.</p><div class="refs">Robinson (1964)</div></td>
+          <td class="desc-cell"><p>Left eye position (rotation vector, deg).  First-order Robinson 1964 plant integrates motor command (via M_MUSCLE_ACTION_INV @ nerves) toward target.</p><div class="refs">Robinson (1964)</div></td>
           <td class="anatomy-cell">Left globe orientation in head frame</td>
           <td><span class="computation">plant[_IDX_P_L]</span></td>
         </tr>
@@ -1013,7 +1013,7 @@ tr:last-child { border-bottom: none; }
           <td class="units">deg/s equivalent</td>
           <td><div class="encodes-cell">cranial-nerve axonal firing rates (post conduction-cap clip)</div><div class="frame-cell">frame: per-muscle (12)</div></td>
           <td><span class="repr-tag repr-rectified">rectified-firing-rate</span><div class="activation-cell">activation: state  (post axon-conduction-clip; ≥ 0 by construction)</div></td>
-          <td class="desc-cell"><p>Per-muscle nerve firing rates after the axonal conduction cap (g_nerve · NERVE_MAX).  Plant decodes via M_PLANT_EYE = pinv(M_NERVE).</p></td>
+          <td class="desc-cell"><p>Per-muscle nerve firing rates after the axonal conduction cap (g_nerve · NERVE_MAX).  Plant decodes via M_MUSCLE_ACTION_INV = pinv(M_MUSCLE_ACTION).</p></td>
           <td class="anatomy-cell">Cranial-nerve axon outputs to extraocular muscles</td>
           <td><span class="computation">smooth_clip(M_NERVE_PROJ @ x_mn, g_nerve · NERVE_MAX)</span></td>
         </tr>
@@ -1073,9 +1073,9 @@ tr:last-child { border-bottom: none; }
           <td class="units">deg/s</td>
           <td><div class="encodes-cell">instantaneous left-eye angular velocity</div><div class="frame-cell">frame: head</div></td>
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state</div></td>
-          <td class="desc-cell"><p>Algebraic eye velocity = M_PLANT_EYE_L @ nerves_L − x_p_L/tau_p. Used by retina (slip), efference copy, and plotting.</p></td>
+          <td class="desc-cell"><p>Algebraic eye velocity = M_MUSCLE_ACTION_INV_L @ nerves_L − x_p_L/tau_p. Used by retina (slip), efference copy, and plotting.</p></td>
           <td class="anatomy-cell">Left eye angular velocity (instantaneous)</td>
-          <td><span class="computation">M_PLANT_EYE_L @ nerves[0:6] − eye_pos_L / tau_p</span></td>
+          <td><span class="computation">M_MUSCLE_ACTION_INV_L @ nerves[0:6] − eye_pos_L / tau_p</span></td>
         </tr>
 
         <tr>
@@ -1087,7 +1087,7 @@ tr:last-child { border-bottom: none; }
           <td><span class="repr-tag repr-firing-rate">linear-firing-rate</span><div class="activation-cell">activation: state</div></td>
           <td class="desc-cell"><p>Symmetric to eye_vel_L.</p></td>
           <td class="anatomy-cell">Right eye angular velocity (instantaneous)</td>
-          <td><span class="computation">M_PLANT_EYE_R @ nerves[6:12] − eye_pos_R / tau_p</span></td>
+          <td><span class="computation">M_MUSCLE_ACTION_INV_R @ nerves[6:12] − eye_pos_R / tau_p</span></td>
         </tr>
         </tbody>
       </table>

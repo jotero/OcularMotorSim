@@ -792,11 +792,11 @@ brain.mn:
           LR_R, MR_R, SR_R, IR_R, SO_R, IO_R, AIN_L, AIN_R]
   units: "deg/s equivalent"
   anatomy:    "Motor neurons in CN VI / III / IV nuclei + AIN"
-  population: "ABN MNs, AIN, CN3 subnuclei (MR/SR/IR/IO), CN4 MNs"
+  population: "ABN MNs, AIN, OMN subnuclei (MR/SR/IR/IO), TRN MNs"
   description: |
     14 motor neuron firing rates: 12 muscle-driving MNs (in nucleus order)
     + 2 abducens internuclear (AIN) populations whose axons cross via the
-    MLF to contralateral CN3_MR.  Output `nerves[12]` is the MN firing
+    MLF to contralateral OMN_MR.  Output `nerves[12]` is the MN firing
     rate clipped by g_nerve · NERVE_MAX (axon conduction cap).
   state_slice: "brain[_IDX_MN]"
   references: ["Robinson (1981)", "Sylvestre & Cullen (1999)"]

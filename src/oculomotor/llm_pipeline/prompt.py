@@ -314,9 +314,9 @@ The final common pathway has THREE distinct lesion types, each with different ph
   0 = complete palsy; partial (e.g. 0.4) = recovering.  (NUCLEAR lesion → g_mn_* above.)
 
 **g_mlf_L / g_mlf_R** (scalars [0..1]) — MLF axon CONDUCTION CAP, frequency-selective.
-  AIN motoneurons project across midline through the MLF to contralateral CN3_MR
+  AIN motoneurons project across midline through the MLF to contralateral OMN_MR
   motoneurons.  Conduction block in the MLF blocks fast version drive while
-  preserving tonic vergence drive (delivered via CN3_MR direct, bypassing MLF).
+  preserving tonic vergence drive (delivered via OMN_MR direct, bypassing MLF).
   g_mlf_L = 0.3 → left INO — the ADDUCTION LAG: a slowed left-eye adducting saccade on
   rightward gaze that still reaches and holds the target (convergence intact).  Use 0.3
   for a typical INO.  g_mlf_L = 0 → COMPLETE block (no adduction at all + a resting
@@ -326,7 +326,7 @@ The final common pathway has THREE distinct lesion types, each with different ph
 **r_baseline** (12-element list, default [50]·12, deg/s) — per-nucleus tonic baseline.
   Default symmetric baselines are invisible at the plant (zero-sum decode); ASYMMETRIC
   values produce tonic strabismus directly (no lesion required).  Indices (nucleus order):
-  [ABN_L, ABN_R, CN4_L, CN4_R, CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R, CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R].
+  [ABN_L, ABN_R, TRN_L, TRN_R, OMN_MR_L, OMN_MR_R, OMN_SR_L, OMN_SR_R, OMN_IR_L, OMN_IR_R, OMN_IO_L, OMN_IO_R].
   Examples:  [50,80,…] = right exotropia (extra LR_R tone);
              [50,50,50,50,50,80,…] = right esotropia (extra MR_R tone).
 

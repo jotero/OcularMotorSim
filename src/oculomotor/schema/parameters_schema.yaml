@@ -571,7 +571,7 @@ brain.K_gd:
 brain.g_ocr:
   group: self_motion_estimation
   units: "deg/(m/s²)"
-  anatomy: "Utricle → CN3 (IO/SR subnuclei); CN4 (SO)"
+  anatomy: "Utricle → OMN (IO/SR subnuclei); TRN (SO)"
   description: |
     Ocular counter-roll gain — torsion command per unit lateral gravity.
     Default 10°/9.81 ≈ 1.019 → ~10° SS torsion at 90° lateral tilt.
@@ -1419,8 +1419,8 @@ brain.r_baseline:
     uniform baselines cancel.  Asymmetric baselines produce tonic
     strabismus directly without needing to lesion a gain.
     Default: 50 across all 12 nuclei.  Index order (nucleus order):
-    [ABN_L, ABN_R, CN4_L, CN4_R, CN3_MR_L, CN3_MR_R, CN3_SR_L, CN3_SR_R,
-     CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R].
+    [ABN_L, ABN_R, TRN_L, TRN_R, OMN_MR_L, OMN_MR_R, OMN_SR_L, OMN_SR_R,
+     OMN_IR_L, OMN_IR_R, OMN_IO_L, OMN_IO_R].
     Note: the nucleus gains also scale the baseline (cell loss reduces tone too),
     so partial nuclear lesions automatically produce both saccade
     slowing AND tonic strabismus.
@@ -1435,10 +1435,10 @@ brain.g_mlf_L:
   anatomy: "Left MLF axon conduction (AIN_R → MR_L pathway)"
   description: |
     Conduction cap on the left MLF axon tract that carries abducens
-    internuclear neuron (AIN_R) signal to contralateral CN3_MR_L
+    internuclear neuron (AIN_R) signal to contralateral OMN_MR_L
     motoneurons.  Frequency-selective — saccadic burst (high-frequency)
     fails to propagate while tonic vergence drive (low-frequency, via
-    CN3_MR_L direct from supraoculomotor) is preserved.
+    OMN_MR_L direct from supraoculomotor) is preserved.
     0 = left INO: left eye cannot adduct on rightward conjugate gaze;
     convergence preserved.  Partial values 0.3-0.7 = recovering INO.
   disorders:
@@ -1487,7 +1487,7 @@ brain.mlf_lead:
   description: |
     Per-eye MLF feedforward lead in the FCP, 0–1.  0 (default, dormant) = pure
     version drive; 1 = full monocular compensation of the adducting eye's extra
-    MR conduction stage (AIN→MLF→CN3-MR).  A legitimate per-eye knob (e.g. INO
+    MR conduction stage (AIN→MLF→OMN-MR).  A legitimate per-eye knob (e.g. INO
     modelling) but not the post-saccadic lever — it trades the onset velocity
     gap for a larger settling ring (Decomp #4/#6, post_saccadic_motion.md).
   range: [0, 1]

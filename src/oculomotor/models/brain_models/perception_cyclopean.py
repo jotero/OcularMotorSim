@@ -171,19 +171,19 @@ def binocular_fusion_policy(target_pos_L, target_vel_L, target_vis_L,
     # its 6 muscles, plus the MLF input to MR.  Any one of them dropping
     # suppresses fusion.  This catches vertical / torsional muscle palsies
     # (CN III, CN IV) that are missed by the horizontal-only check.
-    #   L eye nuclei: ABN_L (LR), CN3_MR_L, CN3_SR_L, CN3_IR_L, CN3_IO_L,
-    #                 CN4_R (drives SO_L contralaterally)
-    #   R eye nuclei: ABN_R (LR), CN3_MR_R, CN3_SR_R, CN3_IR_R, CN3_IO_R,
-    #                 CN4_L (drives SO_R contralaterally)
+    #   L eye nuclei: ABN_L (LR), OMN_MR_L, OMN_SR_L, OMN_IR_L, OMN_IO_L,
+    #                 TRN_R (drives SO_L contralaterally)
+    #   R eye nuclei: ABN_R (LR), OMN_MR_R, OMN_SR_R, OMN_IR_R, OMN_IO_R,
+    #                 TRN_L (drives SO_R contralaterally)
     g_nuc = brain_params.g_nucleus
     g_nrv = brain_params.g_nerve
     motor_L = jnp.min(jnp.array([
-        g_nuc[0], g_nuc[3], g_nuc[4], g_nuc[6], g_nuc[8], g_nuc[10],   # nuclei: ABN_L, CN4_R, CN3_{MR,SR,IR,IO}_L
+        g_nuc[0], g_nuc[3], g_nuc[4], g_nuc[6], g_nuc[8], g_nuc[10],   # nuclei: ABN_L, TRN_R, OMN_{MR,SR,IR,IO}_L
         g_nrv[0], g_nrv[1], g_nrv[2], g_nrv[3], g_nrv[4], g_nrv[5],     # nerves: 6 L-eye muscles
         brain_params.g_mlf_L,
     ]))
     motor_R = jnp.min(jnp.array([
-        g_nuc[1], g_nuc[2], g_nuc[5], g_nuc[7], g_nuc[9], g_nuc[11],   # nuclei: ABN_R, CN4_L, CN3_{MR,SR,IR,IO}_R
+        g_nuc[1], g_nuc[2], g_nuc[5], g_nuc[7], g_nuc[9], g_nuc[11],   # nuclei: ABN_R, TRN_L, OMN_{MR,SR,IR,IO}_R
         g_nrv[6], g_nrv[7], g_nrv[8], g_nrv[9], g_nrv[10], g_nrv[11],   # nerves: 6 R-eye muscles
         brain_params.g_mlf_R,
     ]))

@@ -38,7 +38,7 @@ THETA = with_brain(with_sensory(with_brain(PARAMS_DEFAULT, g_burst=700.0),
                                 sigma_canal=0.0, sigma_pos=0.0, sigma_vel=0.0), sigma_acc=0.0)
 
 AXES3      = ['horizontal', 'vertical', 'torsion']
-MN_LABELS  = ['LR_L', 'LR_R', 'CN4_L', 'CN4_R', 'MR_L', 'MR_R', 'SR_L', 'SR_R',
+MN_LABELS  = ['LR_L', 'LR_R', 'TRN_L', 'TRN_R', 'MR_L', 'MR_R', 'SR_L', 'SR_R',
               'IR_L', 'IR_R', 'IO_L', 'IO_R', 'AIN_L', 'AIN_R']
 NRV_LABELS = ['LR_L', 'MR_L', 'SR_L', 'IR_L', 'SO_L', 'IO_L',
               'LR_R', 'MR_R', 'SR_R', 'IR_R', 'SO_R', 'IO_R']
@@ -46,18 +46,18 @@ c3    = ['#c0392b', '#2980b9', '#27ae60']     # horizontal / vertical / torsion
 c3_dk = ['#922b21', '#1a5276', '#1d8348']     # NI left pop  (dark)
 c3_lt = ['#e6b0aa', '#a9cce3', '#a9dfbf']     # NI right pop (light)
 PAIR  = {'LR': '#1f4e79', 'MR': '#7fb3e6', 'SR': '#2e7d32', 'IR': '#9ccc65',
-         'SO': '#6a1b9a', 'IO': '#ce93d8', 'CN4': '#6a1b9a', 'AIN': '#9e9e9e'}
+         'SO': '#6a1b9a', 'IO': '#ce93d8', 'TRN': '#6a1b9a', 'AIN': '#9e9e9e'}
 def _mcol(lbl): return PAIR.get(lbl.split('_')[0], '#333')
 
 # MN legend: full motor pathway nucleus·side → nerve·side → muscle·side, so the
-# decussations are explicit.  CN4 (trochlear) is the one cranial nerve that
+# decussations are explicit.  TRN (trochlear) is the one cranial nerve that
 # decussates — its axons cross between nucleus and nerve (nucleus L → nerve R →
 # SO R).  The abducens internuclear (AIN) is not a cranial nerve: it routes
 # through the MLF to the contralateral MR.  (nuc = nerve roman numeral; LR↔VI,
 # MR/SR/IR/IO↔III, SO↔IV.)
 _PATH = {'LR': ('VI', False, 'LR'), 'MR': ('III', False, 'MR'),
          'SR': ('III', False, 'SR'), 'IR': ('III', False, 'IR'),
-         'IO': ('III', False, 'IO'), 'CN4': ('IV', True, 'SO')}
+         'IO': ('III', False, 'IO'), 'TRN': ('IV', True, 'SO')}
 def _opp(s): return 'R' if s == 'L' else 'L'
 def _mn_label(lbl):
     stem, side = lbl.split('_')
@@ -178,7 +178,7 @@ def _cascade(show):
                     'depth shifts. Version drive is decomposed Robinson pulse/step (NI bilateral pops '
                     '+ τp·burst feed-through); vergence drive is decomposed step (verg_fast+tonic), '
                     'pulse (direct path) and AC/A cross-link, all in H/V/T. The command then flows '
-                    'through the 14 signed motoneurons (incl. CN4 and the MLF internuclear AIN) to the '
+                    'through the 14 signed motoneurons (incl. TRN and the MLF internuclear AIN) to the '
                     '12 pull-only per-muscle nerve drives, split by eye.',
         expected='Eye reaches each gaze target; ocular vergence rides ~3.7° at 1 m, ~14.6° at near and '
                  '~0.9° at far (V/T vergence ≈ 0 in this symmetric paradigm). Each saccade is an NI step '

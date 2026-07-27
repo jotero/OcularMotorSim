@@ -5,7 +5,7 @@ Anatomically faithful chain:
     version_vergence (6,)
         ↓ M_NUCLEUS                  (signed nucleus drives)
         ↓ × g_nucleus                (nuclear lesion: multiplicative cell-count gain)
-        ↓ MLF tract (axon)           (AIN MN → contralateral CN3_MR MN; cap = g_mlf · NERVE_MAX)
+        ↓ MLF tract (axon)           (AIN MN → contralateral OMN_MR MN; cap = g_mlf · NERVE_MAX)
         ↓ M_NERVE_PROJ × 2           (nucleus → MN target firing rate)
         ↓ MN intrinsic f-I curve     (biophysical max NERVE_MAX, not a lesion knob)
     motor neurons (12 dynamic states, x_mn)
@@ -15,8 +15,8 @@ Anatomically faithful chain:
 
 The MLF is a motor-neuron-to-motor-neuron connection: abducens internuclear
 neurons (AIN) fire as ordinary MNs (intrinsic NERVE_MAX), their axons enter
-the contralateral MLF tract (conduction-capped), and they synapse onto CN3_MR
-motoneurons in the oculomotor nucleus.  CN3_MR motoneurons sum vergence drive
+the contralateral MLF tract (conduction-capped), and they synapse onto OMN_MR
+motoneurons in the oculomotor nucleus.  OMN_MR motoneurons sum vergence drive
 (direct from supraoculomotor area) with MLF input → fire → drive MR muscle.
 
 Lesion semantics:
@@ -30,7 +30,7 @@ Lesion semantics:
                      Models demyelination / conduction block in the MLF.
                      Frequency-selective: tonic AIN drive (small) gets through;
                      saccadic burst (large) is capped → slow adducting saccades.
-                     Vergence preserved (delivered via CN3_MR direct, bypasses MLF).
+                     Vergence preserved (delivered via OMN_MR direct, bypasses MLF).
 
     g_nerve (12,)    Conduction cap on the cranial-nerve axon (axon-level clip).
                      Models nerve demyelination / fascicular lesion.
@@ -84,21 +84,31 @@ _M_MUSCLE_ACTION_R_np = np.asarray(M_MUSCLE_ACTION_R)
 
 # ── Motor nucleus index constants (0–13) ──────────────────────────────────────
 ABN_L, ABN_R       =  0,  1   # Abducens nucleus motoneurons (CN VI) → ipsilateral LR
-CN4_L, CN4_R       =  2,  3   # Trochlear nucleus (CN IV) — SO, contralateral projection
-CN3_MR_L, CN3_MR_R =  4,  5   # CN III — medial rectus subnucleus (vergence drive)
-CN3_SR_L, CN3_SR_R =  6,  7   # CN III — superior rectus subnucleus
-CN3_IR_L, CN3_IR_R =  8,  9   # CN III — inferior rectus subnucleus
-CN3_IO_L, CN3_IO_R = 10, 11   # CN III — inferior oblique subnucleus
+TRN_L, TRN_R       =  2,  3   # Trochlear nucleus (CN IV) — SO, contralateral projection
+OMN_MR_L, OMN_MR_R =  4,  5   # CN III — medial rectus subnucleus (vergence drive)
+OMN_SR_L, OMN_SR_R =  6,  7   # CN III — superior rectus subnucleus
+OMN_IR_L, OMN_IR_R =  8,  9   # CN III — inferior rectus subnucleus
+OMN_IO_L, OMN_IO_R = 10, 11   # CN III — inferior oblique subnucleus
 AIN_L, AIN_R       = 12, 13   # Abducens internuclear neurons → contralateral MR via MLF
 
 N_NUCLEI = 14
 
 # ── Stage 1 — M_NUCLEUS (14×6) [version, vergence] → nuclei ───────────────────
-# Healthy round-trip target (M_NERVE_PROJ @ M_NUCLEUS = M_FULL):
-#   M_FULL (12×6) = [[M_MUSCLE_ACTION_L | +0.5·M_MUSCLE_ACTION_L], [M_MUSCLE_ACTION_R | −0.5·M_MUSCLE_ACTION_R]]
+# The FCP encodes the brain's 6-D command [version(3) | vergence(3)] → 12 nerves in
+# TWO hops (M_NUCLEUS then M_NERVE_PROJ) so a lesion can hit a real intermediate
+# (a nucleus, the MLF). Healthy, the two hops must collapse to the ideal ONE-shot map
+# M_FULL — the round-trip assert below checks M_NERVE_PROJ @ M_NUCLEUS == M_FULL, so
+# the decomposition is transparent until something is lesioned.
+#
+# M_FULL (12×6): rows = nerves [L eye 6 | R eye 6], columns = [version(3) | vergence(3)].
+#   VERSION  → each eye via its own action matrix (M_MUSCLE_ACTION_L is the mirror of
+#              _R), so "look right" rotates BOTH eyes right — CONJUGATE.
+#   VERGENCE → +½ on the L eye, −½ on the R: the opposite sign (through the mirrored
+#              matrices) rotates the eyes TOWARD each other — DISCONJUGATE (converge),
+#              and the ½ splits the vergence angle evenly, half to each eye.
 _M_FULL_np = np.vstack([
-    np.hstack([_M_MUSCLE_ACTION_L_np,  0.5 * _M_MUSCLE_ACTION_L_np]),   # left  nerves: version | vergence
-    np.hstack([_M_MUSCLE_ACTION_R_np, -0.5 * _M_MUSCLE_ACTION_R_np]),   # right nerves: version | vergence
+    np.hstack([_M_MUSCLE_ACTION_L_np,  0.5 * _M_MUSCLE_ACTION_L_np]),   # L nerves: [ version_L | +½·vergence_L ]
+    np.hstack([_M_MUSCLE_ACTION_R_np, -0.5 * _M_MUSCLE_ACTION_R_np]),   # R nerves: [ version_R | −½·vergence_R ]
 ]).astype(np.float32)   # (12, 6)
 
 _M_NUCLEUS_np = np.zeros((N_NUCLEI, 6), dtype=np.float32)
@@ -108,16 +118,16 @@ _M_NUCLEUS_np[ABN_R] = np.concatenate([_M_MUSCLE_ACTION_R_np[LR, :], -0.5 * _M_M
 # AIN: pure version drive (no vergence column). Same sign as ABN version output.
 _M_NUCLEUS_np[AIN_L, :3] = _M_MUSCLE_ACTION_L_np[LR, :]   # = [-1, 0, 0]
 _M_NUCLEUS_np[AIN_R, :3] = _M_MUSCLE_ACTION_R_np[LR, :]   # = [+1, 0, 0]
-# CN3_MR: vergence-only drive (version arrives at MR via MLF from contralateral AIN).
-_M_NUCLEUS_np[CN3_MR_L, 3:] = +0.5 * _M_MUSCLE_ACTION_L_np[MR, :]   # → [+½, 0, 0]
-_M_NUCLEUS_np[CN3_MR_R, 3:] = -0.5 * _M_MUSCLE_ACTION_R_np[MR, :]   # → [+½, 0, 0]
-# CN4 (contralateral SO).
-_M_NUCLEUS_np[CN4_R] = np.concatenate([_M_MUSCLE_ACTION_L_np[SO, :],  0.5 * _M_MUSCLE_ACTION_L_np[SO, :]])
-_M_NUCLEUS_np[CN4_L] = np.concatenate([_M_MUSCLE_ACTION_R_np[SO, :], -0.5 * _M_MUSCLE_ACTION_R_np[SO, :]])
-# Remaining CN3 subdivisions (SR, IR, IO): direct ipsilateral, version + vergence.
-for _nuc, _mus in ((CN3_SR_L, SR), (CN3_IR_L, IR), (CN3_IO_L, IO)):
+# OMN_MR: vergence-only drive (version arrives at MR via MLF from contralateral AIN).
+_M_NUCLEUS_np[OMN_MR_L, 3:] = +0.5 * _M_MUSCLE_ACTION_L_np[MR, :]   # → [+½, 0, 0]
+_M_NUCLEUS_np[OMN_MR_R, 3:] = -0.5 * _M_MUSCLE_ACTION_R_np[MR, :]   # → [+½, 0, 0]
+# TRN (contralateral SO).
+_M_NUCLEUS_np[TRN_R] = np.concatenate([_M_MUSCLE_ACTION_L_np[SO, :],  0.5 * _M_MUSCLE_ACTION_L_np[SO, :]])
+_M_NUCLEUS_np[TRN_L] = np.concatenate([_M_MUSCLE_ACTION_R_np[SO, :], -0.5 * _M_MUSCLE_ACTION_R_np[SO, :]])
+# Remaining OMN subdivisions (SR, IR, IO): direct ipsilateral, version + vergence.
+for _nuc, _mus in ((OMN_SR_L, SR), (OMN_IR_L, IR), (OMN_IO_L, IO)):
     _M_NUCLEUS_np[_nuc] = np.concatenate([_M_MUSCLE_ACTION_L_np[_mus, :],  0.5 * _M_MUSCLE_ACTION_L_np[_mus, :]])
-for _nuc, _mus in ((CN3_SR_R, SR), (CN3_IR_R, IR), (CN3_IO_R, IO)):
+for _nuc, _mus in ((OMN_SR_R, SR), (OMN_IR_R, IR), (OMN_IO_R, IO)):
     _M_NUCLEUS_np[_nuc] = np.concatenate([_M_MUSCLE_ACTION_R_np[_mus, :], -0.5 * _M_MUSCLE_ACTION_R_np[_mus, :]])
 
 # ── Stage 2 — M_NERVE_PROJ (12×14) nucleus → nerve (unit MLF gain; fcp.step
@@ -127,16 +137,16 @@ _M_NERVE_PROJ_np[LR_L, ABN_L] = 1.0     # ABN → ipsilateral LR (CN VI, uncross
 _M_NERVE_PROJ_np[LR_R, ABN_R] = 1.0
 _M_NERVE_PROJ_np[MR_R, AIN_L] = 1.0     # AIN → contralateral MR via MLF (right MLF)
 _M_NERVE_PROJ_np[MR_L, AIN_R] = 1.0     # left MLF
-_M_NERVE_PROJ_np[SO_R, CN4_L] = 1.0     # CN4 → contralateral SO (CN IV decussates)
-_M_NERVE_PROJ_np[SO_L, CN4_R] = 1.0
-_M_NERVE_PROJ_np[MR_L, CN3_MR_L] = 1.0  # CN3 vergence/version → ipsilateral (uncrossed)
-_M_NERVE_PROJ_np[MR_R, CN3_MR_R] = 1.0
-_M_NERVE_PROJ_np[SR_L, CN3_SR_L] = 1.0
-_M_NERVE_PROJ_np[SR_R, CN3_SR_R] = 1.0
-_M_NERVE_PROJ_np[IR_L, CN3_IR_L] = 1.0
-_M_NERVE_PROJ_np[IR_R, CN3_IR_R] = 1.0
-_M_NERVE_PROJ_np[IO_L, CN3_IO_L] = 1.0
-_M_NERVE_PROJ_np[IO_R, CN3_IO_R] = 1.0
+_M_NERVE_PROJ_np[SO_R, TRN_L] = 1.0     # TRN → contralateral SO (CN IV decussates)
+_M_NERVE_PROJ_np[SO_L, TRN_R] = 1.0
+_M_NERVE_PROJ_np[MR_L, OMN_MR_L] = 1.0  # OMN vergence/version → ipsilateral (uncrossed)
+_M_NERVE_PROJ_np[MR_R, OMN_MR_R] = 1.0
+_M_NERVE_PROJ_np[SR_L, OMN_SR_L] = 1.0
+_M_NERVE_PROJ_np[SR_R, OMN_SR_R] = 1.0
+_M_NERVE_PROJ_np[IR_L, OMN_IR_L] = 1.0
+_M_NERVE_PROJ_np[IR_R, OMN_IR_R] = 1.0
+_M_NERVE_PROJ_np[IO_L, OMN_IO_L] = 1.0
+_M_NERVE_PROJ_np[IO_R, OMN_IO_R] = 1.0
 
 # Sanity check: healthy round-trip preserves the version+½·vergence command.
 _check = _M_NERVE_PROJ_np @ _M_NUCLEUS_np
@@ -162,7 +172,7 @@ def nucleus_gains_from_trunks(oc_L, oc_R, tr_L, tr_R, ab_L, ab_R):
     whole nucleus complex on one side, so this is a pure gather (each subnucleus
     copies its complex's gain — no sums, no products):
 
-        abducens → ABN    oculomotor(somatic) → MR, SR, IR, IO    trochlear → CN4  (per side)
+        abducens → ABN    oculomotor(somatic) → MR, SR, IR, IO    trochlear → TRN  (per side)
 
     The abducens (ab) gain is shared with the co-located AIN downstream (the FCP
     expands (12,)→(14,) with AIN inheriting ABN), so an abducens NUCLEAR lesion silences
@@ -174,16 +184,16 @@ def nucleus_gains_from_trunks(oc_L, oc_R, tr_L, tr_R, ab_L, ab_R):
     g = jnp.ones(N_GAINS_NUCLEUS, dtype=jnp.float32)
     return (g.at[ABN_L].set(ab_L)
              .at[ABN_R].set(ab_R)
-             .at[CN4_L].set(tr_L)
-             .at[CN4_R].set(tr_R)
-             .at[CN3_MR_L].set(oc_L)
-             .at[CN3_SR_L].set(oc_L)
-             .at[CN3_IR_L].set(oc_L)
-             .at[CN3_IO_L].set(oc_L)
-             .at[CN3_MR_R].set(oc_R)
-             .at[CN3_SR_R].set(oc_R)
-             .at[CN3_IR_R].set(oc_R)
-             .at[CN3_IO_R].set(oc_R))
+             .at[TRN_L].set(tr_L)
+             .at[TRN_R].set(tr_R)
+             .at[OMN_MR_L].set(oc_L)
+             .at[OMN_SR_L].set(oc_L)
+             .at[OMN_IR_L].set(oc_L)
+             .at[OMN_IO_L].set(oc_L)
+             .at[OMN_MR_R].set(oc_R)
+             .at[OMN_SR_R].set(oc_R)
+             .at[OMN_IR_R].set(oc_R)
+             .at[OMN_IO_R].set(oc_R))
 
 
 def nerve_gains_from_trunks(g_cn3_L, g_cn3_R, g_cn4_L, g_cn4_R, g_cn6_L, g_cn6_R):
@@ -218,7 +228,7 @@ __all__ = ['G_NUCLEUS_DEFAULT', 'G_NERVE_DEFAULT', 'N_STATES', 'step', 'rest_sta
 # State count: 14 motor neurons in nucleus order — 12 muscle-MNs that project
 # via cranial nerves to extraocular muscles, plus 2 abducens internuclear
 # neurons (AIN_L, AIN_R) whose axons enter the MLF tract and synapse onto
-# contralateral CN3_MR motoneurons (no cranial-nerve output).
+# contralateral OMN_MR motoneurons (no cranial-nerve output).
 N_STATES = 14
 
 # Biophysical maximum firing rate (deg/s equivalent), used for the premotor
@@ -300,9 +310,9 @@ class State(NamedTuple):
     firing rate — `read_activations` turns it into the ≥0 firing rate.
 
     AIN_L and AIN_R are abducens internuclear neurons whose axons enter the MLF
-    and synapse on contralateral CN3_MR motoneurons (no extraocular muscle output).
+    and synapse on contralateral OMN_MR motoneurons (no extraocular muscle output).
     """
-    mn: jnp.ndarray   # (14,) [LR_L,LR_R,CN4_L,CN4_R,MR_L,MR_R,SR_L,SR_R,IR_L,IR_R,IO_L,IO_R,AIN_L,AIN_R]
+    mn: jnp.ndarray   # (14,) [LR_L,LR_R,TRN_L,TRN_R,MR_L,MR_R,SR_L,SR_R,IR_L,IR_R,IO_L,IO_R,AIN_L,AIN_R]
 
 
 class Activations(NamedTuple):
@@ -349,7 +359,7 @@ def read_activations(state, brain_params):
     state.mn is the nucleus MEMBRANE POTENTIAL (signed; sub-threshold off-direction).
     Two cell types:
       • Motoneurons (first 12): tonic baseline + version drive, f-I capped at NERVE_MAX,
-        then the per-muscle pull-only fold → ≥0.  CN3_MR is special — its version tonic
+        then the per-muscle pull-only fold → ≥0.  OMN_MR is special — its version tonic
         arrives via the MLF (already in v), so it isn't minted here.
       • Interneurons (AIN_L/R): plain rectified ≥0 firing (tonic + version), no fold;
         the MLF relays this to the contralateral MR in step().
@@ -366,10 +376,10 @@ def read_activations(state, brain_params):
     # f(x) = relu(x) + relu(x − 2·tonic): floored at 0 (a muscle can't push), linear in
     # the pull range, doubled past 2·tonic (where a symmetric antagonist floors, so the
     # agonist carries the full L−R differential alone).  Per-muscle, decoupled → a one-
-    # sided lesion (INO) can't leak the antagonist's relaxation into the agonist.  CN3_MR
+    # sided lesion (INO) can't leak the antagonist's relaxation into the agonist.  OMN_MR
     # mints no version tonic (its conjugate tone arrives via the MLF, already in v); only
     # its fold threshold uses the baseline.
-    tonic_add = tonic.at[CN3_MR_L].set(0.0).at[CN3_MR_R].set(0.0)
+    tonic_add = tonic.at[OMN_MR_L].set(0.0).at[OMN_MR_R].set(0.0)
     drive_mn  = _smooth_clip_sym(v[:_N_MN] + g_nuc * tonic_add, _NERVE_MAX)
     mn        = jax.nn.relu(drive_mn) + jax.nn.relu(drive_mn - 2.0 * tonic)
 
@@ -425,16 +435,16 @@ def step(state, premotor_activity, brain_params):
     g_nuc14  = jnp.concatenate([g_nuc12, g_nuc12[:2]])
     premotor = g_nuc14 * (M_NUCLEUS @ premotor_activity)                          # (14,) synaptic input
 
-    # MLF: the AIN's ≥0 FIRING (tonic + version) crosses to the contralateral CN3_MR.
+    # MLF: the AIN's ≥0 FIRING (tonic + version) crosses to the contralateral OMN_MR.
     # The tonically-firing abducens internuclear cells ARE the MR's conjugate resting
     # tone + saccade burst; the MR mints no version tonic of its own (read_activations
     # zeroes it).  So when the AIN falls silent for the off-direction (relu(T+ver)→0),
     # the MR's tone vanishes with it → the MR relaxes to 0 — no separate inhibition.
     # g_mlf caps the tract (the INO lesion): it removes tone AND burst together →
-    # adduction palsy + a resting exotropia; convergence is spared (CN3_MR direct).
+    # adduction palsy + a resting exotropia; convergence is spared (OMN_MR direct).
     #
     # mlf_lead — a LOCAL phase-lead at the AIN.  The adducting MR rides a 2-stage path
-    # (AIN tau_mn → MLF → CN3_MR tau_mn) vs the abducting LR's 1-stage, so a conjugate
+    # (AIN tau_mn → MLF → OMN_MR tau_mn) vs the abducting LR's 1-stage, so a conjugate
     # command lands disconjugately.  Since premotor[AIN] = v[AIN] + tau_mn·d(v[AIN])/dt,
     # the blend is a PHASIC-TONIC mix (tonic membrane + phasic derivative) that pre-pays
     # one tau_mn of the AIN's lag → the MR tracks the 1-stage LR.  mlf_lead ∈ [0,1] sets
@@ -447,8 +457,8 @@ def step(state, premotor_activity, brain_params):
     T_ain_L = g_nuc12[ABN_L] * brain_params.r_baseline[ABN_L]   # AIN tonic = abducens baseline (g_nuc-scaled)
     T_ain_R = g_nuc12[ABN_R] * brain_params.r_baseline[ABN_R]
     mlf = jnp.zeros(N_STATES) \
-        .at[CN3_MR_L].set(_smooth_clip(jax.nn.relu(ain_R + T_ain_R), brain_params.g_mlf_L * _NERVE_MAX)) \
-        .at[CN3_MR_R].set(_smooth_clip(jax.nn.relu(ain_L + T_ain_L), brain_params.g_mlf_R * _NERVE_MAX))
+        .at[OMN_MR_L].set(_smooth_clip(jax.nn.relu(ain_R + T_ain_R), brain_params.g_mlf_L * _NERVE_MAX)) \
+        .at[OMN_MR_R].set(_smooth_clip(jax.nn.relu(ain_L + T_ain_L), brain_params.g_mlf_R * _NERVE_MAX))
 
     # MN dynamics: the membrane relaxes toward its synaptic input (premotor + MLF)
     # with TC tau_mn.  The leak feedback is the SIGNED membrane v (not the ≥0
@@ -465,7 +475,7 @@ def read_outputs(state, brain_params):
 
     A pure function of the nucleus MEMBRANE state: route the ≥0 nucleus firing
     (read_activations) to the 12 muscles via _ROUTE (a pure selection — AIN→MR is
-    delivered by the MLF, already integrated into the CN3_MR membrane, so its
+    delivered by the MLF, already integrated into the OMN_MR membrane, so its
     firing carries it), then apply the cranial-nerve conduction lesion.  Needs no
     premotor input.  g_nerve is the AXON lesion: g_nerve→0 silences the muscle
     (denervated, no force); g_nerve<1 frequency-selectively caps the burst →
@@ -540,7 +550,7 @@ def rest_state(premotor_activity, brain_params):
     """Steady-state MN membrane for a given resting premotor command.
 
     At rest there is no version drive, so each membrane equals its premotor input
-    — except CN3_MR, which also carries the MLF-delivered AIN tonic (at rest,
+    — except OMN_MR, which also carries the MLF-delivered AIN tonic (at rest,
     version=0 → relu(ain + T) = T).  Used to initialise x_mn so the model starts on
     the slow manifold (skips a ~5·tau_mn warmup transient at t=0).
     """
@@ -549,6 +559,6 @@ def rest_state(premotor_activity, brain_params):
     membrane = g_nuc14 * (M_NUCLEUS @ premotor_activity)
     T_ain_L = g_nuc12[ABN_L] * brain_params.r_baseline[ABN_L]
     T_ain_R = g_nuc12[ABN_R] * brain_params.r_baseline[ABN_R]
-    membrane = membrane.at[CN3_MR_L].add(_smooth_clip(T_ain_R, brain_params.g_mlf_L * _NERVE_MAX)) \
-                       .at[CN3_MR_R].add(_smooth_clip(T_ain_L, brain_params.g_mlf_R * _NERVE_MAX))
+    membrane = membrane.at[OMN_MR_L].add(_smooth_clip(T_ain_R, brain_params.g_mlf_L * _NERVE_MAX)) \
+                       .at[OMN_MR_R].add(_smooth_clip(T_ain_L, brain_params.g_mlf_R * _NERVE_MAX))
     return _smooth_clip(membrane, _NERVE_MAX)

@@ -437,7 +437,7 @@ class SimulationScenario(BaseModel):
     Left INO (right eye adducts normally, LEFT eye adduction lag on rightward gaze):
         patient: {g_mlf_L: 0.0}
         Use rightward saccade stimulus. Left eye yaw will be slow/absent.
-        Convergence is preserved (CN3_MR_L direct vergence drive intact).
+        Convergence is preserved (OMN_MR_L direct vergence drive intact).
 
     Right INO (left eye adducts normally, RIGHT eye adduction lag on leftward gaze):
         patient: {g_mlf_R: 0.0}

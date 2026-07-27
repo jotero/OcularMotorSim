@@ -761,9 +761,9 @@ class BrainParams(NamedTuple):
     # (50 across all 12) gives zero plant effect (uniform → zero-sum decode).
     # Asymmetric values produce tonic strabismus without lesioning gains:
     #   r_baseline[ABN_R] > r_baseline[ABN_L]  →  R eye drifts abducted (exo)
-    #   r_baseline[CN3_MR_R] > r_baseline[CN3_MR_L]  →  R eye drifts adducted
-    # Indices match g_nucleus: [ABN_L, ABN_R, CN4_L, CN4_R, CN3_MR_L, CN3_MR_R,
-    # CN3_SR_L, CN3_SR_R, CN3_IR_L, CN3_IR_R, CN3_IO_L, CN3_IO_R]
+    #   r_baseline[OMN_MR_R] > r_baseline[OMN_MR_L]  →  R eye drifts adducted
+    # Indices match g_nucleus: [ABN_L, ABN_R, TRN_L, TRN_R, OMN_MR_L, OMN_MR_R,
+    # OMN_SR_L, OMN_SR_R, OMN_IR_L, OMN_IR_R, OMN_IO_L, OMN_IO_R]
     r_baseline:            jnp.ndarray  = R_BASELINE_DEFAULT  # (12,) tonic firing rate at primary position
     tau_mn:                float        = 0.005              # MN membrane TC (s); per-nerve low-pass on the
                                                               # smooth-clipped brainstem drive. ~5 ms matches
@@ -801,7 +801,7 @@ class BrainParams(NamedTuple):
     # (left MLF) are explicit edges in M_NERVE_PROJ; g_mlf_L/R scale them.
     #   g_mlf_L = 0 → left  MLF cut → left  MR fails to adduct on rightward gaze
     #   g_mlf_R = 0 → right MLF cut → right MR fails to adduct on leftward  gaze
-    # Vergence is preserved in either case (CN3_MR drives MR directly).
+    # Vergence is preserved in either case (OMN_MR drives MR directly).
     g_mlf_L:               float        = 1.0   # left  MLF synaptic gain (AIN_R → MR_L)
     g_mlf_R:               float        = 1.0   # right MLF synaptic gain (AIN_L → MR_R)
     mn_ff_yaw:             float        = 1.0   # conjugate-yaw MN-LP pulse-step feedforward factor
@@ -815,7 +815,7 @@ class BrainParams(NamedTuple):
                                                   # mlf_lead). 1.5 = legacy compromise.
     mlf_lead:              float        = 0.5   # per-eye (monocular) MLF lead compensation [0,1].
                                                   # The adducting MR is driven 2-stage (AIN tau_mn →
-                                                  # MLF → CN3_MR tau_mn) while the abducting LR is
+                                                  # MLF → OMN_MR tau_mn) while the abducting LR is
                                                   # 1-stage, so a conjugate command lands the eyes
                                                   # disconjugately → post-saccadic vergence transient.
                                                   # Blends the lagged AIN output with its premotor
