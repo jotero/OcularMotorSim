@@ -107,15 +107,15 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-07-17 14:09</strong> &nbsp;|&nbsp;
-      Version: <strong>a275ef8-dirty.37e9885</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-07-29 15:42</strong> &nbsp;|&nbsp;
+      Version: <strong>702865d-dirty.26a9f2d</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
     <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span> 3 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 12 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span> 7 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 61</p>
-    <div class="warn-banner">&#9888; <b>9 of 10</b> sections were run on an older version (current build <b>a275ef8-dirty.37e9885</b>). Versions present: 328bc5f-dirty.fbedcf8, a275ef8-dirty.37e9885, a275ef8-dirty.989eb76. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law, 8. Final Common Pathway, 10. Eyelid.</div>
+    <div class="warn-banner">&#9888; <b>10 of 10</b> sections were run on an older version (current build <b>702865d-dirty.26a9f2d</b>). Versions present: 328bc5f-dirty.fbedcf8, 702865d-dirty.b50c0ce, a275ef8-dirty.37e9885, a275ef8-dirty.989eb76. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law, 8. Final Common Pathway, 9. Pupil, 10. Eyelid.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 192.3s · 328bc5f-dirty.fbedcf8 · 2026-07-04 22:38</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>1. Saccades <span class="rt">· 192.3s · 328bc5f-dirty.fbedcf8 · 2026-07-04 22:38</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
@@ -262,7 +262,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 1374.0s · a275ef8-dirty.989eb76 · 2026-07-17 12:19</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 1374.0s · a275ef8-dirty.989eb76 · 2026-07-17 12:19</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -430,7 +430,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 968.6s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:16</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 968.6s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:16</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path — gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -717,7 +717,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 317.3s · a275ef8-dirty.989eb76 · 2026-07-17 12:24</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 317.3s · a275ef8-dirty.989eb76 · 2026-07-17 12:24</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -806,7 +806,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 413.6s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:27</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 413.6s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:27</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -1098,7 +1098,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 77.1s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:29</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>6. Fixation <span class="rt">· 77.1s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:29</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1144,7 +1144,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 108.4s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:30</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 108.4s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:30</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
@@ -1228,7 +1228,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fcp">
-    <h2>8. Final Common Pathway <span class="rt">· 34.2s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:31</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>8. Final Common Pathway <span class="rt">· 36.9s · 702865d-dirty.b50c0ce · 2026-07-29 15:38</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Motoneuron + cranial-nerve output stage. Traces the full command cascade — Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves — over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command ↔ per-muscle recruitment mapping.</p>
     <div class="fig-grid">
       
@@ -1262,7 +1262,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
             <td class="what" title="fcp_verg_near">Ocular vergence at near target (0.25 m; geometric 14.6°)</td>
-            <td class="num">14.57 deg</td>
+            <td class="num">14.51 deg</td>
             <td class="num">[12.0884, 17.0884]</td>
             <td class="num">—</td>
             <td class="num">—</td>
@@ -1270,19 +1270,19 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
             <td class="what" title="fcp_verg_far">Ocular vergence at far target (4 m; geometric 0.9°)</td>
-            <td class="num">1.051 deg</td>
+            <td class="num">1.046 deg</td>
             <td class="num">[0.3, 2.5]</td>
             <td class="num">—</td>
             <td class="num">—</td>
           </tr></tbody></table>
-        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Stacked timecourse of the whole final common pathway for a center-out-center 9-position gaze sequence (±30° at 1 m) followed by near (0.25 m) and far (4 m) depth shifts. Version drive is decomposed Robinson pulse/step (NI bilateral pops + τp·burst feed-through); vergence drive is decomposed step (verg_fast+tonic), pulse (direct path) and AC/A cross-link, all in H/V/T. The command then flows through the 14 signed motoneurons (incl. CN4 and the MLF internuclear AIN) to the 12 pull-only per-muscle nerve drives, split by eye. Eye reaches each gaze target; ocular vergence rides ~3.7° at 1 m, ~14.6° at near and ~0.9° at far (V/T vergence ≈ 0 in this symmetric paradigm). Each saccade is an NI step + burst pulse; the conjugate [H,V,T] command spreads across the recti/obliques per eye. Nerve drive stays pull-only (≥0) via reciprocal co-contraction.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>, <a class="cref" href="#ref-40" title="Sparks (2002)">40</a>]</span></p></div>
+        <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Stacked timecourse of the whole final common pathway for a center-out-center 9-position gaze sequence (±30° at 1 m) followed by near (0.25 m) and far (4 m) depth shifts. Version drive is decomposed Robinson pulse/step (NI bilateral pops + τp·burst feed-through); vergence drive is decomposed step (verg_fast+tonic), pulse (direct path) and AC/A cross-link, all in H/V/T. The command then flows through the 14 signed motoneurons (incl. TRN and the MLF internuclear AIN) to the 12 pull-only per-muscle nerve drives, split by eye. Eye reaches each gaze target; ocular vergence rides ~3.7° at 1 m, ~14.6° at near and ~0.9° at far (V/T vergence ≈ 0 in this symmetric paradigm). Each saccade is an NI step + burst pulse; the conjugate [H,V,T] command spreads across the recti/obliques per eye. Nerve drive stays pull-only (≥0) via reciprocal co-contraction.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>, <a class="cref" href="#ref-40" title="Sparks (2002)">40</a>]</span></p></div>
       </div>
     </div>
     </div>
   </section>
 
   <section class="section" id="pupil">
-    <h2>9. Pupil <span class="rt">· 55.6s · a275ef8-dirty.37e9885 · 2026-07-17 14:09</span></h2>
+    <h2>9. Pupil <span class="rt">· 55.6s · a275ef8-dirty.37e9885 · 2026-07-17 14:09</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance → pretectum → both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). (Pupil lesions — CN III / RAPD / Argyll Robertson / Horner — are in the clinical benchmarks, section F.)</p>
     <div class="fig-grid">
       
@@ -1313,7 +1313,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="eyelid">
-    <h2>10. Eyelid <span class="rt">· 52.7s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:33</span> <span class="stale">&#9888; out of date — code now a275ef8-dirty.37e9885</span></h2>
+    <h2>10. Eyelid <span class="rt">· 52.7s · 328bc5f-dirty.fbedcf8 · 2026-07-04 23:33</span> <span class="stale">&#9888; out of date — code now 702865d-dirty.26a9f2d</span></h2>
     <p>Per-eye upper-lid plant: spontaneous blinks (conjugate, ~15/min) + an upper lid that follows vertical gaze (downgaze lowers the lid). Fast closing / slower opening (rate-asymmetric). Ptosis (CN III levator, nuclear vs nerve; Horner Müller) and lagophthalmos (CN VII orbicularis) lesions are wired but not shown here.</p>
     <div class="fig-grid">
       

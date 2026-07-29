@@ -6,6 +6,8 @@ HTML report:      web/benchmarks/index.html
 
 import os
 import datetime
+import hashlib
+import subprocess
 
 # bench_utils.py lives at src/oculomotor/benchmarks/ → repo root is 3 levels up.
 # Figures are written into the repo-level web/ cache.
@@ -28,6 +30,57 @@ CLIN_DIR      = os.path.join(_DOCS, 'clinical_benchmarks')
 CLIN_FIGS_DIR = os.path.join(CLIN_DIR, 'figures')
 CLIN_REF_DIR  = os.path.join(CLIN_DIR, 'reference')
 CLIN_HTML_PATH = os.path.join(CLIN_DIR, 'index.html')
+
+
+_BENCH_VERSION = None
+
+# Paths whose uncommitted state can change what a bench MEASURES: the model, the
+# simulator, and the bench modules themselves. Deliberately excludes reports/ (page
+# rendering), server/ and llm_pipeline/ — and, being a src/ pathspec, all of docs,
+# manuscripts and web/. Editing CLAUDE.md must not mark every measurement stale;
+# a staleness flag that fires on prose is one nobody reads.
+_VERSION_SCOPE = ['src/oculomotor',
+                  ':(exclude)src/oculomotor/reports',
+                  ':(exclude)src/oculomotor/server',
+                  ':(exclude)src/oculomotor/llm_pipeline']
+
+
+def bench_version():
+    """`oculomotor.__version__`, refined so it identifies the code that produced a
+    measurement.
+
+    `git describe --dirty` flips to '-dirty' on any tracked edit and is then
+    identical across every subsequent edit, so it can neither tell two uncommitted
+    states apart nor tell a model change from a typo fix. Instead, diff only
+    :data:`_VERSION_SCOPE`:
+
+    * scope dirty → append a short hash of that diff, so each distinct model state
+      gets its own stamp and a section re-run after an edit is comparable;
+    * scope clean → drop '-dirty' entirely and report the plain commit, because the
+      code that generates these numbers *is* HEAD regardless of doc edits.
+
+    Computed once per process, so all sections of one run share a stamp. Lives here
+    rather than in reports/ so the benchmarks package can stamp and check staleness
+    without importing the report generator.
+    """
+    global _BENCH_VERSION
+    if _BENCH_VERSION is not None:
+        return _BENCH_VERSION
+    ver = oculomotor.__version__
+    if ver.endswith('-dirty'):
+        try:
+            diff = subprocess.run(
+                ['git', 'diff', 'HEAD', '--'] + _VERSION_SCOPE, cwd=_ROOT,
+                capture_output=True, text=True, timeout=15).stdout
+            if diff.strip():
+                h = hashlib.sha1(diff.encode('utf-8', 'ignore')).hexdigest()[:7]
+                ver = f'{ver}.{h}'
+            else:
+                ver = ver[:-len('-dirty')]   # model identical to HEAD
+        except Exception:
+            pass
+    _BENCH_VERSION = ver
+    return ver
 
 
 def fmt_param_overrides(params):

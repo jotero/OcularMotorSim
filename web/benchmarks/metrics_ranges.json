@@ -591,14 +591,6 @@
     "cite": "Rashbass & Westheimer (1961)",
     "desc": "Vergence rise time constant (exp fit)"
   },
-  "vor_bode_fc_hi_dark": {
-    "lo": null,
-    "hi": null,
-    "golden_tol": 0.25,
-    "units": "Hz",
-    "cite": "Cohen, Matsuo & Raphan (1977); Paige (1994)",
-    "desc": "VOR high-side \u22123 dB cutoff \u2014 dark"
-  },
   "vor_bode_fc_hi_light": {
     "lo": null,
     "hi": null,
@@ -614,14 +606,6 @@
     "units": "Hz",
     "cite": "Cohen, Matsuo & Raphan (1977); Paige (1994)",
     "desc": "VOR high-side \u22123 dB cutoff \u2014 light+target"
-  },
-  "vor_bode_fc_lo_light_target": {
-    "lo": null,
-    "hi": null,
-    "golden_tol": 0.25,
-    "units": "Hz",
-    "cite": "Cohen, Matsuo & Raphan (1977); Paige (1994)",
-    "desc": "VOR low-side \u22123 dB corner (canal high-pass) \u2014 light+target"
   },
   "vor_bode_gain_max_dark": {
     "lo": 0.4,

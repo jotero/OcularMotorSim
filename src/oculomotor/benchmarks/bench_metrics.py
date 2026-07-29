@@ -18,12 +18,34 @@ Two check types, both wanted:
 A metric may carry both.  An OUT-OF-BAND value is a hard **FAIL** (red, non-zero
 exit) — the physiological assertion.  A golden DRIFT while the value is still in
 band is **DRIFT** (amber, informational — re-freeze with --update after an
-intended change), not a failure.  No gate/monitor tier split.
+intended change), not a failure.  A metric carrying *neither* criterion is
+**UNRATED** — it is measured but nothing checks it, which is a coverage hole, not
+a pass.  No gate/monitor tier split.
+
+Scoring is **offline by default**: ``benchmarks_data.json`` already holds every
+measured value from the last suite run, so the whole scoreboard (all sections,
+not just the simulated ones) scores in ~2 s with no ODE solves.  Re-simulating is
+opt-in via ``--run``, because the full suite is ~60 min.  Since offline values are
+only as fresh as the run that produced them, every report prints per-section
+staleness (the code version each section was measured at vs the current build).
+
+Three artifacts back this, all hand-inspectable:
+
+* ``web/benchmarks/benchmarks_data.json``  measured values (written by suite runs)
+* ``web/benchmarks/metrics_ranges.json``   editable bands (source of truth once seeded)
+* ``benchmarks/golden_metrics.json``       frozen reference snapshot
+* ``web/benchmarks/metrics_history.jsonl`` append-only per-run log → the trend column
 
 Usage::
 
-    python -X utf8 -m oculomotor.benchmarks.bench_metrics            # check
-    python -X utf8 -m oculomotor.benchmarks.bench_metrics --update   # refreeze golden
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics                # score data.json (fast)
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --fails        # only non-passing rows
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --section vor  # filter by section id
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --run          # re-simulate, then score
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --run saccades # re-simulate one section
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --update       # refreeze golden
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --history NAME # one metric across runs
+    python -X utf8 -m oculomotor.benchmarks.bench_metrics --prune-ranges # drop orphan band entries
 """
 
 from __future__ import annotations
@@ -36,10 +58,20 @@ import sys
 from dataclasses import dataclass, replace
 from typing import Optional
 
-# Benches whose figures + metrics this harness gathers. Grows as benches are wired in.
+# Benches whose figures + metrics this harness gathers, in report order.
+# Canonical list: reports/run_benchmarks.py imports it rather than keeping its own,
+# so a bench can never be wired into the report but missing from the metric gate.
 BENCH_MODULES = [
     'bench_saccades',
     'bench_vor_okr',
+    'bench_gravity',     # also renders the T-VOR figures (merged section)
+    'bench_pursuit',
+    'bench_vergence',
+    'bench_fixation',
+    'bench_listing',
+    'bench_fcp',
+    'bench_pupil',
+    'bench_eyelid',
 ]
 
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -233,6 +265,84 @@ def load_benchmarks_data(path=None) -> dict:
         return json.load(f)
 
 
+# ── Run history (the trend column) ────────────────────────────────────────────
+# Golden is a single deliberately-frozen reference, so it cannot answer "is this
+# getting better?" across a tuning session — re-freezing destroys the comparison.
+# metrics_history.jsonl is the append-only complement: one JSON record per suite
+# run, so a metric's trajectory over successive attempts stays readable. Append
+# only; never rewrite (the whole value is that old rows are immutable).
+
+def history_path():
+    return os.path.join(_web_dir(), 'metrics_history.jsonl')
+
+
+def load_history(path=None) -> list:
+    """Read the run log, oldest first. Malformed lines are skipped rather than
+    fatal — a truncated tail must not break the scoreboard."""
+    path = path or history_path()
+    if not os.path.isfile(path):
+        return []
+    out = []
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return out
+
+
+def record_history(sections_data=None, sections_run=None, path=None) -> dict:
+    """Append one record for the current measured values.
+
+    ``sections_data`` is the in-memory [(meta, figs), …] from a suite run; when
+    omitted the values are read back from benchmarks_data.json (so a bare
+    ``--record`` can bootstrap history from whatever is already on disk).
+    ``sections_run`` names the sections actually re-simulated — the rest of the
+    record is carried-over older measurements, and saying so keeps the log honest.
+    """
+    from oculomotor.benchmarks import bench_utils as utils
+    import datetime
+    values, sec_versions = {}, {}
+    if sections_data is None:
+        data = load_benchmarks_data()
+        for sec in data.get('sections', []):
+            sec_versions[sec.get('id', '')] = sec.get('version')
+            for fig in sec.get('figures', []):
+                for m in fig.get('metrics', []):
+                    values[m['name']] = m.get('value')
+    else:
+        for meta, figs in sections_data:
+            sec_versions[meta.get('id', '')] = meta.get('version')
+            for fig in figs:
+                for m in fig.get('metrics', []):
+                    values[m.name] = None if _isnan(m.value) else float(m.value)
+    rec = dict(ts=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+               version=utils.bench_version(),
+               sections_run=sorted(sections_run) if sections_run else [],
+               section_versions=sec_versions,
+               values=values)
+    path = path or history_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(rec) + '\n')
+    return rec
+
+
+def previous_values(history: list = None, path=None) -> dict:
+    """Values from the most recent history record — the trend baseline.
+
+    Deliberately the previous *record*, not the previous distinct value: "no
+    change since last run" is itself the answer you want when checking whether a
+    parameter edit moved a metric at all.
+    """
+    history = load_history(path) if history is None else history
+    return dict(history[-1].get('values', {})) if history else {}
+
+
 def metric_from_record(rec: dict, ranges: dict) -> Metric:
     """Rebuild a Metric from a data.json record + ranges.json spec (for render)."""
     spec = ranges.get(rec['name'], {})
@@ -274,6 +384,10 @@ def evaluate(metrics: list[Metric], golden: dict) -> list[Result]:
                                      # (amber, informational — re-freeze after an intended change)
         elif m.golden_tol is not None and g is None:
             status = 'new'           # no snapshot yet — record on next --update
+        elif band_ok is None and drift_ok is None:
+            status = 'unrated'       # measured, but NO criterion applies — a coverage
+                                     # hole (missing from ranges, or band+tol both None).
+                                     # Never call this a pass: nothing was checked.
         else:
             status = 'pass'
 
@@ -283,7 +397,10 @@ def evaluate(metrics: list[Metric], golden: dict) -> list[Result]:
 
 # ── Reporting ─────────────────────────────────────────────────────────────────
 
-_MARK = {'pass': 'PASS', 'fail': 'FAIL', 'drift': 'DRIFT', 'new': 'NEW '}
+_MARK = {'pass': 'PASS', 'fail': 'FAIL', 'drift': 'DRIFT', 'new': 'NEW', 'unrated': '----'}
+
+_HEADER = (f'{"":5} {"metric":34} {"value":>9} {"":7} {"band":>15} '
+           f'{"golden":>9} {"vs gold":>8} {"vs prev":>8}')
 
 
 def _fmt(x, nan='   --') -> str:
@@ -294,24 +411,76 @@ def _fmt(x, nan='   --') -> str:
     return f'{x:7.3f}'
 
 
-def format_table(results: list[Result]) -> str:
+def _pct(x) -> str:
+    """Signed percentage, or '' when there is nothing to compare against."""
+    if x is None:
+        return ''
+    if _isnan(x):
+        return '   nan'
+    return f'{x * 100:+6.1f}%'
+
+
+def _trend(value, prev) -> Optional[float]:
+    """Fractional change vs the previous run's value for the same metric."""
+    if prev is None or _isnan(value) or _isnan(prev):
+        return None
+    denom = abs(prev) if abs(prev) > 1e-9 else 1.0
+    return (float(value) - float(prev)) / denom
+
+
+def format_table(results: list[Result], prev: dict = None, header: bool = True) -> str:
+    """One row per metric. ``prev`` (name → last run's value) adds the trend column."""
+    prev = prev or {}
     lines = []
-    h = f'{"":4} {"metric":24} {"value":>9} {"band":>16} {"golden":>9} {"drift":>8}'
-    lines.append(h)
-    lines.append('-' * len(h))
+    if header:
+        lines.append(_HEADER)
+        lines.append('-' * len(_HEADER))
     for r in results:
         m = r.metric
-        band = '       --       '
+        band = '      --       '
         if m.lo is not None or m.hi is not None:
             lo = '-inf' if m.lo is None else f'{m.lo:g}'
             hi = '+inf' if m.hi is None else f'{m.hi:g}'
             band = f'[{lo:>6},{hi:>6}]'
-        drift = '' if r.drift is None else f'{r.drift * 100:+6.1f}%'
-        unit = f' {m.units}' if m.units else ''
+        # Units get their own left-aligned column so the numeric columns stay
+        # aligned — 'deg/s' next to the value used to shove every later column right.
         lines.append(
-            f'{_MARK[r.status]:4} {m.name:24} {_fmt(m.value)}{unit:<0} '
-            f'{band:>16} {_fmt(r.golden)} {drift:>8}')
+            f'{_MARK[r.status]:5} {m.name:34} {_fmt(m.value)} {m.units[:7]:<7} '
+            f'{band:>15} {_fmt(r.golden)} {_pct(r.drift):>8} '
+            f'{_pct(_trend(m.value, prev.get(m.name))):>8}')
     return '\n'.join(lines)
+
+
+def format_report(scored: list, prev: dict = None, fails_only: bool = False) -> str:
+    """Full scoreboard: metrics grouped under their section, each section headed by
+    when it was measured and whether that measurement is stale.
+
+    ``scored`` is [(section_meta, [Result, …]), …] from :func:`score_from_data`.
+    Grouping matters because a failure is only actionable once you know which
+    section to re-run — and whether its numbers predate the current code.
+    """
+    from oculomotor.benchmarks import bench_utils as utils
+    cur = utils.bench_version()
+    out = [_HEADER, '-' * len(_HEADER)]
+    for meta, results in scored:
+        shown = [r for r in results if not (fails_only and r.status == 'pass')]
+        tally = summarize(results)
+        bits = [f'{len(results)} metrics']
+        if meta.get('generated'):
+            bits.append(meta['generated'])
+        ver = meta.get('version')
+        if ver:
+            bits.append(ver if ver == cur else f'{ver} STALE (code now {cur})')
+        counts = ' '.join(f'{_MARK[s]}:{n}' for s, n in sorted(tally.items()))
+        out.append('')
+        out.append(f'── {meta.get("id", "?"):22} {" · ".join(bits)}  {counts}')
+        if shown:
+            out.append(format_table(shown, prev, header=False))
+        elif results:
+            out.append(f'{"":5} (all {len(results)} metrics pass)')
+        else:
+            out.append(f'{"":5} (no metrics — visual check only)')
+    return '\n'.join(out)
 
 
 def summarize(results: list[Result]) -> dict:
@@ -319,33 +488,95 @@ def summarize(results: list[Result]) -> dict:
     return dict(Counter(r.status for r in results))
 
 
-# ── Gather + main ─────────────────────────────────────────────────────────────
+# ── Offline scoring (no simulation) ───────────────────────────────────────────
 
-def gather(show: bool = False) -> list:
-    """Run each wired bench; return [(section_title, [fig_dict, …]), …].
+def score_from_data(section_filter: str = None) -> list:
+    """Score every metric in benchmarks_data.json against ranges + golden.
 
-    Each fig_dict is what a bench panel function returns (path/rel/title/…) with
-    a ``metrics`` key holding that figure's list of :class:`Metric`. Figures and
-    metrics travel together so the dashboard can render them side by side.
+    Returns [(section_meta, [Result, …]), …]. No ODE solves — the data file is
+    already the canonical measured-value store, so this covers ALL sections
+    (including ones the gate never re-simulates) in a couple of seconds.
     """
-    import importlib
-    sections = []
-    for name in BENCH_MODULES:
-        mod = importlib.import_module(f'oculomotor.benchmarks.{name}')
-        print(f'\n--- running {name} for metrics ---')
-        figs = mod.run(show=show) or []
-        title = getattr(mod, 'SECTION', {}).get('title', name)
-        sections.append((title, figs))
-    return sections
+    data, ranges, golden = load_benchmarks_data(), load_ranges(), load_golden()
+    scored = []
+    for sec in data.get('sections', []):
+        sid = sec.get('id', '')
+        if section_filter and section_filter not in sid:
+            continue
+        meta = dict(id=sid, title=sec.get('title', ''), version=sec.get('version'),
+                    generated=sec.get('generated'), runtime_s=sec.get('runtime_s'))
+        metrics = [metric_from_record(rec, ranges)
+                   for fig in sec.get('figures', []) for rec in fig.get('metrics', [])]
+        scored.append((meta, evaluate(metrics, golden)))
+    return scored
+
+
+def audit() -> dict:
+    """Cross-check the three artifacts for drift *between* them (as opposed to in
+    the model): band entries nobody emits any more, emitted metrics nobody bands,
+    and metrics with no golden value. Each is a silent hole in the gate.
+
+    Deliberately takes no ``scored`` argument and always reads the FULL data file:
+    scoped against a ``--section`` subset, every band outside that section would
+    look like an orphan — and --prune-ranges would then delete it.
+    """
+    ranges, golden = load_ranges(), load_golden()
+    scored = score_from_data()
+    emitted = {r.metric.name for _, results in scored for r in results}
+    return dict(
+        orphan_ranges=sorted(set(ranges) - emitted),
+        missing_ranges=sorted(n for n in emitted if n not in ranges),
+        missing_golden=sorted(n for n in emitted if golden.get(n) is None),
+        drift_only=sorted(r.metric.name for _, results in scored for r in results
+                          if r.metric.lo is None and r.metric.hi is None),
+    )
+
+
+def prune_ranges(path=None) -> list:
+    """Delete band entries for metrics no bench emits any more (renames orphan
+    them). Golden self-prunes on --update because it is rebuilt from data.json;
+    ranges is seed-only, so stale entries linger until removed here."""
+    path = path or ranges_path()
+    ranges = load_ranges(path)
+    orphans = audit()['orphan_ranges']
+    if orphans:
+        for k in orphans:
+            del ranges[k]
+        with open(path, 'w', encoding='utf-8') as f:
+            # Same dump options as seed_ranges — a different ensure_ascii would
+            # rewrite every non-ASCII desc and bury the real change in churn.
+            json.dump(dict(sorted(ranges.items())), f, indent=2)
+            f.write('\n')
+    return orphans
+
+
+# ── Re-simulation (opt-in; the slow path) ─────────────────────────────────────
+
+def resimulate(names: list = None) -> list:
+    """Re-run bench sims, refresh the data artifacts + report page, and return the
+    resulting [(section_meta, figs), …].
+
+    Delegates to reports.run_benchmarks rather than re-running modules here: that
+    is the one place that stamps each section with the code version it ran at,
+    writes benchmarks_data.json, seeds ranges and records history. A second
+    orchestration path would inevitably skip one of those. Imported lazily —
+    run_benchmarks imports this module at its top.
+    """
+    from oculomotor.reports import run_benchmarks as rb
+    sections_data = rb._run_partial(names) if names else rb._run_all_benches()
+    rb.generate_html([(m, f) for m, f in sections_data
+                      if m.get('id') not in rb.EXCLUDE_SECTIONS])
+    return sections_data
 
 
 # ── HTML dashboard ────────────────────────────────────────────────────────────
 
 _HTML_STATUS = {
-    'pass':  ('#d4edda', '#155724', 'PASS'),
-    'fail':  ('#f8d7da', '#721c24', 'FAIL'),
-    'drift': ('#fff3cd', '#856404', 'DRIFT'),
-    'new':   ('#e2e3e5', '#383d41', 'NEW'),
+    'pass':    ('#d4edda', '#155724', 'PASS'),
+    'fail':    ('#f8d7da', '#721c24', 'FAIL'),
+    'drift':   ('#fff3cd', '#856404', 'DRIFT'),
+    'new':     ('#e2e3e5', '#383d41', 'NEW'),
+    'unrated': ('#e2e3e5', '#6c757d', 'UNRATED'),
 }
 
 
@@ -464,6 +695,47 @@ def freeze_golden_from_data(path: str = GOLDEN_PATH) -> dict:
     return snap
 
 
+def _arg_value(argv, flag):
+    """Value following ``--flag`` (or in ``--flag=value``); None if absent, '' if
+    the flag is present with no value."""
+    for i, a in enumerate(argv):
+        if a == flag:
+            nxt = argv[i + 1] if i + 1 < len(argv) else ''
+            return '' if nxt.startswith('-') else nxt
+        if a.startswith(flag + '='):
+            return a.split('=', 1)[1]
+    return None
+
+
+def print_history(name: str, path=None) -> int:
+    """One metric's trajectory across runs — the question golden cannot answer."""
+    history = load_history(path)
+    rows = [(r, r.get('values', {})[name]) for r in history if name in r.get('values', {})]
+    if not rows:
+        print(f'No history for {name!r} '
+              f'({len(history)} run(s) logged{"" if history else "; none yet"}).')
+        return 1
+    ranges = load_ranges()
+    spec = ranges.get(name, {})
+    lo, hi = spec.get('lo'), spec.get('hi')
+    band = ('' if lo is None and hi is None else
+            f'   band [{"-inf" if lo is None else f"{lo:g}"}, '
+            f'{"+inf" if hi is None else f"{hi:g}"}]')
+    print(f'\n{name}{band}   golden={_fmt(load_golden().get(name))}')
+    print(f'{"run":20} {"version":22} {"value":>9} {"Δ prev":>8}  sections re-run')
+    print('-' * 88)
+    prev = None
+    for rec, val in rows:
+        # No sections_run ⇒ a --record snapshot of whatever data.json already held,
+        # not a full re-run. Say so rather than implying everything was measured.
+        ran = ', '.join(s.replace('bench_', '')
+                        for s in rec.get('sections_run', [])) or '(snapshot)'
+        print(f'{rec.get("ts", ""):20} {str(rec.get("version", "")):22} '
+              f'{_fmt(val)} {_pct(_trend(val, prev)):>8}  {ran}')
+        prev = val
+    return 0
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
 
@@ -476,33 +748,81 @@ def main(argv=None) -> int:
               f'({len(snap)} metrics, all sections) → {GOLDEN_PATH}')
         return 0
 
-    # Gate: re-run the wired benches and check the CURRENT model vs golden + ranges.
-    sections = gather()
-    golden = load_golden()
-    metrics = [m for _, figs in sections for fig in figs
-               for m in fig.get('metrics', [])]
-    # Bands come from metrics_ranges.json (seeded from code, then your edits win),
-    # so the CLI gate evaluates against the same ranges the page renders.
-    ranges = seed_ranges(metrics)
-    metrics = apply_ranges(metrics, ranges)
-    results = evaluate(metrics, golden)
+    hist = _arg_value(argv, '--history')
+    if hist:
+        return print_history(hist)
 
-    print('\n' + '=' * 78)
-    print('QUANTITATIVE BENCHMARK METRICS  (modules: ' + ', '.join(BENCH_MODULES) + ')')
-    print('=' * 78)
-    print(format_table(results))
+    if '--record' in argv:
+        rec = record_history()
+        print(f'recorded {len(rec["values"])} metric value(s) at {rec["ts"]} '
+              f'({rec["version"]}) → {history_path()}')
+        return 0
+
+    # Trend baseline must be read BEFORE --run appends this run's own record,
+    # otherwise every metric would compare against itself and read as unchanged.
+    prev = previous_values()
+
+    if '--prune-ranges' in argv:
+        orphans = prune_ranges()
+        print(f'pruned {len(orphans)} orphan band entr(y/ies) from {ranges_path()}')
+        for k in orphans:
+            print(f'   - {k}')
+        return 0
+
+    run = _arg_value(argv, '--run')
+    if run is not None:
+        names = [s.strip() for s in run.split(',') if s.strip()] or None
+        print(f'Re-simulating: {", ".join(names) if names else "all sections"} '
+              f'(this is the slow path — the full suite is ~60 min).')
+        resimulate(names)
+
+    section = _arg_value(argv, '--section') or None
+    scored = score_from_data(section)
+    if not scored:
+        print('No benchmarks_data.json metrics to score — run --run once to create it.')
+        return 0
+
+    results = [r for _, results in scored for r in results]
     tally = summarize(results)
-    print('-' * 78)
+
+    print('\n' + '=' * len(_HEADER))
+    print(f'QUANTITATIVE BENCHMARK METRICS  ({len(results)} metrics, '
+          f'{len(scored)} section(s){f", filter={section!r}" if section else ""})')
+    print('=' * len(_HEADER))
+    print(format_report(scored, prev, fails_only='--fails' in argv))
+    print('-' * len(_HEADER))
     print(f'summary: {tally}')
 
-    n_fail = tally.get('fail', 0)
-    n_drift = tally.get('drift', 0)
-    n_new = tally.get('new', 0)
+    # Staleness: offline values are only as fresh as the run that measured them.
+    from oculomotor.benchmarks import bench_utils as utils
+    cur = utils.bench_version()
+    stale = [m.get('id') for m, _ in scored if m.get('version') and m['version'] != cur]
+    if stale:
+        print(f'\nSTALE: {len(stale)}/{len(scored)} section(s) measured at an older '
+              f'build (code now {cur}): {", ".join(stale)}.'
+              f'\n  Re-measure with --run {",".join(s for s in stale if s)}')
+
+    aud = audit()          # always full-data — never scoped to --section
+    for key, msg in (('missing_ranges', 'emitted metric(s) with NO band entry'),
+                     ('orphan_ranges',  'band entr(y/ies) no bench emits (--prune-ranges)'),
+                     ('missing_golden', 'metric(s) with no golden value (--update)')):
+        if aud[key]:
+            print(f'\n{len(aud[key])} {msg}: {", ".join(aud[key][:8])}'
+                  f'{" …" if len(aud[key]) > 8 else ""}')
+    if aud['drift_only']:
+        print(f'\n{len(aud["drift_only"])} metric(s) have no physiological band '
+              f'(drift-tracked only): {", ".join(aud["drift_only"])}')
+
+    n_fail, n_drift = tally.get('fail', 0), tally.get('drift', 0)
+    n_new, n_unrated = tally.get('new', 0), tally.get('unrated', 0)
     if n_new:
         print(f'\n{n_new} new metric(s) without a golden value — run --update to freeze.')
     if n_drift:
         print(f'\n{n_drift} metric(s) DRIFTED from golden but stay in band — informational; '
               f're-freeze with --update after an intended change.')
+    if n_unrated:
+        print(f'\n{n_unrated} metric(s) UNRATED — measured but no band and no golden '
+              f'tolerance, so nothing checks them.')
     if n_fail:
         print(f'\nFAILED: {n_fail} metric(s) OUT OF BAND.')
         return 1

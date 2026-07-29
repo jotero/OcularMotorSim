@@ -16,40 +16,17 @@ import sys
 import os
 import datetime
 import importlib
-import subprocess
-import hashlib
 
 from oculomotor.benchmarks import bench_utils as utils
 from oculomotor.benchmarks.bench_metrics import (
     _metric_table_html, _html_chip, load_golden, evaluate, summarize,
     load_ranges, apply_ranges, split_cites, cite_key, cite_links,
+    BENCH_MODULES,
 )
 import oculomotor
 
-_BENCH_VERSION = None
-
-
-def bench_version():
-    """`oculomotor.__version__`, but when the tree is dirty append a short hash of
-    the working-tree diff. Plain '-dirty' is identical across edits, so it can't
-    tell two uncommitted states apart; the diff hash makes each one distinct, so
-    a section re-run after an edit gets a different version and the page can flag
-    the mix. Computed once per process (stable across all sections of one run)."""
-    global _BENCH_VERSION
-    if _BENCH_VERSION is not None:
-        return _BENCH_VERSION
-    ver = oculomotor.__version__
-    if ver.endswith('-dirty'):
-        try:
-            diff = subprocess.run(
-                ['git', 'diff', 'HEAD'], cwd=utils._ROOT,
-                capture_output=True, text=True, timeout=15).stdout
-            h = hashlib.sha1(diff.encode('utf-8', 'ignore')).hexdigest()[:7]
-            ver = f'{ver}.{h}'
-        except Exception:
-            pass
-    _BENCH_VERSION = ver
-    return ver
+# Shared with the metric gate (see bench_utils.bench_version).
+bench_version = utils.bench_version
 
 SHOW      = '--show' in sys.argv
 HTML_ONLY = '--html-only' in sys.argv
@@ -71,18 +48,9 @@ def _parse_only(argv):
 
 ONLY = _parse_only(sys.argv)   # partial run: re-run only these sections
 
-MODULES = [
-    'bench_saccades',
-    'bench_vor_okr',
-    'bench_gravity',     # also renders the T-VOR figures (merged section)
-    'bench_pursuit',
-    'bench_vergence',
-    'bench_fixation',
-    'bench_listing',
-    'bench_fcp',
-    'bench_pupil',
-    'bench_eyelid',
-]
+# Canonical list lives in bench_metrics so the report and the metric gate can
+# never disagree about which benches exist.
+MODULES = BENCH_MODULES
 
 # Section ids never rendered into the report (data may still exist in
 # benchmarks_data.json from older runs, so filter at render time too).
@@ -486,18 +454,25 @@ def _run_one_module(mod_name):
     return meta, figs
 
 
-def _write_data(sections_data):
-    """Seed editable ranges + write the standalone benchmarks_data.json."""
+def _write_data(sections_data, sections_run=None):
+    """Seed editable ranges, write benchmarks_data.json, append to the run log.
+
+    The history append happens here (rather than at the CLI) so *every* path that
+    produces new measurements — full run, --only, or bench_metrics --run — leaves
+    a trend record behind. ``sections_run`` records which sections were actually
+    re-simulated; the others are carried over from the previous data file.
+    """
     from oculomotor.benchmarks import bench_metrics as bm
     all_metrics = [m for _, figs in sections_data for f in figs for m in f.get('metrics', [])]
     bm.seed_ranges(all_metrics)
     bm.write_benchmarks_data(sections_data, bm.load_golden())
+    bm.record_history(sections_data, sections_run=sections_run)
 
 
 def _run_all_benches():
     """Run every bench module and write the data artifacts."""
     sections_data = [_run_one_module(m) for m in MODULES]
-    _write_data(sections_data)
+    _write_data(sections_data, sections_run=MODULES)
     return sections_data
 
 
@@ -534,7 +509,7 @@ def _run_partial(names):
             sections_data[by_id[sid]] = (meta, figs)
         else:
             sections_data.append((meta, figs))
-    _write_data(sections_data)
+    _write_data(sections_data, sections_run=targets)
     return sections_data
 
 

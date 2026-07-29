@@ -15,6 +15,7 @@
 | **Architecture & conventions** | [CLAUDE.md](CLAUDE.md) | The deep reference: state layout, SSM contract, signal flow, units. |
 | **Embedding the model** | [INTEGRATION.md](INTEGRATION.md) | How to drive brain + plant in your own loop: feed it `RetinaOut`, the brain→plant `nerves` contract, swappable stages. |
 | **Benches** | [benchmarks/](src/oculomotor/benchmarks/) `bench_*.py` | One per behavior; run `python -m oculomotor.benchmarks.bench_<area>`. |
+| **Scoring the benches** | [bench_metrics.py](src/oculomotor/benchmarks/bench_metrics.py) | The metric gate. `-m oculomotor.benchmarks.bench_metrics` scores **all** sections offline in ~2 s (no sims) with band / golden / trend + staleness; `--run <section>` re-measures. See CLAUDE.md § "Evaluating the benchmarks". |
 | **Theory / the "why"** | [manuscripts/](manuscripts/) + a few [docs/](docs/) notes | The scientific arguments behind the design (see §3). |
 | **Benchmarks & generated docs** | [docs/](docs/) | Spec ([BENCHMARKS.md](docs/BENCHMARKS.md)), gallery + parameters/states HTML. |
 | **LLM pipeline & server** | [llm_pipeline/](src/oculomotor/llm_pipeline/), [server/](src/oculomotor/server/) | Plain-English → simulation; web app + request DB. Run: `.\server.ps1 dev`. |

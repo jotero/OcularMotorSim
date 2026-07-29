@@ -1,6 +1,6 @@
 {
-  "generated": "2026-07-17 14:09",
-  "version": "a275ef8-dirty",
+  "generated": "2026-07-29 15:38",
+  "version": "702865d-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -855,14 +855,14 @@
       "id": "fcp",
       "title": "8. Final Common Pathway",
       "description": "Motoneuron + cranial-nerve output stage. Traces the full command cascade \u2014 Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves \u2014 over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command \u2194 per-muscle recruitment mapping.",
-      "runtime_s": 34.2,
-      "version": "328bc5f-dirty.fbedcf8",
-      "generated": "2026-07-04 23:31",
+      "runtime_s": 36.9,
+      "version": "702865d-dirty.b50c0ce",
+      "generated": "2026-07-29 15:38",
       "figures": [
         {
           "rel": "figures/fcp_cascade.png",
           "title": "Final Common Pathway \u2014 cascade over 9-position gaze + near/far vergence",
-          "description": "Stacked timecourse of the whole final common pathway for a center-out-center 9-position gaze sequence (\u00b130\u00b0 at 1 m) followed by near (0.25 m) and far (4 m) depth shifts. Version drive is decomposed Robinson pulse/step (NI bilateral pops + \u03c4p\u00b7burst feed-through); vergence drive is decomposed step (verg_fast+tonic), pulse (direct path) and AC/A cross-link, all in H/V/T. The command then flows through the 14 signed motoneurons (incl. CN4 and the MLF internuclear AIN) to the 12 pull-only per-muscle nerve drives, split by eye.",
+          "description": "Stacked timecourse of the whole final common pathway for a center-out-center 9-position gaze sequence (\u00b130\u00b0 at 1 m) followed by near (0.25 m) and far (4 m) depth shifts. Version drive is decomposed Robinson pulse/step (NI bilateral pops + \u03c4p\u00b7burst feed-through); vergence drive is decomposed step (verg_fast+tonic), pulse (direct path) and AC/A cross-link, all in H/V/T. The command then flows through the 14 signed motoneurons (incl. TRN and the MLF internuclear AIN) to the 12 pull-only per-muscle nerve drives, split by eye.",
           "expected": "Eye reaches each gaze target; ocular vergence rides ~3.7\u00b0 at 1 m, ~14.6\u00b0 at near and ~0.9\u00b0 at far (V/T vergence \u2248 0 in this symmetric paradigm). Each saccade is an NI step + burst pulse; the conjugate [H,V,T] command spreads across the recti/obliques per eye. Nerve drive stays pull-only (\u22650) via reciprocal co-contraction.",
           "citation": "Robinson (1975); Sparks (2002)",
           "type": "behavior",
@@ -877,17 +877,17 @@
             },
             {
               "name": "fcp_gaze_amp",
-              "value": 30.779434204101562,
+              "value": 30.781005859375,
               "golden": null
             },
             {
               "name": "fcp_verg_near",
-              "value": 14.574787139892578,
+              "value": 14.506755828857422,
               "golden": null
             },
             {
               "name": "fcp_verg_far",
-              "value": 1.0513463020324707,
+              "value": 1.045921802520752,
               "golden": null
             }
           ]

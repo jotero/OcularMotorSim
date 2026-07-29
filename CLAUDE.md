@@ -358,6 +358,51 @@ Three generated HTML pages live under `web/`. Keep them in sync with code — bu
 
 **For me (Claude):** if I touch any `*Params` field or any `State` / `N_STATES`, propose regenerating the matching HTML before declaring the task done — but ask before launching the full bench suite. Don't silently regenerate everything just to be tidy.
 
+## Evaluating the benchmarks — the metric gate
+
+Scoring is **offline by default and covers every section**: `benchmarks_data.json` already
+holds the measured values, so the whole scoreboard scores in ~2 s with no ODE solves.
+Re-simulating is opt-in (`--run`) because the full suite is ~60 min (`vor_okr` alone is ~23 min).
+
+```bash
+python -X utf8 -m oculomotor.benchmarks.bench_metrics                # score all sections (fast)
+python -X utf8 -m oculomotor.benchmarks.bench_metrics --fails        # only non-passing rows
+python -X utf8 -m oculomotor.benchmarks.bench_metrics --section vor  # one section
+python -X utf8 -m oculomotor.benchmarks.bench_metrics --run saccades # re-measure, then score
+python -X utf8 -m oculomotor.benchmarks.bench_metrics --history NAME # one metric across runs
+python -X utf8 -m oculomotor.benchmarks.bench_metrics --update       # refreeze golden
+python -X utf8 -m oculomotor.benchmarks.bench_metrics --prune-ranges # drop orphan band entries
+```
+
+Four artifacts, all hand-inspectable and tracked:
+
+| File | Role |
+|---|---|
+| `web/benchmarks/benchmarks_data.json` | measured values (written by every suite run) |
+| `web/benchmarks/metrics_ranges.json` | acceptance bands + citations — **the source of truth you edit** (code `Metric(...)` bands are only the initial seed) |
+| `benchmarks/golden_metrics.json` | frozen reference snapshot; `--update` rebuilds it from data.json |
+| `web/benchmarks/metrics_history.jsonl` | append-only, one record per run → the `vs prev` trend column. **Append only, never rewrite** — immutable old rows are the whole point |
+
+Statuses: **FAIL** = out of physiological band (red, exit 1) · **DRIFT** = in band but moved from
+golden (amber, informational) · **NEW** = no golden yet · **UNRATED** = measured but *no band and
+no golden tolerance*, so nothing checks it — a coverage hole, not a pass.
+
+Because offline values are only as fresh as the run that produced them, every report prints
+**per-section staleness** (the code version each section was measured at vs the current build)
+and audits the artifacts against each other (bands nobody emits, metrics nobody bands, missing
+golden values). Two things `golden` cannot tell you and the trend column can: whether a tuning
+edit moved a metric at all, and whether it moved the right way.
+
+Staleness is judged by `bench_utils.bench_version()`, which hashes the uncommitted diff of
+**only** the code that can change a measurement (`src/oculomotor` minus `reports/`, `server/`,
+`llm_pipeline/`). When that scope is clean it reports the plain commit, so editing docs, `web/`
+or the report generator does *not* mark every section stale — but touching a model, the
+simulator, or a `bench_*` module does.
+
+**For me (Claude):** run the offline gate (cheap) before and after touching model code, and
+report the section-level staleness honestly — never present a stale number as current. Re-measure
+only the affected section with `--run <section>`; ask before a full-suite run.
+
 ## Not yet implemented / pending (future work)
 
 - **Pursuit position sensitivity** — pursuit should be weakly driven by `pos_delayed` (retinal position error) in addition to `vel_delayed`, to correct steady-state position offsets. Add `K_pursuit_pos` gain term in `pursuit.step()`.
