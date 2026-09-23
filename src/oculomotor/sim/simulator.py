@@ -522,7 +522,7 @@ def ODE_ocular_motor(t, state, args):
     lens_R           = lens_R_interp.evaluate(t)
 
     # ── Sensory: read delayed cascade outputs ────────────────────────────────
-    sensory_out = sensory_model.read_outputs(state.sensory, theta.sensory)
+    sensory_out = sensory_model.read_outputs(state.sensory, theta.sensory, target_strobed)
 
     # ── Sensory noise ─────────────────────────────────────────────────────────
     # Canal + retinal OU noise (pre-generated). See _add_sensory_noise: the visual

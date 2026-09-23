@@ -73,14 +73,17 @@ from oculomotor.models.plant_models.readout import rotation_matrix
 #     perception_cyclopean (brain LP) and the cerebellum EC forward models via the
 #     shared cascade_lp_step helper below — NOT in the retina's own step.
 
-# Sharp-cascade stage count for ALL per-eye signals (Pugh-Lamb photo-transduction:
-# a 4-6 stage biochemical cascade gives the right rise shape).
+# Sharp-cascade stage count — the SAME for every per-eye channel (Pugh-Lamb
+# photo-transduction: a 4-6 stage biochemical cascade gives the right rise shape).
+# Channel-specific sluggishness belongs downstream in perception_cyclopean's brain
+# LP, not here. N also sets how well a brief flash survives (spread ∝ 1/√N at fixed
+# total delay): at N=6 a 20 ms flash reaches ~0.4 of full amplitude, a 10 ms ~0.2.
 _N_STAGES_OTHER = 6
 
 # ── Per-eye retina state layout ────────────────────────────────────────────────
-# Each eye has its own sharp gamma cascade per signal (N = _N_STAGES_OTHER stages
-# × τ_retina). target_disparity is NOT here — it's a binocular construction
-# computed in perception_cyclopean from delayed per-eye target_pos.
+# Each eye has its own sharp gamma cascade per signal (N stages × τ_retina/N).
+# target_disparity is NOT here — it's a binocular construction computed in
+# perception_cyclopean from delayed per-eye target_pos.
 _RETINA_PER_EYE_LAYOUT = [
     ('scene_angular_vel', _N_STAGES_OTHER, 3),   # 18
     ('scene_linear_vel',  _N_STAGES_OTHER, 3),   # 18
@@ -90,18 +93,7 @@ _RETINA_PER_EYE_LAYOUT = [
     ('target_visible',    _N_STAGES_OTHER, 1),   #  6
     ('defocus',           _N_STAGES_OTHER, 1),   #  6
 ]
-
-_RETINA_PER_EYE_SIZES = {name: N * n for name, N, n in _RETINA_PER_EYE_LAYOUT}
-_RETINA_PER_EYE_OFFSETS = {}
-_offset = 0
-for name, N, n in _RETINA_PER_EYE_LAYOUT:
-    _RETINA_PER_EYE_OFFSETS[name] = _offset
-    _offset += _RETINA_PER_EYE_SIZES[name]
-N_STATES_PER_EYE = _offset + 1   # 90 sharp-cascade states + 1 luminance LP register
-
-# Per-channel offsets / lengths still useful for the State NamedTuple field
-# sizes (rest_state, etc.); the `_RET_END_*` slice ends are no longer needed
-# now that step() reads NT fields directly.
+N_STATES_PER_EYE = sum(N * n for _, N, n in _RETINA_PER_EYE_LAYOUT) + 1  # +1 luminance
 
 
 # ── Per-eye State NamedTuple ──────────────────────────────────────────────────
@@ -376,13 +368,16 @@ def delay_cascade_step(x, u, tau_vis, N):
     """
     u1d = jnp.atleast_1d(u)
     n   = u1d.shape[0]        # signal width — static at JAX trace time
-    ns  = N * n               # total states
-    A = -jnp.eye(ns)
-    for i in range(1, N):
-        A = A.at[i*n:(i+1)*n, (i-1)*n:i*n].set(jnp.eye(n))
-    B = jnp.zeros((ns, n)).at[:n].set(jnp.eye(n))
-    k = N / tau_vis
-    return k * (A @ x + B @ u1d)
+    k   = N / tau_vis         # per-stage rate: stage tau = tau_vis / N, so the
+                              # TOTAL delay is tau_vis for any N
+    # Each stage is fed by the one before it: dx_i = k·(x_{i-1} − x_i), with the
+    # input feeding stage 0. Written as a shift rather than the equivalent dense
+    # A @ x: that matrix is (N·n)², so a 40-stage 3-axis channel would be 120×120
+    # for what is structurally an O(N·n) operation. At N=40 the dense form costs
+    # ~13x more per ODE evaluation than the whole cascade block does today.
+    x2d  = x.reshape(N, n)
+    prev = jnp.concatenate([u1d[None, :], x2d[:-1]], axis=0)
+    return (k * (prev - x2d)).reshape(-1)
 
 
 def cascade_lp_step(x_block, u, tau_sharp, tau_smooth, N, n_axes, N_lp):
@@ -443,6 +438,17 @@ class RetinaOut(NamedTuple):
     target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg/s) — gated by target_motion_vis + saturated
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
     target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf (NOT strobe-gated)
+    target_motion_visible: jnp.ndarray  # scalar — target_visible × (1 − target_strobed): is target
+                                    #   MOTION available? Separates "target is not moving" from
+                                    #   "motion signal is suppressed (strobed)" — target_visible
+                                    #   alone cannot, since both read visible=1, target_vel=0.
+                                    #   Algebraic, NOT cascaded (same treatment as
+                                    #   CyclopeanOut.target_fusable). NOTE: the strobe term is the
+                                    #   CURRENT flag, so under a time-varying strobe this is not
+                                    #   delay-matched to the target_vel cascade it describes.
+                                    #   Exposed for inspection only — no consumer gates on it yet
+                                    #   (cerebellum ec_correction / vpf_drive and the brain_model
+                                    #   pursuit slip drive still gate on target_visible).
     defocus:           jnp.ndarray  # scalar — delayed defocus (D)
     luminance:         jnp.ndarray  # scalar — afferent retinal luminance (~[0,1]) → pupil light reflex
 
@@ -529,19 +535,33 @@ def step(state,
     return dstate
 
 
-def read_outputs(state):
-    """Pure state readout — returns RetinaOut from a per-eye retina.State.
+def read_outputs(state, target_strobed=0.0):
+    """State readout — returns RetinaOut from a per-eye retina.State.
 
     Last n_axes of each cascade buffer = sharp-cascade output (delayed signal);
     luminance is the current 1-pole afferent register.
+
+    Args:
+        state:          per-eye retina.State
+        target_strobed: scalar strobe gate ∈ [0,1], the same input `step` receives.
+                        Only used to report `target_motion_visible`, which is
+                        algebraic rather than cascaded and so cannot be recovered
+                        from state alone. Defaults to 0 (= not strobed), which
+                        makes target_motion_visible == target_visible — the
+                        correct answer whenever no strobe is in play, and it keeps
+                        external callers (see INTEGRATION.md) working unchanged.
     """
+    target_visible = state.target_visible[-1]
     return RetinaOut(
         scene_angular_vel = state.scene_angular_vel[-3:],
         scene_linear_vel  = state.scene_linear_vel[-3:],
         target_pos        = state.target_pos[-3:],
         target_vel        = state.target_vel[-3:],
         scene_visible     = state.scene_visible[-1],
-        target_visible    = state.target_visible[-1],
+        target_visible    = target_visible,
+        # Mirrors the gate `step` applies to target_vel (see target_motion_vis
+        # there); exposed here so downstream can SEE it instead of inferring it.
+        target_motion_visible = target_visible * (1.0 - target_strobed),
         defocus           = state.defocus[-1],
         luminance         = state.luminance[-1],
     )

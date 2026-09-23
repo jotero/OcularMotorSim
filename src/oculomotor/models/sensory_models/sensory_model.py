@@ -181,12 +181,15 @@ class SensoryOutput(NamedTuple):
     retina_R:  RetinaOut             # delayed per-eye signals (incl. luminance) — right eye
 
 
-def read_outputs(state, sensory_params):
+def read_outputs(state, sensory_params, target_strobed=0.0):
     """Read all sensory outputs from the current state (pure state readout).
 
     Args:
         state:          sensory_model.State
         sensory_params: SensoryParams
+        target_strobed: scalar strobe gate ∈ [0,1] (global, both eyes). Needed only
+                        for RetinaOut.target_motion_visible, which is algebraic
+                        rather than cascaded. Defaults to 0 (= not strobed).
 
     Returns:
         SensoryOutput with delayed per-eye signals.
@@ -197,8 +200,8 @@ def read_outputs(state, sensory_params):
     return SensoryOutput(
         canal    = _canal.read_outputs(state.canal, sensory_params),
         otolith  = _otolith.read_outputs(state.otolith),
-        retina_L = _retina.read_outputs(state.retina_L),
-        retina_R = _retina.read_outputs(state.retina_R),
+        retina_L = _retina.read_outputs(state.retina_L, target_strobed),
+        retina_R = _retina.read_outputs(state.retina_R, target_strobed),
     )
 
 
