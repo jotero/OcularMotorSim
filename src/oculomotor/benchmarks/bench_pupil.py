@@ -47,7 +47,7 @@ _C_L, _C_R = '#8B4513', '#d98b5f'   # left / right pupil colours
 
 SECTION = dict(
     id='pupil',
-    title='9. Pupil',
+    title='10. Pupil',
     description=(
         'Two independent iris plants (per eye) with rate-asymmetric dynamics '
         '(fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light '
