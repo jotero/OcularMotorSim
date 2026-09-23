@@ -65,8 +65,9 @@ a residual MN-LP-scale (~5 ms) position lag of the eye behind NI_net — but
 that's ~5 ms on top of a 75–150 ms visual cascade, a small perturbation
 post-cascade.  So the cerebellum no longer keeps an internal eye model: it
 just rotates the predicted eye velocity through `ec_pos = NI_net` and uses
-the velocity command directly as `eye_vel_pred = ec_vel + fl_drive` (the
-input the NI sees, ≈ u_ni_in modulo Listing / direct-VOR).  No state.
+`eye_vel_pred = ec_vel + fl_drive − ni_leak`, i.e. what the NI state actually
+does: the input it sees (≈ u_ni_in modulo Listing / direct-VOR) less the leak
+that fl_drive is cancelling.  No state.
 
 This is the right scope-trade now that NERVE_MAX is bumped (so the FCP f-I
 clip doesn't engage during normal saccades) and the EC's visual delay
@@ -279,7 +280,8 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     tau_i_axes = jnp.array([bp.tau_i,
                              bp.tau_i * bp.tau_i_pitch_frac,
                              bp.tau_i * bp.tau_i_roll_frac])
-    fl_drive = bp.K_cereb_fl * (ni_net - ni_null) / tau_i_axes
+    ni_leak  = (ni_net - ni_null) / tau_i_axes   # the NI's OWN leak (deg/s)
+    fl_drive = bp.K_cereb_fl * ni_leak
 
     # ── Flocculus (FL): VS leak cancellation ──────────────────────────────
     # Same Cannon-Robinson architecture, applied to the velocity-storage
@@ -352,7 +354,17 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     # there's a ~5 ms residual eye lag behind NI_net.  That's small relative
     # to the 75–150 ms visual cascade that follows.
     x_p_pred     = ec_pos                       # NI_net is the eye position estimate
-    eye_vel_pred = ec_vel + fl_drive            # u_ni_in (mod Listing / direct-VOR ≈ 0)
+    # The eye's ACTUAL velocity is the NI's input MINUS the leak that input is
+    # cancelling:  d(x_ni)/dt = −ni_leak + ec_vel + fl_drive = ec_vel − (1−K)·ni_leak.
+    # Predicting `ec_vel + fl_drive` over-predicts by exactly fl_drive — a phantom
+    # eye velocity that never occurs, because fl_drive does not move the eye, it
+    # only stops the leak from moving it.  The EC subtracts that phantom from
+    # retinal slip, the brain reads the remainder as TARGET motion, and chases it:
+    # centrifugal drift of ~K·ecc/tau_i whenever a target is continuously visible
+    # (1.6 deg/s at 40 deg under the old K=1 / tau_i=25 s, 6.4 at K=0.8 / tau_i=5).
+    # Open-loop conditions never saw it — with no visible target there is no slip
+    # to corrupt — which is why it survived as a small unexplained bench failure.
+    eye_vel_pred = ec_vel + fl_drive - ni_leak  # = ec_vel − (1 − K_cereb_fl)·ni_leak
 
     # 2. Rotation: head-frame velocity → eye-frame velocity using x_p_pred
     #    (= NI_net here; assumed equal to the actual eye position to within

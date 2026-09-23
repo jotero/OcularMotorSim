@@ -108,22 +108,22 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   <main>
     <h1>ViSiOMlab — Benchmark Report</h1>
     <p class="meta">
-      Generated: <strong>2026-07-30 12:16</strong> &nbsp;|&nbsp;
-      Version: <strong>5f40427-dirty.0f22af5</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-09-23 10:38</strong> &nbsp;|&nbsp;
+      Version: <strong>47286c0</strong> &nbsp;|&nbsp;
       <a href="../BENCHMARKS.md">BENCHMARKS.md</a>
     </p>
-    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span> 5 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 15 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span> 16 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 59</p>
-    <div class="warn-banner">&#9888; <b>10 of 11</b> sections were run on an older version (current build <b>5f40427-dirty.0f22af5</b>). Versions present: 5f40427, 5f40427-dirty.01bb53c, 5f40427-dirty.0f22af5. Re-run for a consistent picture — stale: 1. Saccades, 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 6. Fixation, 7. Listing's Law, 8. Final Common Pathway, 9. Pupil, 10. Eyelid.</div>
+    <p class="meta">Metric gate: <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span> 7 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span> 16 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span> 15 &nbsp; <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span> 57</p>
+    <div class="warn-banner">&#9888; <b>8 of 11</b> sections were run on an older version (current build <b>47286c0</b>). Versions present: 47286c0, 5f40427, 5f40427-dirty.01bb53c. Re-run for a consistent picture — stale: 2. VOR / OKR, 3. Gravity Estimator + T-VOR, 4. Smooth Pursuit, 5. Near response (vergence + accommodation), 7. Listing's Law, 8. Final Common Pathway, 9. Pupil, 10. Eyelid.</div>
 
   <section class="section" id="saccades">
-    <h2>1. Saccades <span class="rt">· 188.8s · 5f40427 · 2026-07-29 16:22</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>1. Saccades <span class="rt">· 194.3s · 47286c0 · 2026-09-23 10:34</span></h2>
     <p>Saccade kinematics and internal signal cascade. Tests main sequence (amplitude–velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.</p>
     <div class="fig-grid">
       
     <div class="fig-card">
       <div class="fig-main">
         <h3>Saccade Main Sequence</h3>
-        <span class="diff-badge diff-changed">CHANGED (Δ=0.0364)</span>
+        <span class="diff-badge diff-changed">CHANGED (Δ=0.0372)</span>
         <div class="fig-pair">  <div><div class="lbl">current</div>    <a href="figures/saccade_main_sequence.png" target="_blank"><img src="figures/saccade_main_sequence.png" alt="Saccade Main Sequence"></a></div>  <div><div class="lbl">reference</div>    <a href="reference/saccade_main_sequence.png" target="_blank"><img src="reference/saccade_main_sequence.png" alt="Saccade Main Sequence (reference)"></a></div></div>
       </div>
       <div class="fig-metrics">
@@ -134,26 +134,26 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_peak_vel_20deg">Peak velocity of a 20° saccade (main-sequence saturation)</td>
-            <td class="num">614.8 deg/s</td>
+            <td class="num">615.6 deg/s</td>
             <td class="num">[550, 750] <span class="crefs">[<a class="cref" href="#ref-1" title="Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.">1</a>]</span></td>
             <td class="num">640.1</td>
-            <td class="num">-4.0%</td>
+            <td class="num">-3.8%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="sac_mainseq_resid_max">Max fractional deviation from 700(1−e^−A/7), amplitudes ≥5° (the idealized curve over-predicts small saccades, so ~20% at 5° is expected)</td>
-            <td class="num">0.3556</td>
+            <td class="num">0.3558</td>
             <td class="num">[−∞, 0.25] <span class="crefs">[<a class="cref" href="#ref-1" title="Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.">1</a>]</span></td>
             <td class="num">0.1586</td>
-            <td class="num">+124.2%</td>
+            <td class="num">+124.3%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_primary_gain">Mean primary-saccade amplitude / target amplitude (≥5°)</td>
-            <td class="num">0.9732</td>
+            <td class="num">0.9752</td>
             <td class="num">[0.8, 1.05] <span class="crefs">[<a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></td>
             <td class="num">0.9864</td>
-            <td class="num">-1.3%</td>
+            <td class="num">-1.1%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Top: peak-velocity and duration main sequences (scatter + reference curves) vs amplitude. Bottom: eye position and velocity traces aligned to the target step, for amplitudes 0.5–20°. Peak velocity within ±20% of 700(1−e^{−A/7}) (≈660 deg/s at 20°); duration grows roughly linearly with amplitude; velocity profiles are single-peaked and scale with amplitude.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-1" title="Bahill AT, Clark MR, Stark L (1975). The main sequence, a tool for studying human eye movements. Mathematical Biosciences 24:191–204.">1</a>, <a class="cref" href="#ref-2" title="Robinson DA (1975). Oculomotor control signals. In: Lennerstrand G, Bach-y-Rita P (eds), Basic Mechanisms of Ocular Motility and Their Clinical Implications. Pergamon Press, pp. 337–374.">2</a>]</span></p></div>
       </div>
@@ -162,7 +162,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
     <div class="fig-card">
       <div class="fig-main">
         <h3>Oblique Saccades (8-direction fan)</h3>
-        <span class="diff-badge diff-changed">CHANGED (Δ=0.0387)</span>
+        <span class="diff-badge diff-changed">CHANGED (Δ=0.0338)</span>
         <div class="fig-pair">  <div><div class="lbl">current</div>    <a href="figures/saccade_oblique.png" target="_blank"><img src="figures/saccade_oblique.png" alt="Oblique Saccades (8-direction fan)"></a></div>  <div><div class="lbl">reference</div>    <a href="reference/saccade_oblique.png" target="_blank"><img src="reference/saccade_oblique.png" alt="Oblique Saccades (8-direction fan) (reference)"></a></div></div>
       </div>
       <div class="fig-metrics">
@@ -173,10 +173,10 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_oblique_straightness">Max trajectory curvature (perp dev ÷ amplitude) over oblique directions</td>
-            <td class="num">0.01327</td>
+            <td class="num">0.01315</td>
             <td class="num">[−∞, 0.08] <span class="crefs">[<a class="cref" href="#ref-3" title="Smit AC, Van Opstal AJ, Van Gisbergen JAM (1990). Component stretching in fast and slow oblique saccades in the human. Experimental Brain Research 81:325–343.">3</a>, <a class="cref" href="#ref-4" title="Van Gisbergen JAM, Van Opstal AJ, Schoenmakers JJM (1985). Experimental test of two models for the generation of oblique saccades. Experimental Brain Research 57:321–336.">4</a>]</span></td>
             <td class="num">0.01409</td>
-            <td class="num">-5.8%</td>
+            <td class="num">-6.7%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">12° saccades from centre to 8 directions (45° apart), noiseless. Left: 2-D trajectories. Right: per-direction trajectory curvature. Straight radial trajectories (curvature < ~5% of amplitude). Curvature is the readout of H/V component desynchrony, so it suffices on its own.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-3" title="Smit AC, Van Opstal AJ, Van Gisbergen JAM (1990). Component stretching in fast and slow oblique saccades in the human. Experimental Brain Research 81:325–343.">3</a>, <a class="cref" href="#ref-4" title="Van Gisbergen JAM, Van Opstal AJ, Schoenmakers JJM (1985). Experimental test of two models for the generation of oblique saccades. Experimental Brain Research 57:321–336.">4</a>]</span></p></div>
       </div>
@@ -185,7 +185,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
     <div class="fig-card">
       <div class="fig-main">
         <h3>Saccade Double-Step Refractoriness</h3>
-        <span class="diff-badge diff-changed">CHANGED (Δ=0.0667)</span>
+        <span class="diff-badge diff-changed">CHANGED (Δ=0.0658)</span>
         <div class="fig-pair">  <div><div class="lbl">current</div>    <a href="figures/saccade_refractoriness.png" target="_blank"><img src="figures/saccade_refractoriness.png" alt="Saccade Double-Step Refractoriness"></a></div>  <div><div class="lbl">reference</div>    <a href="reference/saccade_refractoriness.png" target="_blank"><img src="reference/saccade_refractoriness.png" alt="Saccade Double-Step Refractoriness (reference)"></a></div></div>
       </div>
       <div class="fig-metrics">
@@ -194,20 +194,20 @@ h1   { font-size: 22px; margin-bottom: 4px; }
         <th>golden</th><th>drift</th></tr></thead>
       <tbody>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span></td>
             <td class="what" title="sac_refractory_isi_ms">Smallest double-step ISI yielding a distinct 2nd saccade (A=20°)</td>
-            <td class="num">254 ms</td>
+            <td class="num">209 ms</td>
             <td class="num">[100, 350] <span class="crefs">[<a class="cref" href="#ref-5" title="Becker W, Jürgens R (1979). An analysis of the saccadic system by means of double step stimuli. Vision Research 19:967–983.">5</a>]</span></td>
             <td class="num">316</td>
-            <td class="num">-19.6%</td>
+            <td class="num">-33.9%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="sac_refractory_isi_median_ms">Median across amplitudes of the per-amplitude refractory-ISI threshold</td>
-            <td class="num">390 ms</td>
+            <td class="num">381 ms</td>
             <td class="num">[150, 500] <span class="crefs">[<a class="cref" href="#ref-5" title="Becker W, Jürgens R (1979). An analysis of the saccadic system by means of double step stimuli. Vision Research 19:967–983.">5</a>]</span></td>
             <td class="num">388</td>
-            <td class="num">+0.5%</td>
+            <td class="num">-1.8%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">Double-step paradigm: target jumps 0→A/2 then A/2→A for A=10,20,30,40° after variable ISI (20–500 ms). Target shown dashed in same colour as eye trace. Short ISIs produce one amended saccade; longer ISIs produce two. ISI < ~100 ms: 1 saccade (merged). ISI > ~150 ms: 2 separate saccades. Refractory period roughly constant across amplitudes (~150 ms).</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-5" title="Becker W, Jürgens R (1979). An analysis of the saccadic system by means of double step stimuli. Vision Research 19:967–983.">5</a>]</span></p></div>
       </div>
@@ -216,7 +216,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
     <div class="fig-card">
       <div class="fig-main">
         <h3>Saccade Signal Cascade</h3>
-        <span class="diff-badge diff-changed">CHANGED (Δ=0.0476)</span>
+        <span class="diff-badge diff-changed">CHANGED (Δ=0.0486)</span>
         <div class="fig-pair">  <div><div class="lbl">current</div>    <a href="figures/saccade_cascade.png" target="_blank"><img src="figures/saccade_cascade.png" alt="Saccade Signal Cascade"></a></div>  <div><div class="lbl">reference</div>    <a href="reference/saccade_cascade.png" target="_blank"><img src="reference/saccade_cascade.png" alt="Saccade Signal Cascade (reference)"></a></div></div>
       </div>
       <div class="fig-metrics">
@@ -227,18 +227,18 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="sac_postsac_peak_short_noiseless">WORST-amplitude PEAK slow-phase speed in the SHORT window just after the saccade — immediate ring/glissade (noiseless target ~0)</td>
-            <td class="num">6.882 deg/s</td>
+            <td class="num">8.294 deg/s</td>
             <td class="num">[0, 1]</td>
             <td class="num">1.114</td>
-            <td class="num">+517.8%</td>
+            <td class="num">+644.6%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="sac_postsac_peak_long_noiseless">WORST-amplitude PEAK slow-phase speed in the LONG hold window — sustained post-saccadic oscillation/drift (noiseless target ~0)</td>
-            <td class="num">7.416 deg/s</td>
+            <td class="num">10.48 deg/s</td>
             <td class="num">[0, 0.8]</td>
             <td class="num">1.419</td>
-            <td class="num">+422.6%</td>
+            <td class="num">+638.6%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
@@ -263,7 +263,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="vor_okr">
-    <h2>2. VOR / OKR <span class="rt">· 1486.2s · 5f40427 · 2026-07-29 16:47</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>2. VOR / OKR <span class="rt">· 1486.2s · 5f40427 · 2026-07-29 16:47</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip → VS goes through K_vor_direct·(saccadically-gated slip) + K_cereb_okr·(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.</p>
     <div class="fig-grid">
       
@@ -431,7 +431,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gravity">
-    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 1163.9s · 5f40427-dirty.01bb53c · 2026-07-30 10:19</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>3. Gravity Estimator + T-VOR <span class="rt">· 1163.9s · 5f40427-dirty.01bb53c · 2026-07-30 10:19</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path — gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).</p>
     <div class="fig-grid">
       
@@ -745,7 +745,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pursuit">
-    <h2>4. Smooth Pursuit <span class="rt">· 337.1s · 5f40427-dirty.01bb53c · 2026-07-30 10:25</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>4. Smooth Pursuit <span class="rt">· 337.1s · 5f40427-dirty.01bb53c · 2026-07-30 10:25</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct·(saccadically-gated retinal slip) + K_cereb_pu·(cerebellar EC correction); the closed-loop pursuit memory τ_eff ≈ 1.45 s (Smith predictor) despite the long pop-leak τ_pursuit = 40 s.</p>
     <div class="fig-grid">
       
@@ -858,7 +858,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="near_response">
-    <h2>5. Near response (vergence + accommodation) <span class="rt">· 466.1s · 5f40427 · 2026-07-29 17:17</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>5. Near response (vergence + accommodation) <span class="rt">· 466.1s · 5f40427 · 2026-07-29 17:17</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Merged near-response section. Basic midline vergence (noiseless) — reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence–saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).</p>
     <div class="fig-grid">
       
@@ -1150,7 +1150,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fixation">
-    <h2>6. Fixation <span class="rt">· 126.5s · 5f40427-dirty.01bb53c · 2026-07-30 10:27</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>6. Fixation <span class="rt">· 120.1s · 47286c0 · 2026-09-23 10:36</span></h2>
     <p>Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).</p>
     <div class="fig-grid">
       
@@ -1166,28 +1166,28 @@ h1   { font-size: 22px; margin-bottom: 4px; }
         <th>golden</th><th>drift</th></tr></thead>
       <tbody>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span></td>
             <td class="what" title="fix_noiseless_drift_std">Eye-position std with all noise off (should be ≈0 — stability sanity)</td>
-            <td class="num">0.005117 deg</td>
+            <td class="num">0.007111 deg</td>
             <td class="num">[−∞, 0.05]</td>
             <td class="num">0.005167</td>
-            <td class="num">-1.0%</td>
+            <td class="num">+37.6%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#d4edda;color:#155724">PASS</span></td>
             <td class="what" title="fix_drift_rms">Fixational drift (eye-position std) with all noise sources on</td>
-            <td class="num">0.09845 deg</td>
+            <td class="num">0.1094 deg</td>
             <td class="num">[0.02, 0.6] <span class="crefs">[<a class="cref" href="#ref-38" title="Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.">38</a>]</span></td>
             <td class="num">0.09827</td>
-            <td class="num">+0.2%</td>
+            <td class="num">+11.3%</td>
           </tr>
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#fff3cd;color:#856404">DRIFT</span></td>
             <td class="what" title="fix_microsaccade_rate">Microsaccade rate (|burst| > 15 deg/s onsets) with all noise on, pooled over 2x20 s</td>
-            <td class="num">0.725 Hz</td>
+            <td class="num">0.55 Hz</td>
             <td class="num">[0.5, 4] <span class="crefs">[<a class="cref" href="#ref-38" title="Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.">38</a>]</span></td>
             <td class="num">0</td>
-            <td class="num">+72.5%</td>
+            <td class="num">+55.0%</td>
           </tr></tbody></table>
         <div class="narrative"><h4 class="narr-title">What this shows</h4><p class="desc">5-column comparison: noiseless, canal noise only, retinal position OU drift, retinal velocity noise, and all three combined. Rows: eye position, velocity, saccade burst, noise signal. Noiseless: eye stays at 0°. Canal noise: slow drift + rare microsaccades. Pos noise: OU drift → corrective microsaccades when error exceeds threshold. Vel noise: smooth pursuit-like drift.</p><p class="citation">&#128214; <span class="crefs">[<a class="cref" href="#ref-38" title="Rolfs M (2009). Microsaccades: small steps on a long way. Vision Research 49:2415–2441.">38</a>]</span></p></div>
       </div>
@@ -1196,7 +1196,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="listing">
-    <h2>7. Listing's Law <span class="rt">· 103.9s · 5f40427 · 2026-07-29 17:20</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>7. Listing's Law <span class="rt">· 103.9s · 5f40427 · 2026-07-29 17:20</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Torsional constraint T = OCR − H·V·π/360: saccade plane scatter and OCR-driven correction saccade.</p>
     <div class="fig-grid">
       
@@ -1280,7 +1280,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="fcp">
-    <h2>8. Final Common Pathway <span class="rt">· 37.7s · 5f40427 · 2026-07-29 17:21</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>8. Final Common Pathway <span class="rt">· 37.7s · 5f40427 · 2026-07-29 17:21</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Motoneuron + cranial-nerve output stage. Traces the full command cascade — Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves — over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command ↔ per-muscle recruitment mapping.</p>
     <div class="fig-grid">
       
@@ -1334,7 +1334,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="pupil">
-    <h2>9. Pupil <span class="rt">· 15.5s · 5f40427 · 2026-07-29 17:21</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>9. Pupil <span class="rt">· 15.5s · 5f40427 · 2026-07-29 17:21</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance → pretectum → both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). (Pupil lesions — CN III / RAPD / Argyll Robertson / Horner — are in the clinical benchmarks, section F.)</p>
     <div class="fig-grid">
       
@@ -1365,7 +1365,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="eyelid">
-    <h2>10. Eyelid <span class="rt">· 58.4s · 5f40427 · 2026-07-29 17:22</span> <span class="stale">&#9888; out of date — code now 5f40427-dirty.0f22af5</span></h2>
+    <h2>10. Eyelid <span class="rt">· 58.4s · 5f40427 · 2026-07-29 17:22</span> <span class="stale">&#9888; out of date — code now 47286c0</span></h2>
     <p>Per-eye upper-lid plant: spontaneous blinks (conjugate, ~15/min) + an upper lid that follows vertical gaze (downgaze lowers the lid). Fast closing / slower opening (rate-asymmetric). Ptosis (CN III levator, nuclear vs nerve; Horner Müller) and lagophthalmos (CN VII orbicularis) lesions are wired but not shown here.</p>
     <div class="fig-grid">
       
@@ -1396,7 +1396,7 @@ h1   { font-size: 22px; margin-bottom: 4px; }
   </section>
 
   <section class="section" id="gaze_holding">
-    <h2>7. Gaze Holding <span class="rt">· 109.3s · 5f40427-dirty.0f22af5 · 2026-07-30 12:16</span></h2>
+    <h2>7. Gaze Holding <span class="rt">· 95.9s · 47286c0 · 2026-09-23 10:38</span></h2>
     <p>Eccentric gaze holding — the neural integrator plus its cerebellar (floccular) extension. Slow-phase drift is measured as a function of eye position, in the light and in the dark with a strobed target; the slope of that line is 1/τ_eff, the effective gaze-holding time constant. Pathological leak (gaze-evoked nystagmus) is benchmarked separately under Clinical.</p>
     <div class="fig-grid">
       
@@ -1414,15 +1414,15 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="gaze_hold_drift_slope_dark">Slow-phase drift per degree of eccentricity in the dark, SIGNED (+ = centripetal/leaky = normal, − = centrifugal). |k| = 1/τ_eff, so the hi bound is τ_eff ≥ 20 s</td>
-            <td class="num">-0.03372 1/s</td>
+            <td class="num">-0.4535 1/s</td>
             <td class="num">[-0.01, 0.05] <span class="crefs">[<a class="cref" href="#ref-48" title="Cannon & Robinson (1987) J Neurophysiol 57:1383">48</a>, <a class="cref" href="#ref-49" title="Becker & Klein (1973) Vision Res 13:1021">49</a>]</span></td>
             <td class="num">—</td>
             <td class="num">—</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="gaze_hold_spv_ecc_dark">|slow-phase velocity| at 40° eccentric gaze in the dark — normals drift only a few deg/s</td>
-            <td class="num">1.287 deg/s</td>
+            <td class="num">19.95 deg/s</td>
             <td class="num">[−∞, 4] <span class="crefs">[<a class="cref" href="#ref-49" title="Becker & Klein (1973) Vision Res 13:1021">49</a>]</span></td>
             <td class="num">—</td>
             <td class="num">—</td>
@@ -1430,23 +1430,23 @@ h1   { font-size: 22px; margin-bottom: 4px; }
           <tr>
             <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
             <td class="what" title="gaze_hold_net_drift_dark">NET gaze displacement rate at 40° in the dark, quick phases included — whether gaze is actually held, not just how fast it drifts between resets</td>
-            <td class="num">0.1018 deg/s</td>
+            <td class="num">0.2951 deg/s</td>
             <td class="num">[−∞, 1] <span class="crefs">[<a class="cref" href="#ref-49" title="Becker & Klein (1973) Vision Res 13:1021">49</a>]</span></td>
             <td class="num">—</td>
             <td class="num">—</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
             <td class="what" title="gaze_hold_spv_ecc_light">|slow-phase velocity| at 40° eccentric gaze in the light</td>
-            <td class="num">1.448 deg/s</td>
+            <td class="num">10.51 deg/s</td>
             <td class="num">[−∞, 2] <span class="crefs">[<a class="cref" href="#ref-49" title="Becker & Klein (1973) Vision Res 13:1021">49</a>]</span></td>
             <td class="num">—</td>
             <td class="num">—</td>
           </tr>
           <tr>
-            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#f8d7da;color:#721c24">FAIL</span></td>
+            <td><span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e2e3e5;color:#383d41">NEW</span></td>
             <td class="what" title="gaze_hold_light_dark_ratio">Eccentric |SPV| in light ÷ in dark — must be ≤ 1: a visible scene gives OKR a slip signal to null, so vision can only help holding</td>
-            <td class="num">1.125</td>
+            <td class="num">0.5267</td>
             <td class="num">[−∞, 1] <span class="crefs">[<a class="cref" href="#ref-49" title="Becker & Klein (1973) Vision Res 13:1021">49</a>]</span></td>
             <td class="num">—</td>
             <td class="num">—</td>

@@ -1,14 +1,14 @@
 {
-  "generated": "2026-07-30 12:16",
-  "version": "5f40427-dirty",
+  "generated": "2026-09-23 10:38",
+  "version": "47286c0",
   "sections": [
     {
       "id": "saccades",
       "title": "1. Saccades",
       "description": "Saccade kinematics and internal signal cascade. Tests main sequence (amplitude\u2013velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.",
-      "runtime_s": 188.77,
-      "version": "5f40427",
-      "generated": "2026-07-29 16:22",
+      "runtime_s": 194.32,
+      "version": "47286c0",
+      "generated": "2026-09-23 10:34",
       "figures": [
         {
           "rel": "figures/saccade_main_sequence.png",
@@ -19,21 +19,21 @@
           "type": "behavior",
           "ref_rel": "reference/saccade_main_sequence.png",
           "diff_status": "changed",
-          "diff": 0.03636763244867325,
+          "diff": 0.03720799833536148,
           "metrics": [
             {
               "name": "sac_peak_vel_20deg",
-              "value": 614.7990112304688,
+              "value": 615.6122436523438,
               "golden": 640.1481323242188
             },
             {
               "name": "sac_mainseq_resid_max",
-              "value": 0.355631213161677,
+              "value": 0.3558054487980342,
               "golden": 0.15859943761867354
             },
             {
               "name": "sac_primary_gain",
-              "value": 0.9732140318552653,
+              "value": 0.9752243304252625,
               "golden": 0.9864487584431967
             }
           ]
@@ -47,11 +47,11 @@
           "type": "behavior",
           "ref_rel": "reference/saccade_oblique.png",
           "diff_status": "changed",
-          "diff": 0.03866863623261452,
+          "diff": 0.03384791314601898,
           "metrics": [
             {
               "name": "sac_oblique_straightness",
-              "value": 0.01327455136924982,
+              "value": 0.013150135055184364,
               "golden": 0.014093972742557526
             }
           ]
@@ -65,16 +65,16 @@
           "type": "behavior",
           "ref_rel": "reference/saccade_refractoriness.png",
           "diff_status": "changed",
-          "diff": 0.06670329719781876,
+          "diff": 0.06582289934158325,
           "metrics": [
             {
               "name": "sac_refractory_isi_ms",
-              "value": 254.0,
+              "value": 209.00000000000009,
               "golden": 315.99999999999994
             },
             {
               "name": "sac_refractory_isi_median_ms",
-              "value": 390.0,
+              "value": 381.0,
               "golden": 388.0
             }
           ]
@@ -88,16 +88,16 @@
           "type": "cascade",
           "ref_rel": "reference/saccade_cascade.png",
           "diff_status": "changed",
-          "diff": 0.047609876841306686,
+          "diff": 0.04861615225672722,
           "metrics": [
             {
               "name": "sac_postsac_peak_short_noiseless",
-              "value": 6.881713390350342,
+              "value": 8.294105529785156,
               "golden": 1.1138916015625
             },
             {
               "name": "sac_postsac_peak_long_noiseless",
-              "value": 7.415771007537842,
+              "value": 10.480879783630371,
               "golden": 1.4190672636032104
             },
             {
@@ -779,9 +779,9 @@
       "id": "fixation",
       "title": "6. Fixation",
       "description": "Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).",
-      "runtime_s": 126.54,
-      "version": "5f40427-dirty.01bb53c",
-      "generated": "2026-07-30 10:27",
+      "runtime_s": 120.07,
+      "version": "47286c0",
+      "generated": "2026-09-23 10:36",
       "figures": [
         {
           "rel": "figures/fixation_noise_comparison.png",
@@ -796,17 +796,17 @@
           "metrics": [
             {
               "name": "fix_noiseless_drift_std",
-              "value": 0.005116682033985853,
+              "value": 0.007111305836588144,
               "golden": 0.005167295690625906
             },
             {
               "name": "fix_drift_rms",
-              "value": 0.09844627976417542,
+              "value": 0.10937882959842682,
               "golden": 0.09826964139938354
             },
             {
               "name": "fix_microsaccade_rate",
-              "value": 0.725,
+              "value": 0.55,
               "golden": 0.0
             }
           ]
@@ -997,9 +997,9 @@
       "id": "gaze_holding",
       "title": "7. Gaze Holding",
       "description": "Eccentric gaze holding \u2014 the neural integrator plus its cerebellar (floccular) extension. Slow-phase drift is measured as a function of eye position, in the light and in the dark with a strobed target; the slope of that line is 1/\u03c4_eff, the effective gaze-holding time constant. Pathological leak (gaze-evoked nystagmus) is benchmarked separately under Clinical.",
-      "runtime_s": 109.27,
-      "version": "5f40427-dirty.0f22af5",
-      "generated": "2026-07-30 12:16",
+      "runtime_s": 95.91,
+      "version": "47286c0",
+      "generated": "2026-09-23 10:38",
       "figures": [
         {
           "rel": "figures/gaze_holding_drift.png",
@@ -1014,27 +1014,27 @@
           "metrics": [
             {
               "name": "gaze_hold_drift_slope_dark",
-              "value": -0.033716545830131874,
+              "value": -0.4534954597996041,
               "golden": null
             },
             {
               "name": "gaze_hold_spv_ecc_dark",
-              "value": 1.2871806057459325,
+              "value": 19.947387979626654,
               "golden": null
             },
             {
               "name": "gaze_hold_net_drift_dark",
-              "value": 0.1018120664809757,
+              "value": 0.29507766040631245,
               "golden": null
             },
             {
               "name": "gaze_hold_spv_ecc_light",
-              "value": 1.4482945497803157,
+              "value": 10.506498176102351,
               "golden": null
             },
             {
               "name": "gaze_hold_light_dark_ratio",
-              "value": 1.1251680947608873,
+              "value": 0.5267104739143393,
               "golden": null
             },
             {
