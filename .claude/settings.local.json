@@ -11,7 +11,8 @@
       "Bash(git diff:*)",
       "Bash(git worktree:*)",
       "WebSearch",
-      "WebFetch(domain:doi.org)"
+      "WebFetch(domain:doi.org)",
+      "Bash(python -c ' *)"
     ]
   }
 }
