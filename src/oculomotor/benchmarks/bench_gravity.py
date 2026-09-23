@@ -29,7 +29,7 @@ from oculomotor.sim.simulator import (
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import ax_fmt, vs_net, ni_net, fit_tc, extract_spv_states
 from oculomotor.benchmarks.bench_metrics import Metric
-from oculomotor.benchmarks.bode import fit_sinusoid
+from oculomotor.benchmarks.bode import fit_sinusoid, bode_metrics
 from oculomotor.models.sensory_models.sensory_model import PINV_SENS as CANAL_PINV
 from oculomotor.models.sensory_models.canal import N_CANALS, FLOOR, _SOFTNESS
 
@@ -797,7 +797,34 @@ def _somatogravic_frequency(show):
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     path, rp = utils.save_fig(fig, 'gravity_somatogravic_freq', show=show, params=params,
                               conditions='Dark, sinusoidal linear acceleration — gravity-estimator frequency response')
-    return utils.fig_meta(path, rp,
+
+    # ── Metrics: the somatogravic response IS a low-pass, so reduce it like one ──
+    # amp_model already is the torsion-amplitude-vs-frequency curve, so the shared
+    # Bode reducer applies directly: peak amplitude (the DC/low-f asymptote) and the
+    # −3 dB corner. Both bands are anchored to the literature values above, NOT to
+    # the model's own K_grav — otherwise this checks the model against itself.
+    amps  = np.asarray(amp_model, float)
+    bm    = bode_metrics(np.asarray(FREQS_HZ, float), amps)
+    atten = float(amps[-1] / amps[0]) if amps[0] > 1e-9 else float('nan')
+    metrics = [
+        Metric('gravity_somato_ocr_low_f', float(amps[0]),
+               lo=0.5, hi=4.0, golden_tol=0.2, units='deg',
+               cite='Diamond, Markham et al. (1979); Mayne (1974)',
+               desc=f'Peak OCR torsion at {FREQS_HZ[0]:g} Hz ({A_ACCEL:g} m/s² lateral) — the '
+                    f'quasi-static somatogravic tilt percept (literature ≈ {torsion_dc:.2f}°)'),
+        Metric('gravity_somato_fc_hi', bm['fc_hi'] if bm['fc_hi'] is not None else float('nan'),
+               lo=0.02, hi=0.30, golden_tol=0.25, units='Hz',
+               cite='Mayne (1974); Holly (1996)',
+               desc='Somatogravic −3 dB corner of the torsion-vs-frequency curve '
+                    '(literature τ_grav ≈ 4 s → ≈ 0.04 Hz)'),
+        Metric('gravity_somato_atten_high_f', atten,
+               lo=None, hi=0.25, golden_tol=0.3, units='',
+               cite='Mayne (1974); Laurens & Angelaki (2011)',
+               desc=f'Torsion at {FREQS_HZ[-1]:g} Hz ÷ torsion at {FREQS_HZ[0]:g} Hz — fast GIA '
+                    f'oscillation must NOT be read as tilt (no OCR at high f)'),
+    ]
+
+    fm = utils.fig_meta(path, rp,
         title='Somatogravic OCR — Frequency Dependence',
         description=f'Sinusoidal lateral translation at {FREQS_HZ} Hz, '
                     f'{A_ACCEL} m/s² peak. OCR via gravity estimator LP filter.',
@@ -806,6 +833,8 @@ def _somatogravic_frequency(show):
                  f'Low f → peak ≈ {torsion_dc:.2f}°; high f → near 0°.',
         citation='Mayne (1974); Laurens & Angelaki (2011)',
         fig_type='behavior')
+    fm['metrics'] = metrics
+    return fm
 
 
 # ─────────────────────────────────────────────────────────────────────────────

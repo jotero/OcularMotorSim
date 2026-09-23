@@ -113,6 +113,22 @@ def _interp_crossing(freqs, gains, thresh):
     return float('nan')
 
 
+def at_freq(freqs, values, f):
+    """Value of a swept curve at frequency `f`, interpolated linearly in log-f.
+
+    Peak gain and −3 dB corner summarize a curve's *shape*; this reads it at a
+    stated frequency, which is how the pursuit/VOR literature actually reports
+    performance ("gain at 1 Hz"). Returns NaN outside the swept range rather than
+    extrapolating — a band on an extrapolated point would be meaningless.
+    """
+    freqs  = np.asarray(freqs, float)
+    values = np.asarray(values, float)
+    if not len(freqs) or f < freqs.min() or f > freqs.max():
+        return float('nan')
+    order = np.argsort(freqs)
+    return float(np.interp(np.log10(f), np.log10(freqs[order]), values[order]))
+
+
 def bode_metrics(freqs, gains, phases=None, ref_hz=None, highpass=False):
     """Unified scalar metrics from a Bode sweep — one scheme for every system:
 

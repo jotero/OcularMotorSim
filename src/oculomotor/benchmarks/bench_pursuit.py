@@ -200,11 +200,29 @@ def _bode(show):
             label='expected: 1st-order LP, ~2 Hz cutoff (Robinson 1965; Krauzlis & Lisberger 1994)'))
     path, rp = utils.save_fig(fig, 'pursuit_bode', show=show, params=THETA_NOISELESS,
         conditions='Lit, NOISELESS — sinusoidal target-velocity sweep 0.1–2 Hz (10 deg/s peak)')
+    # Peak gain + bandwidth describe the curve's shape, but the pursuit literature
+    # reports performance AT a frequency — and a peak-only summary hides where the
+    # rolloff actually sits (a curve peaking at 0.92 could be flat to 2 Hz or already
+    # falling at 0.7 Hz). Sample the swept curve at the two standard report points.
     metrics = [
         Metric('pursuit_bode_gain_max', float(m['gain_max']),
                lo=0.7, hi=1.1, golden_tol=0.1, units='',
                cite='Lisberger et al. (1981)',
                desc='Pursuit peak gain'),
+        Metric('pursuit_bode_gain_0p5hz', bode.at_freq(freqs, gains, 0.5),
+               lo=0.7, hi=1.1, golden_tol=0.1, units='',
+               cite='Robinson (1965); Lisberger et al. (1981)',
+               desc='Pursuit gain at 0.5 Hz (still near-unity in normals)'),
+        Metric('pursuit_bode_gain_1hz', bode.at_freq(freqs, gains, 1.0),
+               lo=0.5, hi=1.05, golden_tol=0.12, units='',
+               cite='Robinson (1965); Collewijn & Tamminga (1984)',
+               desc='Pursuit gain at 1 Hz — the standard clinical report point, '
+                    'where normals have begun to roll off (~0.7–0.9)'),
+        Metric('pursuit_bode_phase_1hz', bode.at_freq(freqs, phases, 1.0),
+               lo=-60.0, hi=10.0, golden_tol=0.3, units='deg',
+               cite='Robinson (1965); Collewijn & Tamminga (1984)',
+               desc='Pursuit phase at 1 Hz (negative = lag; near-zero in normals '
+                    'because prediction compensates the delay)'),
     ]
     if m['fc_hi'] is not None:
         metrics.append(

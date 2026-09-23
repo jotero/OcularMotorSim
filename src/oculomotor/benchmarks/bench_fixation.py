@@ -26,6 +26,16 @@ SHOW  = '--show' in sys.argv
 DT    = 0.001
 TEND  = 3.0
 
+# Microsaccade rate needs its own, much longer window. The 5-panel comparison
+# above runs 3 s per condition — fine for showing what each noise source *looks*
+# like, but useless for a RATE: at ~1 Hz, 3 s quantizes to 0.33 Hz and often
+# catches zero events, which is what made this metric read a flat 0.000. Rate is
+# measured instead over RATE_TEND s pooled across RATE_SEEDS independent seeds.
+RATE_TEND  = 20.0
+RATE_SEEDS = (7, 8)
+RATE_THRESH = 15.0   # deg/s peak burst — separates microsaccades from drift
+                     # (|burst| peaks ~50 deg/s here, drift never approaches it)
+
 
 def _gen_noise(params, T, key):
     """Regenerate noise arrays (must match simulate() exactly)."""
@@ -41,17 +51,17 @@ def _gen_noise(params, T, key):
     return dict(canal=noise_canal, pos=pos, vel=noise_vel)
 
 
-def _run_fixation(sigma_canal, sigma_pos, sigma_vel, seed, T):
+def _run_fixation(sigma_canal, sigma_pos, sigma_vel, seed, T, tend=TEND):
     params = with_sensory(PARAMS_DEFAULT,
                           sigma_canal=sigma_canal,
                           sigma_pos=sigma_pos,
                           sigma_vel=sigma_vel)
-    t      = jnp.arange(0.0, TEND, DT)
+    t      = jnp.arange(0.0, tend, DT)
     T_act  = len(t)
     states = simulate(params, t,
                       scene_present_array=jnp.ones(T_act),
                       target_present_array=jnp.ones(T_act),
-                      max_steps=int(TEND / DT) + 2000,
+                      max_steps=int(tend / DT) + 2000,
                       return_states=True,
                       key=jax.random.PRNGKey(seed))
     t_np   = np.array(t)
@@ -60,6 +70,30 @@ def _run_fixation(sigma_canal, sigma_pos, sigma_vel, seed, T):
     burst  = extract_burst(states, params)
     noise  = _gen_noise(params, T_act, jax.random.PRNGKey(seed))
     return t_np, eye, ev, burst, noise, params
+
+
+def _count_saccades(burst_yaw, thresh=RATE_THRESH):
+    """Rising edges of |burst| above threshold = saccade onsets."""
+    return int(np.sum(np.diff((np.abs(burst_yaw) > thresh).astype(int)) > 0))
+
+
+def _microsaccade_rate():
+    """Microsaccade rate (Hz) under the realistic all-noise condition.
+
+    Pooled over several long runs rather than read off one short trace: the rate
+    is a Poisson-ish count, so total_events / total_time across seeds is far more
+    stable than any single window, and it stops one unlucky seed reading as 0.
+    Returns (rate_hz, n_events, total_seconds).
+    """
+    sp = PARAMS_DEFAULT.sensory
+    n_events = 0
+    for seed in RATE_SEEDS:
+        _, _, _, burst, _, _ = _run_fixation(
+            float(sp.sigma_canal), float(sp.sigma_pos), float(sp.sigma_vel),
+            seed, int(RATE_TEND / DT), tend=RATE_TEND)
+        n_events += _count_saccades(burst[:, 0])
+    total_s = RATE_TEND * len(RATE_SEEDS)
+    return float(n_events / total_s), n_events, total_s
 
 
 # ── Figure 1: noise source comparison ────────────────────────────────────────
@@ -159,15 +193,15 @@ def _noise_comparison(show):
                               conditions='Lit, fixation on midline target — each panel sweeps a different sensory noise σ (canal/pos/vel)')
 
     # ── Metrics: noiseless stability + realistic fixational drift + µsaccade rate ─
+    usacc_rate, n_usacc, usacc_s = _microsaccade_rate()
     by_key = {r[5]: r for r in results}     # nkey -> (t_np, eye, ev, burst, noise, nkey, title)
     def _pos_std(k):
         e = by_key[k][1][:, 0]
         return float(np.std(e - np.mean(e)))
-    # microsaccade rate in the realistic 'all' condition: rising edges of |burst|>15 deg/s
-    burst_all = by_key['all'][3][:, 0]
-    is_sac = (np.abs(burst_all) > 15.0).astype(int)
-    n_sac  = int(np.sum(np.diff(is_sac) > 0))
-    usacc_rate = float(n_sac / TEND)
+    # Microsaccade rate: measured on dedicated long runs (see _microsaccade_rate),
+    # NOT on the 3 s panels above — a 3 s window cannot resolve a ~1 Hz rate.
+    print(f'      microsaccade rate: {n_usacc} events / {usacc_s:.0f} s '
+          f'= {usacc_rate:.2f} Hz')
     metrics = [
         Metric('fix_noiseless_drift_std', _pos_std('none'), 
                lo=None, hi=0.05, golden_tol=0.3, units='deg',
@@ -175,9 +209,13 @@ def _noise_comparison(show):
         Metric('fix_drift_rms', _pos_std('all'), 
                lo=0.02, hi=0.6, golden_tol=0.25, units='deg',
                cite='Rolfs (2009)', desc='Fixational drift (eye-position std) with all noise sources on'),
-        Metric('fix_microsaccade_rate', usacc_rate, 
-               lo=0.0, hi=4.0, golden_tol=0.4, units='Hz',
-               cite='Rolfs (2009)', desc='Microsaccade rate (burst events/s) in the all-noise condition'),
+        # lo=0.5: a healthy fixating eye MUST produce microsaccades. The old lo=0.0
+        # let a completely still eye pass, which is how a flat 0.000 went unnoticed.
+        Metric('fix_microsaccade_rate', usacc_rate,
+               lo=0.5, hi=4.0, golden_tol=0.4, units='Hz',
+               cite='Rolfs (2009)',
+               desc=f'Microsaccade rate (|burst| > {RATE_THRESH:g} deg/s onsets) with all noise '
+                    f'on, pooled over {len(RATE_SEEDS)}x{RATE_TEND:g} s'),
     ]
 
     fm = utils.fig_meta(path, rp,
