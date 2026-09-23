@@ -42,7 +42,7 @@ PARAMS = with_brain(
 
 SECTION = dict(
     id='eyelid',
-    title='10. Eyelid',
+    title='11. Eyelid',
     description=(
         'Per-eye upper-lid plant: spontaneous blinks (conjugate, ~15/min) + an '
         'upper lid that follows vertical gaze (downgaze lowers the lid). Fast '

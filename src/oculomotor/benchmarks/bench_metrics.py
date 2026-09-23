@@ -68,6 +68,7 @@ BENCH_MODULES = [
     'bench_pursuit',
     'bench_vergence',
     'bench_fixation',
+    'bench_gaze_holding',
     'bench_listing',
     'bench_fcp',
     'bench_pupil',

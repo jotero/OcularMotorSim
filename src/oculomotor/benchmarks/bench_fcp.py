@@ -191,7 +191,7 @@ def _cascade(show):
 
 
 SECTION = dict(
-    id='fcp', title='8. Final Common Pathway',
+    id='fcp', title='9. Final Common Pathway',
     description='Motoneuron + cranial-nerve output stage. Traces the full command cascade — '
                 'Robinson pulse/step decomposition of version and vergence drive through the 14 '
                 'motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves '
