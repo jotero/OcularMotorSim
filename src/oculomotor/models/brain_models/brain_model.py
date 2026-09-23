@@ -313,9 +313,15 @@ class BrainParams(NamedTuple):
     # Per-axis TCs via fractions of tau_i (matches the VS pattern). Yaw uses tau_i directly;
     # torsional NI in the INC is reported as substantially leakier (Crawford & Vilis 1991:
     # ~5–10 s vs 20–25 s for horizontal NPH; Suzuki et al. 1995; Anastasopoulos & Mergner 1982).
-    tau_i:                 float = 25.0   # yaw leak TC (s); healthy >20 s (Cannon & Robinson 1985)
-    tau_i_pitch_frac:      float = 1.0    # pitch TC = tau_i × this  → 25 s (vertical NI similar to horizontal)
-    tau_i_roll_frac:       float = 0.3    # roll  TC = tau_i × this  → 7.5 s (Crawford & Vilis 1991)
+    # These are the INTRINSIC brainstem leaks, NOT the gaze-holding TCs a subject shows:
+    # the flocculus cancels a fraction K_cereb_fl of the leak, so the observable is
+    # tau_eff = tau_i / (1 − K_cereb_fl) — 5× these values at the default K = 0.8.
+    tau_i:                 float = 5.0    # yaw intrinsic leak TC (s) → tau_eff 25 s healthy.
+                                          # Cannon & Robinson (1985) put the raw NI at ~1–3 s;
+                                          # >20 s is the FL-extended value, not this one.
+    tau_i_pitch_frac:      float = 1.0    # pitch TC = tau_i × this  → 5 s   → tau_eff 25 s
+    tau_i_roll_frac:       float = 0.3    # roll  TC = tau_i × this  → 1.5 s → tau_eff 7.5 s
+                                          # (Crawford & Vilis 1991)
     tau_p:                 float = 0.15   # plant TC copy (orbital slow pole τ₁) — NI feedthrough
     tau_muscle:            float = 0.013  # muscle fast-pole TC copy (τ₂, s) — 2nd-order plant inverse
                                           # (muscle force-development LP); matches PlantParams.tau_muscle
@@ -876,13 +882,17 @@ class BrainParams(NamedTuple):
                                                   # in the scene PE assembly.  Lesion
                                                   # (K=0): no scene EC correction, VS
                                                   # driven by gated raw slip only.
-    K_cereb_fl:            float        = 1.0   # floccular NI leak-cancellation gain
+    K_cereb_fl:            float        = 0.8   # floccular NI leak-cancellation gain
                                                   # (Cannon & Robinson 1985).  Adds
                                                   # positive feedback K · (x_net − x_null)
-                                                  # / tau_i_per_axis to NI input.
-                                                  # K = 1 → NI ≈ perfect integrator;
-                                                  # K = 0 → floccular lesion, gaze-evoked
-                                                  # nystagmus.
+                                                  # / tau_i_per_axis to NI input, hence
+                                                  # tau_eff = tau_i / (1 − K).
+                                                  # 0.8 → tau_eff 25 s from a 5 s brainstem
+                                                  # NI; K = 0 → floccular lesion, tau_eff
+                                                  # collapses to tau_i → gaze-evoked
+                                                  # nystagmus.  K = 1 would make the NI
+                                                  # PERFECT and put GEN out of reach at
+                                                  # any lesion level — tau_eff = tau_i/0.
     K_cereb_fl_vs:         float        = 0.0   # floccular VS leak-cancellation gain.
                                                   # Same Cannon-Robinson architecture
                                                   # applied to velocity storage. Default

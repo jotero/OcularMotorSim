@@ -4,9 +4,11 @@ Anatomical split (Leigh & Zee; Cannon & Robinson 1985; Lisberger):
 
   Flocculus (FL)            → NI integrator extension (gaze-holding).
                               Reads NI net + null state, outputs positive
-                              feedback that cancels the brainstem NI leak,
-                              extending effective TC from intrinsic ~1–3 s
-                              to ~25 s (or ∞ for K_cereb_fl = 1).
+                              feedback that cancels the brainstem NI leak:
+                              tau_eff = tau_i / (1 − K_cereb_fl), so the
+                              default 5 s brainstem NI holds like 25 s.
+                              (K_cereb_fl = 1 would give a PERFECT
+                              integrator, and no reachable GEN.)
                               Lesion → gaze-evoked nystagmus.
 
   Ventral paraflocculus     → smooth-pursuit forward model.  Reads

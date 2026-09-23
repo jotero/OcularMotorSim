@@ -87,15 +87,30 @@ def _target_step(t_arr, deg_on, deg_off, t_switch):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. Gaze-evoked nystagmus — leaky NI (flocculus / NPH lesion)
+# 1. Gaze-evoked nystagmus — lost floccular leak cancellation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _tau_eff(theta):
+    """Observable gaze-holding TC (s).
+
+    The flocculus cancels a fraction K_cereb_fl of the brainstem NI leak, so what a
+    subject actually shows is tau_i / (1 - K), not tau_i. Reporting tau_i alone is
+    what let a "GEN patient" with a perfect integrator go unnoticed.
+    """
+    k = float(theta.brain.K_cereb_fl)
+    return float(theta.brain.tau_i) / (1.0 - k) if k < 1.0 else float('inf')
+
+
 def _gen(show):
-    # Cerebellar/floccular lesion impairs both NI (tau_i ↓) and pursuit (K_pursuit ↓).
-    # Gain-of-function: flocculus tonically inhibits NI; loss → leak.
+    # Cerebellar/floccular lesion impairs both NI leak cancellation and pursuit.
+    # Gain-of-function: flocculus tonically inhibits NI; loss → leak. The lesion is
+    # therefore K_cereb_fl, NOT tau_i: tau_i is the intact BRAINSTEM leak, and a
+    # cerebellar patient's brainstem is intact. (These used tau_i=2.0/6.0, which was
+    # inert while K_cereb_fl defaulted to 1.0 — fl_drive cancels x/tau_i for any
+    # tau_i, so both "patients" held gaze perfectly.)
     # Smooth pursuit also floccular → reduced K_pursuit + K_phasic_pursuit.
-    THETA_GEN  = with_brain(THETA, tau_i=2.0, K_pursuit=0.5,  K_phasic_pursuit=1.0)
-    THETA_MOD  = with_brain(THETA, tau_i=6.0, K_pursuit=1.5,  K_phasic_pursuit=2.5)
+    THETA_GEN  = with_brain(THETA, K_cereb_fl=0.0, K_pursuit=0.5,  K_phasic_pursuit=1.0)
+    THETA_MOD  = with_brain(THETA, K_cereb_fl=0.4, K_pursuit=1.5,  K_phasic_pursuit=2.5)
 
     DUR_ECC  = 15.0
     DUR_POST = 8.0
@@ -122,7 +137,7 @@ def _gen(show):
         spv = extract_spv_states(st, t_arr)[:, 0]
         ni    = ni_net(st)[:, 0]
         ni_n  = ni_null(st)[:, 0]
-        axes[0].plot(t_arr, ep,  color=col, lw=1.5, ls=ls, label=f'{label} τ_i={theta.brain.tau_i:.0f}s')
+        axes[0].plot(t_arr, ep,  color=col, lw=1.5, ls=ls, label=f'{label} τ_eff={_tau_eff(theta):.0f}s')
         axes[1].plot(t_arr, spv, color=col, lw=1.5, ls=ls)
         axes[2].plot(t_arr, ni,  color=col, lw=1.5, ls=ls, label=label)
 

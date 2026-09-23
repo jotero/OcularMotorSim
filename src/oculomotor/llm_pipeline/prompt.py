@@ -237,7 +237,7 @@ All defaults match the healthy model. Only specify parameters that differ from h
 | K_vs (1/s) | 0.1 | Reduce with tau_vs for nodulus lesion |
 | K_vis (1/s) | 0.1 | Visual→VS gain. 0 = no OKR/OKAN |
 | g_vis | 0.6 | Direct visual feedthrough (Raphan 1979). < 1 required for stability |
-| tau_i (s) | 25.0 | Short (2–8 s) → centripetal drift; GEN in dark OR if K_pursuit also low |
+| tau_i (s) | 5.0 | INTRINSIC brainstem NI leak, not the observed TC: gaze holds with tau_eff = tau_i/(1 − K_cereb_fl) = 25 s by default. Lower it for a brainstem (NPH/MVN) lesion; for a CEREBELLAR patient lower K_cereb_fl instead |
 | g_burst (deg/s) | 700.0 | 0 = saccadic palsy; 200–400 = slow saccades (PSP, SCA) |
 | K_pursuit (1/s) | 4.0 | Pursuit integration gain. 0.1–0.5 = severe deficit (cerebellar, MT/MST) |
 | K_phasic_pursuit | 5.0 | Pursuit direct feedthrough. Controls fast onset |
@@ -260,7 +260,7 @@ The cerebellum contributes four separable functions, each with its own gain
 
 | Parameter | Healthy | Lesion (=0) phenotype | Anatomy |
 |-----------|:-------:|------------------------|---------|
-| K_cereb_fl | 1.0 | Gaze-evoked nystagmus: NI leak no longer cancelled → eye drifts centripetally with TC = tau_i (~25 s). For pronounced GEN combine with short tau_i (e.g. 4 s). | Flocculus → NPH/MVN (Cannon & Robinson 1985) |
+| K_cereb_fl | 0.8 | Gaze-evoked nystagmus: the floccular leak cancellation is lost, so tau_eff = tau_i/(1 − K) collapses toward the raw 5 s brainstem NI and the eye drifts centripetally. 0.4 → mild (tau_eff ~8 s), 0 → florid (tau_eff ~5 s, several deg/s at 40°). No need to shorten tau_i as well — that would model a brainstem lesion instead. | Flocculus → NPH/MVN (Cannon & Robinson 1985) |
 | K_cereb_pu | 1.0 | Reduced smooth-pursuit gain during head motion + loss of pursuit's saccadic suppression (cerebellum no longer cancels self-motion contamination of target slip). Brainstem direct path (K_pursuit_direct·slip) still drives pursuit. | Ventral paraflocculus / vermis VI–VII |
 | K_cereb_okr | 1.0 | Loss of the cerebellar EC correction on the OKR/VOR scene path; VS driven by raw (gated) retinal slip only. Combined with vestibular slip-coupling this raises OKR slow-phase noise. | Flocculus / vermis OKR adaptation |
 | K_cereb_nu | 1.0 | Prolonged velocity-storage TC, loss of tilt suppression of post-rotatory nystagmus, periodic alternating nystagmus (with tau_vs_adapt also lowered). | Nodulus + uvula → vestibular nuclei (Cohen, Raphan, Wearne) |

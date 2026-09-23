@@ -47,13 +47,25 @@ THETA = with_brain(
 # ── Lesion parameters ──────────────────────────────────────────────────────────
 # FL/PFL: leaky NI + reduced pursuit gain; null adaptation intact.
 THETA_FL = with_brain(THETA,
-    tau_i=2.0,             # leaky NI → gaze-evoked nystagmus + rebound
+    K_cereb_fl=0.0,        # floccular leak cancellation LOST → gaze-evoked nystagmus
+                           # + rebound. Was tau_i=2.0, which did nothing: K_cereb_fl
+                           # was 1.0, and fl_drive cancels x/tau_i for ANY tau_i, so
+                           # the "patient" held gaze perfectly (SPV 0.06 deg/s @40 deg).
     K_pursuit=0.5,         # reduced pursuit drive
     K_phasic_pursuit=1.0,  # reduced phasic pursuit onset
 )
 
 # Nodulus/Uvula: faster VS null adaptation → prolonged OKAN.
 THETA_NOD = with_brain(THETA, tau_vs_adapt=60.0)
+def _tau_eff(theta):
+    """Observable gaze-holding TC (s).
+
+    The flocculus cancels a fraction K_cereb_fl of the brainstem NI leak, so what a
+    subject actually shows is tau_i / (1 - K), not tau_i. Reporting tau_i alone is
+    what let a "GEN patient" with a perfect integrator go unnoticed.
+    """
+    k = float(theta.brain.K_cereb_fl)
+    return float(theta.brain.tau_i) / (1.0 - k) if k < 1.0 else float('inf')
 
 SECTION = dict(
     id='clin_cerebellum', title='B. Cerebellar Lesions',
@@ -146,7 +158,7 @@ def _test_fl_pfl(show):
     fig, axes = plt.subplots(3, 2, figsize=(16, 12))
     fig.suptitle(
         'Flocculus / Paraflocculus Lesion — Gaze-Evoked Nystagmus, Rebound, Impaired Pursuit\n'
-        f'NI leak: τ_i {THETA.brain.tau_i:.0f} s → {THETA_FL.brain.tau_i:.0f} s   '
+        f'Gaze-holding TC: τ_eff {_tau_eff(THETA):.0f} s → {_tau_eff(THETA_FL):.0f} s   '
         f'Pursuit gain: K_p {THETA.brain.K_pursuit:.1f} → {THETA_FL.brain.K_pursuit:.1f}',
         fontsize=11, fontweight='bold')
 
