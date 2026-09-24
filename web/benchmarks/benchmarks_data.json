@@ -1,14 +1,14 @@
 {
-  "generated": "2026-09-23 10:38",
-  "version": "47286c0",
+  "generated": "2026-09-23 17:17",
+  "version": "2ae5369",
   "sections": [
     {
       "id": "saccades",
       "title": "1. Saccades",
       "description": "Saccade kinematics and internal signal cascade. Tests main sequence (amplitude\u2013velocity), oblique trajectory linearity, double-step refractoriness, and the full Robinson cascade. The cascade figure also shows the cerebellar saccadic-suppression gates (pre- and post-delay), the pre- vs post-cascade slip + efference-copy comparison (cerebellum EC matched to the retinal cascade incl. the two-stage MN / MLF forward model), and the pursuit / VS / T-VOR drives during a saccade.",
-      "runtime_s": 194.32,
-      "version": "47286c0",
-      "generated": "2026-09-23 10:34",
+      "runtime_s": 208.26,
+      "version": "2ae5369",
+      "generated": "2026-09-23 16:10",
       "figures": [
         {
           "rel": "figures/saccade_main_sequence.png",
@@ -19,21 +19,21 @@
           "type": "behavior",
           "ref_rel": "reference/saccade_main_sequence.png",
           "diff_status": "changed",
-          "diff": 0.03720799833536148,
+          "diff": 0.02993680350482464,
           "metrics": [
             {
               "name": "sac_peak_vel_20deg",
-              "value": 615.6122436523438,
+              "value": 615.7045288085938,
               "golden": 640.1481323242188
             },
             {
               "name": "sac_mainseq_resid_max",
-              "value": 0.3558054487980342,
+              "value": 0.35613460631396654,
               "golden": 0.15859943761867354
             },
             {
               "name": "sac_primary_gain",
-              "value": 0.9752243304252625,
+              "value": 0.9763421885172526,
               "golden": 0.9864487584431967
             }
           ]
@@ -47,11 +47,11 @@
           "type": "behavior",
           "ref_rel": "reference/saccade_oblique.png",
           "diff_status": "changed",
-          "diff": 0.03384791314601898,
+          "diff": 0.038181453943252563,
           "metrics": [
             {
               "name": "sac_oblique_straightness",
-              "value": 0.013150135055184364,
+              "value": 0.013035086914896965,
               "golden": 0.014093972742557526
             }
           ]
@@ -65,16 +65,16 @@
           "type": "behavior",
           "ref_rel": "reference/saccade_refractoriness.png",
           "diff_status": "changed",
-          "diff": 0.06582289934158325,
+          "diff": 0.06544999778270721,
           "metrics": [
             {
               "name": "sac_refractory_isi_ms",
-              "value": 209.00000000000009,
+              "value": 242.0000000000001,
               "golden": 315.99999999999994
             },
             {
               "name": "sac_refractory_isi_median_ms",
-              "value": 381.0,
+              "value": 382.0,
               "golden": 388.0
             }
           ]
@@ -88,26 +88,26 @@
           "type": "cascade",
           "ref_rel": "reference/saccade_cascade.png",
           "diff_status": "changed",
-          "diff": 0.04861615225672722,
+          "diff": 0.04733762890100479,
           "metrics": [
             {
               "name": "sac_postsac_peak_short_noiseless",
-              "value": 8.294105529785156,
+              "value": 5.700110912322998,
               "golden": 1.1138916015625
             },
             {
               "name": "sac_postsac_peak_long_noiseless",
-              "value": 10.480879783630371,
+              "value": 3.4465787410736084,
               "golden": 1.4190672636032104
             },
             {
               "name": "sac_postsac_verg_peak_noiseless",
-              "value": 5.885362148284912,
+              "value": 5.885242938995361,
               "golden": 5.373000621795654
             },
             {
               "name": "sac_cascade_count_noiseless",
-              "value": 2.0,
+              "value": 1.0,
               "golden": 1.0
             }
           ]
@@ -118,9 +118,9 @@
       "id": "vor_okr",
       "title": "2. VOR / OKR",
       "description": "Vestibulo-ocular reflex and optokinetic response. Replicates Raphan et al. (1979) Fig.9: VOR in dark, OKN+OKAN, and VVOR. Slow-phase velocity shown as 0.5-s binned scatter (post-saccadic spikes averaged into the slow-phase trend). Tests post-rotatory and OKAN time constants, VVOR gain, and nystagmus waveform. Scene slip \u2192 VS goes through K_vor_direct\u00b7(saccadically-gated slip) + K_cereb_okr\u00b7(cerebellar EC correction); nodulus-uvula gravity dumping (K_cereb_nu) sets the velocity-storage TC.",
-      "runtime_s": 1486.16,
-      "version": "5f40427",
-      "generated": "2026-07-29 16:47",
+      "runtime_s": 1678.35,
+      "version": "2ae5369",
+      "generated": "2026-09-23 16:38",
       "figures": [
         {
           "rel": "figures/vor_raphan_fig9.png",
@@ -131,26 +131,26 @@
           "type": "behavior",
           "ref_rel": "reference/vor_raphan_fig9.png",
           "diff_status": "changed",
-          "diff": 0.03510517254471779,
+          "diff": 0.03452359139919281,
           "metrics": [
             {
               "name": "vor_okr_vvor_gain",
-              "value": 0.8585066272972613,
+              "value": 0.865661171800949,
               "golden": 0.8813542453647045
             },
             {
               "name": "vor_okr_postrot_tc",
-              "value": 35.941469618513686,
+              "value": 35.82489536874313,
               "golden": 34.9654428452286
             },
             {
               "name": "vor_okr_okan_tc",
-              "value": 21.160844745028196,
+              "value": 20.773087633900488,
               "golden": 20.62671066639932
             },
             {
               "name": "vor_okr_okn_ss_gain",
-              "value": 0.8129808757542221,
+              "value": 0.8203562896404054,
               "golden": 0.8344715685696169
             }
           ]
@@ -164,7 +164,7 @@
           "type": "cascade",
           "ref_rel": "reference/vor_okr_cascade.png",
           "diff_status": "changed",
-          "diff": 0.018677769228816032,
+          "diff": 0.019406020641326904,
           "metrics": []
         },
         {
@@ -176,31 +176,31 @@
           "type": "behavior",
           "ref_rel": "reference/vor_bode.png",
           "diff_status": "changed",
-          "diff": 0.05511201173067093,
+          "diff": 0.052475593984127045,
           "metrics": [
             {
               "name": "vor_bode_gain_max_dark",
-              "value": 1.0665408735421458,
+              "value": 1.074028026403196,
               "golden": 1.0655162711185782
             },
             {
               "name": "vor_bode_gain_max_light",
-              "value": 1.1744234103880085,
+              "value": 1.176795967865546,
               "golden": 1.084041056621937
             },
             {
               "name": "vor_bode_fc_hi_light",
-              "value": 15.707267866107832,
+              "value": 15.682866136592404,
               "golden": null
             },
             {
               "name": "vor_bode_gain_max_light_target",
-              "value": 1.2509785715811341,
+              "value": 1.258887094869635,
               "golden": 1.1291078671137007
             },
             {
               "name": "vor_bode_fc_hi_light_target",
-              "value": 9.486505663913709,
+              "value": 9.407350459215685,
               "golden": null
             }
           ]
@@ -214,26 +214,26 @@
           "type": "behavior",
           "ref_rel": "reference/okr_bode.png",
           "diff_status": "changed",
-          "diff": 0.049129895865917206,
+          "diff": 0.051947325468063354,
           "metrics": [
             {
               "name": "okr_bode_gain_max_scene",
-              "value": 0.5138887979674329,
+              "value": 0.5122939057945227,
               "golden": 0.5215206035887102
             },
             {
               "name": "okr_bode_fc_hi_scene",
-              "value": 8.019600498186332,
+              "value": 8.084371964969057,
               "golden": 7.76749901993308
             },
             {
               "name": "okr_bode_gain_max_scene_target",
-              "value": 1.0316056148678365,
+              "value": 0.981411808171564,
               "golden": 1.031676732186263
             },
             {
               "name": "okr_bode_fc_hi_scene_target",
-              "value": 6.452243062016898,
+              "value": 6.9354564551735916,
               "golden": 5.528349950532553
             }
           ]
@@ -244,9 +244,9 @@
       "id": "gravity",
       "title": "3. Gravity Estimator + T-VOR",
       "description": "Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path \u2014 gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).",
-      "runtime_s": 1163.86,
-      "version": "5f40427-dirty.01bb53c",
-      "generated": "2026-07-30 10:19",
+      "runtime_s": 1115.69,
+      "version": "2ae5369",
+      "generated": "2026-09-23 16:57",
       "figures": [
         {
           "rel": "figures/gravity_ocr.png",
@@ -257,16 +257,16 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_ocr.png",
           "diff_status": "changed",
-          "diff": 0.035898659378290176,
+          "diff": 0.04254286363720894,
           "metrics": [
             {
               "name": "gravity_ocr_gain",
-              "value": 1.1095971234980444,
+              "value": 1.101570301075715,
               "golden": 1.084362098225772
             },
             {
               "name": "gravity_ocr_sin_rmse",
-              "value": 0.905397442226234,
+              "value": 0.8581863522383838,
               "golden": 0.6969648886559057
             }
           ]
@@ -275,12 +275,12 @@
           "rel": "figures/gravity_ocr_cascade.png",
           "title": "OCR cascade (3 visual conditions)",
           "description": "30.0\u00b0 roll tilt \u2014 OCR cascade across dark / scene-on / scene+target-on conditions, 15 s hold, noiseless.",
-          "expected": "Eye torsion stabilises at \u2248-4.97\u00b0 in all conditions. SPV row: -VS (dashed) and -canal FT (dotted) should bracket the measured SPV.",
+          "expected": "Eye torsion stabilises at \u2248-4.52\u00b0 in all conditions. SPV row: -VS (dashed) and -canal FT (dotted) should bracket the measured SPV.",
           "citation": "Debug diagnostic",
           "type": "cascade",
           "ref_rel": "reference/gravity_ocr_cascade.png",
           "diff_status": "changed",
-          "diff": 0.038385406136512756,
+          "diff": 0.040276676416397095,
           "metrics": []
         },
         {
@@ -292,46 +292,46 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_ovar.png",
           "diff_status": "changed",
-          "diff": 0.05313266068696976,
+          "diff": 0.05275565758347511,
           "metrics": [
             {
               "name": "gravity_ovar_mod_10",
-              "value": 3.283197197035317,
+              "value": 3.3059051893901326,
               "golden": 3.3438971807216173
             },
             {
               "name": "gravity_ovar_bias_10",
-              "value": -24.677804798712838,
+              "value": -24.809563369358635,
               "golden": -25.062992290240366
             },
             {
               "name": "gravity_ovar_mod_30",
-              "value": 3.50940126266986,
+              "value": 3.4921985019110853,
               "golden": 3.547590908545725
             },
             {
               "name": "gravity_ovar_bias_30",
-              "value": -28.28783903957865,
+              "value": -28.45705350456743,
               "golden": -28.793634740882247
             },
             {
               "name": "gravity_ovar_mod_60",
-              "value": 2.7003469736956216,
+              "value": 2.7057377946721846,
               "golden": 2.6787212742968864
             },
             {
               "name": "gravity_ovar_bias_60",
-              "value": -32.75083963172589,
+              "value": -32.97753622270157,
               "golden": -33.34295402017891
             },
             {
               "name": "gravity_ovar_mod_90",
-              "value": 2.4496603512110235,
+              "value": 2.422103045158315,
               "golden": 2.4697250599899556
             },
             {
               "name": "gravity_ovar_bias_90",
-              "value": -34.26892664135856,
+              "value": -34.5124232182198,
               "golden": -34.848437421826326
             }
           ]
@@ -345,36 +345,36 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_tilt_suppression.png",
           "diff_status": "changed",
-          "diff": 0.044792190194129944,
+          "diff": 0.04456590116024017,
           "metrics": [
             {
               "name": "gravity_tilt_tc_0",
-              "value": 34.32309748304551,
+              "value": 34.14010802015258,
               "golden": 34.165126681189314
             },
             {
               "name": "gravity_tilt_tc_30",
-              "value": 15.653442657667782,
+              "value": 15.666860833021229,
               "golden": 15.453878707295091
             },
             {
               "name": "gravity_tilt_tc_60",
-              "value": 10.111179268479507,
+              "value": 10.144866668324418,
               "golden": 10.04065261674114
             },
             {
               "name": "gravity_tilt_tc_90",
-              "value": 9.043427252728632,
+              "value": 9.065490692419276,
               "golden": 9.019918235131016
             },
             {
               "name": "gravity_tilt_reversal_60",
-              "value": 1.2425804885255025,
+              "value": 1.2164717153680626,
               "golden": 1.2240656978917575
             },
             {
               "name": "gravity_tilt_reversal_90",
-              "value": -0.04147136464480752,
+              "value": -0.051831624924232614,
               "golden": -0.041448020433130166
             }
           ]
@@ -388,21 +388,21 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_somatogravic_freq.png",
           "diff_status": "changed",
-          "diff": 0.017725588753819466,
+          "diff": 0.019435202702879906,
           "metrics": [
             {
               "name": "gravity_somato_ocr_low_f",
-              "value": 3.539689064025879,
+              "value": 4.0164642333984375,
               "golden": null
             },
             {
               "name": "gravity_somato_fc_hi",
-              "value": 0.08275269211468202,
+              "value": 0.09205134940214753,
               "golden": null
             },
             {
               "name": "gravity_somato_atten_high_f",
-              "value": 0.009897677619258154,
+              "value": 0.010804167088124898,
               "golden": null
             }
           ]
@@ -416,7 +416,7 @@
           "type": "behavior",
           "ref_rel": "reference/tvor_cascade.png",
           "diff_status": "changed",
-          "diff": 0.039766740053892136,
+          "diff": 0.040609922260046005,
           "metrics": []
         },
         {
@@ -428,41 +428,36 @@
           "type": "behavior",
           "ref_rel": "reference/tvor_bode.png",
           "diff_status": "changed",
-          "diff": 0.05910256505012512,
+          "diff": 0.05918605625629425,
           "metrics": [
             {
               "name": "tvor_bode_gain_max_dark",
-              "value": 0.05140182345583089,
+              "value": 0.05249245109320338,
               "golden": 0.05130756032031777
             },
             {
               "name": "tvor_torsion_cross_dark",
-              "value": 0.010630692117404425,
+              "value": 0.018511869192406757,
               "golden": 0.010655655108793669
             },
             {
               "name": "tvor_bode_gain_max_scene",
-              "value": 0.41998853741600467,
+              "value": 0.41659276611492085,
               "golden": 0.43028764593954577
             },
             {
               "name": "tvor_torsion_cross_scene",
-              "value": 0.008350767841117093,
+              "value": 0.014461752013330475,
               "golden": 0.008361926526529215
             },
             {
               "name": "tvor_bode_gain_max_scene_target",
-              "value": 0.5112810118170824,
+              "value": 0.5128361012117505,
               "golden": 0.48164923779195695
             },
             {
-              "name": "tvor_bode_fc_lo_scene_target",
-              "value": 0.11064055213787288,
-              "golden": null
-            },
-            {
               "name": "tvor_torsion_cross_scene_target",
-              "value": 0.11033388512892547,
+              "value": 0.12180572513639198,
               "golden": 0.10954575143724174
             }
           ]
@@ -473,9 +468,9 @@
       "id": "pursuit",
       "title": "4. Smooth Pursuit",
       "description": "Smooth pursuit and catch-up saccades. Tests velocity gain at multiple speeds, sinusoidal tracking, and the pursuit integrator + saccade interaction cascade. Pursuit input = K_pursuit_direct\u00b7(saccadically-gated retinal slip) + K_cereb_pu\u00b7(cerebellar EC correction); the closed-loop pursuit memory \u03c4_eff \u2248 1.45 s (Smith predictor) despite the long pop-leak \u03c4_pursuit = 40 s.",
-      "runtime_s": 337.05,
-      "version": "5f40427-dirty.01bb53c",
-      "generated": "2026-07-30 10:25",
+      "runtime_s": 285.06,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:02",
       "figures": [
         {
           "rel": "figures/pursuit_velocity_range.png",
@@ -486,16 +481,16 @@
           "type": "behavior",
           "ref_rel": "reference/pursuit_velocity_range.png",
           "diff_status": "changed",
-          "diff": 0.05088413506746292,
+          "diff": 0.05633025988936424,
           "metrics": [
             {
               "name": "pursuit_ss_gain_5degs",
-              "value": 0.9973373110728554,
+              "value": 0.7970193226867075,
               "golden": 0.9937063535266594
             },
             {
               "name": "pursuit_ss_gain_10degs",
-              "value": 0.9938278424095678,
+              "value": 0.7800777043876368,
               "golden": 1.0065894180969686
             },
             {
@@ -514,31 +509,31 @@
           "type": "behavior",
           "ref_rel": "reference/pursuit_bode.png",
           "diff_status": "changed",
-          "diff": 0.03672588989138603,
+          "diff": 0.03850126639008522,
           "metrics": [
             {
               "name": "pursuit_bode_gain_max",
-              "value": 0.9203362429634978,
+              "value": 0.900966059937187,
               "golden": 0.9146719164695349
             },
             {
               "name": "pursuit_bode_gain_0p5hz",
-              "value": 0.6826510394141165,
+              "value": 0.708881489888918,
               "golden": null
             },
             {
               "name": "pursuit_bode_gain_1hz",
-              "value": 0.6807445630200258,
+              "value": 0.6868376834306281,
               "golden": null
             },
             {
               "name": "pursuit_bode_phase_1hz",
-              "value": -39.94664253614016,
+              "value": -38.42207264743921,
               "golden": null
             },
             {
               "name": "pursuit_bode_fc_hi",
-              "value": 1.6628171410037105,
+              "value": 1.8256861891074263,
               "golden": 1.572063683925892
             }
           ]
@@ -552,7 +547,7 @@
           "type": "cascade",
           "ref_rel": "reference/pursuit_cascade.png",
           "diff_status": "changed",
-          "diff": 0.05209524929523468,
+          "diff": 0.05383211374282837,
           "metrics": []
         }
       ]
@@ -561,9 +556,9 @@
       "id": "near_response",
       "title": "5. Near response (vergence + accommodation)",
       "description": "Merged near-response section. Basic midline vergence (noiseless) \u2014 reaches geometric target, version stays conjugate, latency/TC/overshoot. Vergence\u2013saccade interaction (Zee SVBN facilitation). AC/A cross-link. Vergence and accommodation frequency responses (Bode). The vergence cascade is kept as an internal-signals debug figure (no metrics).",
-      "runtime_s": 466.06,
-      "version": "5f40427",
-      "generated": "2026-07-29 17:17",
+      "runtime_s": 457.0,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:09",
       "figures": [
         {
           "rel": "figures/vergence_midline.png",
@@ -574,16 +569,16 @@
           "type": "behavior",
           "ref_rel": "reference/vergence_midline.png",
           "diff_status": "changed",
-          "diff": 0.024459566920995712,
+          "diff": 0.024097347632050514,
           "metrics": [
             {
               "name": "verg_sym_conv_err",
-              "value": 0.11503696024581878,
+              "value": 0.115039821268768,
               "golden": 0.1082668262736508
             },
             {
               "name": "verg_sym_version_leak",
-              "value": 0.014410972595214844,
+              "value": 0.010137557983398438,
               "golden": 0.017503738403320312
             },
             {
@@ -593,12 +588,12 @@
             },
             {
               "name": "verg_tc_s",
-              "value": 0.21457029905847771,
+              "value": 0.21457027681775961,
               "golden": 0.22796688102180712
             },
             {
               "name": "verg_overshoot",
-              "value": 0.028148092260340676,
+              "value": 0.02814836403910801,
               "golden": 0.03184524100771119
             }
           ]
@@ -612,7 +607,7 @@
           "type": "behavior",
           "ref_rel": "reference/accommodation_step.png",
           "diff_status": "changed",
-          "diff": 0.024299882352352142,
+          "diff": 0.024257300421595573,
           "metrics": [
             {
               "name": "acc_step_latency_ms",
@@ -645,16 +640,16 @@
           "type": "behavior",
           "ref_rel": "reference/vergence_main_sequence.png",
           "diff_status": "changed",
-          "diff": 0.030238864943385124,
+          "diff": 0.03006724640727043,
           "metrics": [
             {
               "name": "verg_conv_div_ratio",
-              "value": 1.0158116551642886,
+              "value": 1.0157427212633545,
               "golden": 1.0113152069783065
             },
             {
               "name": "verg_asym_facilitation",
-              "value": 2.728316782512059,
+              "value": 2.730732970340349,
               "golden": 1.2582111881579718
             }
           ]
@@ -668,16 +663,16 @@
           "type": "behavior",
           "ref_rel": "reference/vergence_aca.png",
           "diff_status": "changed",
-          "diff": 0.029485877603292465,
+          "diff": 0.02947547473013401,
           "metrics": [
             {
               "name": "aca_vergence_delta",
-              "value": 0.9113509654998779,
+              "value": 0.9113508462905884,
               "golden": 0.9355483055114746
             },
             {
               "name": "aca_ratio_pd_per_d",
-              "value": 0.8573220302819831,
+              "value": 0.85732191813995,
               "golden": 0.8808065735317095
             }
           ]
@@ -691,11 +686,11 @@
           "type": "behavior",
           "ref_rel": "reference/near_adaptation.png",
           "diff_status": "changed",
-          "diff": 0.0255740936845541,
+          "diff": 0.02554156444966793,
           "metrics": [
             {
               "name": "verg_phoria_adapt",
-              "value": 8.313084363937378,
+              "value": 8.31308364868164,
               "golden": 8.312616348266602
             },
             {
@@ -705,12 +700,12 @@
             },
             {
               "name": "acc_darkfocus_adapt",
-              "value": 1.9870719611644745,
+              "value": 1.9870699346065521,
               "golden": 1.9874359667301178
             },
             {
               "name": "acc_darkfocus_tc_s",
-              "value": 27.693884392821264,
+              "value": 27.69372410962255,
               "golden": 27.890370300986092
             }
           ]
@@ -724,16 +719,16 @@
           "type": "behavior",
           "ref_rel": "reference/vergence_bode.png",
           "diff_status": "changed",
-          "diff": 0.035380277782678604,
+          "diff": 0.035376936197280884,
           "metrics": [
             {
               "name": "verg_bode_gain_max",
-              "value": 0.9861384879612621,
+              "value": 0.9861384670379187,
               "golden": 0.9890976004080749
             },
             {
               "name": "verg_bode_fc_hi",
-              "value": 1.0185251519161111,
+              "value": 1.0185251930921346,
               "golden": 0.8707076119576123
             }
           ]
@@ -747,16 +742,16 @@
           "type": "behavior",
           "ref_rel": "reference/accommodation_bode.png",
           "diff_status": "changed",
-          "diff": 0.038925617933273315,
+          "diff": 0.038930002599954605,
           "metrics": [
             {
               "name": "acc_bode_gain_max",
-              "value": 0.9685127975459555,
+              "value": 0.9685127870633155,
               "golden": 0.9681940923427055
             },
             {
               "name": "acc_bode_fc_hi",
-              "value": 0.5395722385872358,
+              "value": 0.5395722519655917,
               "golden": 0.546981185648876
             }
           ]
@@ -770,7 +765,7 @@
           "type": "behavior",
           "ref_rel": "reference/vergence_cascade.png",
           "diff_status": "changed",
-          "diff": 0.027105920016765594,
+          "diff": 0.027487551793456078,
           "metrics": []
         }
       ]
@@ -779,9 +774,9 @@
       "id": "fixation",
       "title": "6. Fixation",
       "description": "Fixational eye movements driven by different noise sources. Tests canal noise filtering, retinal position OU drift (microsaccades), and retinal velocity noise (pursuit-like drift).",
-      "runtime_s": 120.07,
-      "version": "47286c0",
-      "generated": "2026-09-23 10:36",
+      "runtime_s": 116.46,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:11",
       "figures": [
         {
           "rel": "figures/fixation_noise_comparison.png",
@@ -796,17 +791,17 @@
           "metrics": [
             {
               "name": "fix_noiseless_drift_std",
-              "value": 0.007111305836588144,
+              "value": 0.004596052225679159,
               "golden": 0.005167295690625906
             },
             {
               "name": "fix_drift_rms",
-              "value": 0.10937882959842682,
+              "value": 0.09186368435621262,
               "golden": 0.09826964139938354
             },
             {
               "name": "fix_microsaccade_rate",
-              "value": 0.55,
+              "value": 0.6,
               "golden": 0.0
             }
           ]
@@ -814,12 +809,77 @@
       ]
     },
     {
+      "id": "gaze_holding",
+      "title": "7. Gaze Holding",
+      "description": "Eccentric gaze holding \u2014 the neural integrator plus its cerebellar (floccular) extension. Slow-phase drift is measured as a function of eye position, in the light and in the dark with a strobed target; the slope of that line is 1/\u03c4_eff, the effective gaze-holding time constant. Pathological leak (gaze-evoked nystagmus) is benchmarked separately under Clinical.",
+      "runtime_s": 102.96,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:13",
+      "figures": [
+        {
+          "rel": "figures/gaze_holding_drift.png",
+          "title": "Gaze Holding \u2014 Drift vs Eye Position (light vs dark)",
+          "description": "Eccentric fixation held at \u221240\u2026+40\u00b0, in the light and in the dark with a strobed target. Top: eye position traces per eccentricity. Bottom: mean slow-phase velocity vs eye position, with the fitted drift slope k = 1/\u03c4_eff.",
+          "expected": "Centripetal drift growing linearly with eccentricity, steeper in the dark than in the light (OKR corrects retinal slip when the scene is visible). No drift at straight-ahead. Dark \u03c4_eff > ~20 s in normals; a leaky integrator shortens it and produces gaze-evoked nystagmus.",
+          "citation": "Becker & Klein (1973) Vision Res 13:1021; Cannon & Robinson (1987) J Neurophysiol 57:1383",
+          "type": "behavior",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": [
+            {
+              "name": "gaze_hold_drift_slope_dark",
+              "value": 0.034104876527890994,
+              "golden": null
+            },
+            {
+              "name": "gaze_hold_spv_ecc_dark",
+              "value": 1.2871422023819463,
+              "golden": null
+            },
+            {
+              "name": "gaze_hold_net_drift_dark",
+              "value": 0.015531608121757,
+              "golden": null
+            },
+            {
+              "name": "gaze_hold_spv_ecc_light",
+              "value": 1.2859413078754154,
+              "golden": null
+            },
+            {
+              "name": "gaze_hold_light_dark_ratio",
+              "value": 0.9990670071229826,
+              "golden": null
+            },
+            {
+              "name": "gaze_hold_center_spv_dark",
+              "value": 2.1159647699278138e-06,
+              "golden": null
+            }
+          ]
+        },
+        {
+          "rel": "figures/gaze_holding_flash_cascade.png",
+          "title": "Gaze-Holding Cascade \u2014 flashed target (debug)",
+          "description": "One 40\u00b0 eccentric hold in the dark with the target genuinely flashed (20 ms every 1 s). Rows: visibility through the retinal cascade, the position signal it carries, the retinal MOTION channel (the check that the strobe suppresses motion, not just position), target working memory, the saccade generator, burst + NI, and eye position.",
+          "expected": "Retinal target motion stays ~0 between flashes even as the eye moves, so nothing drives pursuit \u2014 the strobe suppresses motion, not merely position. Each flash produces an attenuated visibility pulse and a brief position sample; working memory holds the target across the dark gaps; the integrator holds gaze open-loop between flashes. Flash duration matters: a 20 ms pulse reaches ~0.40 of full visibility through the 6-stage cascade, a 10 ms pulse only ~0.21.",
+          "citation": "Becker & Klein (1973) Vision Res 13:1021",
+          "type": "cascade",
+          "ref_rel": "",
+          "diff_status": "no-ref",
+          "diff": null,
+          "metrics": []
+        }
+      ]
+    },
+    {
       "id": "listing",
-      "title": "7. Listing's Law",
+      "title": "8. Listing's Law",
       "description": "Torsional constraint T = OCR \u2212 H\u00b7V\u00b7\u03c0/360: saccade plane scatter and OCR-driven correction saccade.",
-      "runtime_s": 103.89,
-      "version": "5f40427",
-      "generated": "2026-07-29 17:20",
+      "runtime_s": 110.01,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:15",
       "figures": [
         {
           "rel": "figures/listing_plane.png",
@@ -830,16 +890,16 @@
           "type": "behavior",
           "ref_rel": "reference/listing_plane.png",
           "diff_status": "changed",
-          "diff": 0.03792310506105423,
+          "diff": 0.04237149655818939,
           "metrics": [
             {
               "name": "listing_plane_rmse",
-              "value": 0.3990131435893839,
+              "value": 0.49931541815554403,
               "golden": 0.4266385413988341
             },
             {
               "name": "listing_halfangle_slope",
-              "value": 0.9264615256302844,
+              "value": 0.8929281919139168,
               "golden": 0.923265072742218
             }
           ]
@@ -853,11 +913,11 @@
           "type": "behavior",
           "ref_rel": "reference/listing_ocr_saccade.png",
           "diff_status": "changed",
-          "diff": 0.031701501458883286,
+          "diff": 0.033029038459062576,
           "metrics": [
             {
               "name": "listing_ocr_torsion_err",
-              "value": 0.15018558502197354,
+              "value": 0.4473133087158212,
               "golden": 0.02182722091674716
             }
           ]
@@ -871,11 +931,11 @@
           "type": "behavior",
           "ref_rel": "reference/listing_pursuit.png",
           "diff_status": "changed",
-          "diff": 0.040328558534383774,
+          "diff": 0.04285367578268051,
           "metrics": [
             {
               "name": "listing_pursuit_rmse",
-              "value": 0.2135394662618637,
+              "value": 0.24915915727615356,
               "golden": 0.20286467671394348
             }
           ]
@@ -884,11 +944,11 @@
     },
     {
       "id": "fcp",
-      "title": "8. Final Common Pathway",
+      "title": "9. Final Common Pathway",
       "description": "Motoneuron + cranial-nerve output stage. Traces the full command cascade \u2014 Robinson pulse/step decomposition of version and vergence drive through the 14 motoneurons (incl. the MLF internuclear AIN) to the 12 pull-only per-muscle nerves \u2014 over a 9-position gaze grid plus near/far vergence shifts. Exposes the [H,V,T]-command \u2194 per-muscle recruitment mapping.",
-      "runtime_s": 37.66,
-      "version": "5f40427",
-      "generated": "2026-07-29 17:21",
+      "runtime_s": 39.71,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:15",
       "figures": [
         {
           "rel": "figures/fcp_cascade.png",
@@ -908,17 +968,17 @@
             },
             {
               "name": "fcp_gaze_amp",
-              "value": 30.781005859375,
+              "value": 30.410564422607422,
               "golden": null
             },
             {
               "name": "fcp_verg_near",
-              "value": 14.506755828857422,
+              "value": 14.522359848022461,
               "golden": null
             },
             {
               "name": "fcp_verg_far",
-              "value": 1.045921802520752,
+              "value": 1.0456938743591309,
               "golden": null
             }
           ]
@@ -927,11 +987,11 @@
     },
     {
       "id": "pupil",
-      "title": "9. Pupil",
+      "title": "10. Pupil",
       "description": "Two independent iris plants (per eye) with rate-asymmetric dynamics (fast constriction ~0.3 s, slow re-dilation ~1 s). Consensual light reflex (afferent luminance \u2192 pretectum \u2192 both Edinger-Westphal nuclei) plus near-triad constriction (accommodation-linked). (Pupil lesions \u2014 CN III / RAPD / Argyll Robertson / Horner \u2014 are in the clinical benchmarks, section F.)",
-      "runtime_s": 15.47,
-      "version": "5f40427",
-      "generated": "2026-07-29 17:21",
+      "runtime_s": 15.45,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:16",
       "figures": [
         {
           "rel": "figures/pupil_light_reflex.png",
@@ -961,11 +1021,11 @@
     },
     {
       "id": "eyelid",
-      "title": "10. Eyelid",
+      "title": "11. Eyelid",
       "description": "Per-eye upper-lid plant: spontaneous blinks (conjugate, ~15/min) + an upper lid that follows vertical gaze (downgaze lowers the lid). Fast closing / slower opening (rate-asymmetric). Ptosis (CN III levator, nuclear vs nerve; Horner M\u00fcller) and lagophthalmos (CN VII orbicularis) lesions are wired but not shown here.",
-      "runtime_s": 58.42,
-      "version": "5f40427",
-      "generated": "2026-07-29 17:22",
+      "runtime_s": 55.6,
+      "version": "2ae5369",
+      "generated": "2026-09-23 17:17",
       "figures": [
         {
           "rel": "figures/eyelid_blinks.png",
@@ -986,71 +1046,6 @@
           "expected": "Closure ~0 at centre / upgaze, rising with downgaze depth (graded).",
           "citation": "eyelid model (eyelid.py \u2192 eyelid_plant.py)",
           "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
-          "metrics": []
-        }
-      ]
-    },
-    {
-      "id": "gaze_holding",
-      "title": "7. Gaze Holding",
-      "description": "Eccentric gaze holding \u2014 the neural integrator plus its cerebellar (floccular) extension. Slow-phase drift is measured as a function of eye position, in the light and in the dark with a strobed target; the slope of that line is 1/\u03c4_eff, the effective gaze-holding time constant. Pathological leak (gaze-evoked nystagmus) is benchmarked separately under Clinical.",
-      "runtime_s": 95.91,
-      "version": "47286c0",
-      "generated": "2026-09-23 10:38",
-      "figures": [
-        {
-          "rel": "figures/gaze_holding_drift.png",
-          "title": "Gaze Holding \u2014 Drift vs Eye Position (light vs dark)",
-          "description": "Eccentric fixation held at \u221240\u2026+40\u00b0, in the light and in the dark with a strobed target. Top: eye position traces per eccentricity. Bottom: mean slow-phase velocity vs eye position, with the fitted drift slope k = 1/\u03c4_eff.",
-          "expected": "Centripetal drift growing linearly with eccentricity, steeper in the dark than in the light (OKR corrects retinal slip when the scene is visible). No drift at straight-ahead. Dark \u03c4_eff > ~20 s in normals; a leaky integrator shortens it and produces gaze-evoked nystagmus.",
-          "citation": "Becker & Klein (1973) Vision Res 13:1021; Cannon & Robinson (1987) J Neurophysiol 57:1383",
-          "type": "behavior",
-          "ref_rel": "",
-          "diff_status": "no-ref",
-          "diff": null,
-          "metrics": [
-            {
-              "name": "gaze_hold_drift_slope_dark",
-              "value": -0.4534954597996041,
-              "golden": null
-            },
-            {
-              "name": "gaze_hold_spv_ecc_dark",
-              "value": 19.947387979626654,
-              "golden": null
-            },
-            {
-              "name": "gaze_hold_net_drift_dark",
-              "value": 0.29507766040631245,
-              "golden": null
-            },
-            {
-              "name": "gaze_hold_spv_ecc_light",
-              "value": 10.506498176102351,
-              "golden": null
-            },
-            {
-              "name": "gaze_hold_light_dark_ratio",
-              "value": 0.5267104739143393,
-              "golden": null
-            },
-            {
-              "name": "gaze_hold_center_spv_dark",
-              "value": 2.1159647699278138e-06,
-              "golden": null
-            }
-          ]
-        },
-        {
-          "rel": "figures/gaze_holding_flash_cascade.png",
-          "title": "Gaze-Holding Cascade \u2014 flashed target (debug)",
-          "description": "One 40\u00b0 eccentric hold in the dark with the target genuinely flashed (20 ms every 1 s). Rows: visibility through the retinal cascade, the position signal it carries, the retinal MOTION channel (the check that the strobe suppresses motion, not just position), target working memory, the saccade generator, burst + NI, and eye position.",
-          "expected": "Retinal target motion stays ~0 between flashes even as the eye moves, so nothing drives pursuit \u2014 the strobe suppresses motion, not merely position. Each flash produces an attenuated visibility pulse and a brief position sample; working memory holds the target across the dark gaps; the integrator holds gaze open-loop between flashes. Flash duration matters: a 20 ms pulse reaches ~0.40 of full visibility through the 6-stage cascade, a 10 ms pulse only ~0.21.",
-          "citation": "Becker & Klein (1973) Vision Res 13:1021",
-          "type": "cascade",
           "ref_rel": "",
           "diff_status": "no-ref",
           "diff": null,
