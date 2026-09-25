@@ -63,6 +63,7 @@ import diffrax
 
 from oculomotor import config as _config
 from oculomotor.sim.kinematics import KinematicTrajectory, TargetTrajectory, build_kinematics, build_target
+from oculomotor.sim.kinematics import _central_diff
 from oculomotor.models.sensory_models.retina import ypr_to_xyz, xyz_to_ypr
 from oculomotor.models.plant_models.readout import rotation_matrix as _rotation_matrix
 
@@ -490,7 +491,6 @@ def ODE_ocular_motor(t, state, args):
      lens_L_interp, lens_R_interp,
      scene_present_L_interp, scene_present_R_interp,
      target_present_L_interp, target_present_R_interp,
-     target_strobed_interp,
      noise_canal_interp, noise_slip_interp, noise_pos_interp,
      noise_vel_interp,
      noise_acc_interp,
@@ -517,12 +517,11 @@ def ODE_ocular_motor(t, state, args):
     scene_present_R  = scene_present_R_interp.evaluate(t)
     target_present_L = target_present_L_interp.evaluate(t)
     target_present_R = target_present_R_interp.evaluate(t)
-    target_strobed   = target_strobed_interp.evaluate(t)
     lens_L           = lens_L_interp.evaluate(t)
     lens_R           = lens_R_interp.evaluate(t)
 
     # ── Sensory: read delayed cascade outputs ────────────────────────────────
-    sensory_out = sensory_model.read_outputs(state.sensory, theta.sensory, target_strobed)
+    sensory_out = sensory_model.read_outputs(state.sensory, theta.sensory)
 
     # ── Sensory noise ─────────────────────────────────────────────────────────
     # Canal + retinal OU noise (pre-generated). See _add_sensory_noise: the visual
@@ -581,7 +580,7 @@ def ODE_ocular_motor(t, state, args):
         p_target_R, dp_dt_R,
         x_acc_eff_L, x_acc_eff_R,
         scene_present_L, scene_present_R,
-        target_present_L, target_present_R, target_strobed,
+        target_present_L, target_present_R,
         theta.sensory)
 
     return SimState(
@@ -608,7 +607,6 @@ def simulate(
     target_present_array=None,
     target_present_L_array=None,
     target_present_R_array=None,
-    target_strobed_array=None,
     # ── Optical interventions (time-varying, per-eye stimulus arrays) ─────────
     prism_L_array=None,     # (T, 3) prism deviation [yaw, pitch, roll] deg, L eye. None → no prism.
     prism_R_array=None,     # (T, 3) prism deviation [yaw, pitch, roll] deg, R eye. None → no prism.
@@ -646,7 +644,6 @@ def simulate(
         scene_present_L/R_array: per-eye override. None → scene_present_array.
         target_present_array:   (T,) in [0,1]. None → 1.0 (target always visible).
         target_present_L/R_array: per-eye override.
-        target_strobed_array:   (T,) ∈ {0,1}. None → 0.
         max_steps:  ODE solver step budget.
         sim_config: SimConfig — solver settings. Default: SIM_CONFIG_DEFAULT.
         return_states: if True, return full SimState trajectory instead of
@@ -691,16 +688,17 @@ def simulate(
     tg_both = jnp.asarray(target_present_array, dtype=jnp.float32) if target_present_array is not None else jnp.ones(T, dtype=jnp.float32)
     tg_L = jnp.asarray(target_present_L_array, dtype=jnp.float32) if target_present_L_array is not None else tg_both
     tg_R = jnp.asarray(target_present_R_array, dtype=jnp.float32) if target_present_R_array is not None else tg_both
-
-    # ── Strobe flag ───────────────────────────────────────────────────────────
-    ts = jnp.asarray(target_strobed_array, dtype=jnp.float32) if target_strobed_array is not None else jnp.zeros(T, dtype=jnp.float32)
+    # (A strobe is a flash train ON these presence arrays — sim.stimuli.strobe_train.)
 
     # ── Extract trajectory arrays ─────────────────────────────────────────────
     head_q = jnp.asarray(head.rot_pos, dtype=jnp.float32)   # (T,3) deg
     head_w = jnp.asarray(head.rot_vel, dtype=jnp.float32)   # (T,3) deg/s
     head_x = jnp.asarray(head.lin_pos, dtype=jnp.float32)   # (T,3) m
     head_v = jnp.asarray(head.lin_vel, dtype=jnp.float32)   # (T,3) m/s
-    head_a = jnp.asarray(head.lin_acc, dtype=jnp.float32)   # (T,3) m/s²
+    # Head linear acceleration is ALWAYS d/dt of head_v (world frame), never read
+    # from head.lin_acc, so the otolith's GIA and the retina's v_head can't disagree.
+    head_a = jnp.asarray(_central_diff(np.asarray(head.lin_vel), np.asarray(t_array)),
+                         dtype=jnp.float32)                  # (T,3) m/s²
 
     scene_q = jnp.asarray(scene.rot_pos, dtype=jnp.float32)
     scene_w = jnp.asarray(scene.rot_vel, dtype=jnp.float32)
@@ -811,7 +809,6 @@ def simulate(
         lens_R_arr = _prepend(lens_R_arr[:, None])[:, 0]
         sg_L = _prepend(sg_L[:, None])[:, 0]; sg_R = _prepend(sg_R[:, None])[:, 0]
         tg_L = _prepend(tg_L[:, None])[:, 0]; tg_R = _prepend(tg_R[:, None])[:, 0]
-        ts   = _prepend(ts[:, None])[:, 0]
 
         _z6 = jnp.zeros((warmup_T, 6))
         _z3 = jnp.zeros((warmup_T, 3))
@@ -844,7 +841,6 @@ def simulate(
     lens_R_interp      = _interp(lens_R_arr)
     sp_L_interp     = _interp(sg_L);    sp_R_interp  = _interp(sg_R)
     tp_L_interp     = _interp(tg_L);    tp_R_interp  = _interp(tg_R)
-    ts_interp       = _interp(ts)
     noise_canal_interp = _interp(noise_canal)
     noise_slip_interp  = _interp(noise_slip)
     noise_pos_interp   = _interp(noise_pos)
@@ -855,7 +851,7 @@ def simulate(
     # ── Initial state ─────────────────────────────────────────────────────────
     sensory_x0 = sensory_model.State(
         canal    = _canal.rest_state(),
-        otolith  = _otolith.rest_state(),   # both sides settled to gravity
+        otolith  = _otolith.rest_state(params.sensory),   # both sides settled to gravity
         retina_L = _retina.rest_state(),   # incl. luminance register (dark → 0)
         retina_R = _retina.rest_state(),
     )
@@ -897,7 +893,7 @@ def simulate(
         target_p_R_interp, target_dv_R_interp,
         prism_L_interp, prism_R_interp,
         lens_L_interp, lens_R_interp,
-        sp_L_interp, sp_R_interp, tp_L_interp, tp_R_interp, ts_interp,
+        sp_L_interp, sp_R_interp, tp_L_interp, tp_R_interp,
         noise_canal_interp, noise_slip_interp, noise_pos_interp,
         noise_vel_interp,
         noise_acc_interp,

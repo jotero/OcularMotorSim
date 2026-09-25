@@ -179,8 +179,13 @@ function valueFields(ch, type) {
   if (ch === 'head')       f.push(['xv','x vel (m/s)'],['yv','y vel'],['zv','z vel']);
   return f;
 }
-const VISUAL_BOOLS = [['scene_present','scene present',true],['target_present','target present',true],
-                      ['cover_L','cover L',false],['cover_R','cover R',false],['target_strobed','strobed',false]];
+// Scene / target visibility: yes / no / strobe (a genuine flash train, see sim.stimuli.strobe_train).
+const VISIBILITY   = [['scene_present','scene'],['target_present','target']];
+const VIS_OPTIONS  = [['yes',true],['no',false],['strobe','strobe']];
+const STROBE_DEF   = {strobe_hz:1, strobe_ms:20};
+const VISUAL_BOOLS = [['cover_L','cover L',false],['cover_R','cover R',false]];
+const visVal   = v => (v==null) ? true : (v==='strobe' ? 'strobe' : !!v);   // model value → true/false/'strobe'
+const anyStrobe = seg => VISIBILITY.some(([k]) => visVal(seg[k])==='strobe');
 
 // ── State: ONE timeline of phases; each phase carries every channel ──
 const newPhase = () => ({ duration_s:1, head:{type:'constant'}, target:{type:'constant'}, scene:{type:'constant'}, visual:{} });
@@ -271,15 +276,16 @@ function ovStrip(title, t, lines, total, bnds) {
 }
 function ovGantt(spans, total) {
   const W=1000,H=46,pad=5, sx=v=>pad+(W-2*pad)*(v/total);
-  const rows=[{label:'scene',on:v=>v.scene_present==null?true:!!v.scene_present,c:'#9cc0e6'},
-              {label:'target',on:v=>v.target_present==null?true:!!v.target_present,c:'#8fce93'},
+  // on(v) → true (visible) / 'strobe' (drawn faded) / false
+  const rows=[{label:'scene',on:v=>visVal(v.scene_present),c:'#9cc0e6'},
+              {label:'target',on:v=>visVal(v.target_present),c:'#8fce93'},
               {label:'cover',on:v=>!!(v.cover_L||v.cover_R),c:'#e0a0a0'}];
   const rh=(H-2*pad)/rows.length; let g=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="ovsvg">`;
-  rows.forEach((r,ri)=>{ const y=pad+ri*rh; for(const s of spans) if(r.on(s.p.visual||{}))
-    g+=`<rect x="${sx(s.t0).toFixed(1)}" y="${(y+1).toFixed(1)}" width="${(sx(s.t1)-sx(s.t0)).toFixed(1)}" height="${(rh-2).toFixed(1)}" fill="${r.c}"/>`; });
+  rows.forEach((r,ri)=>{ const y=pad+ri*rh; for(const s of spans) { const on=r.on(s.p.visual||{}); if(on)
+    g+=`<rect x="${sx(s.t0).toFixed(1)}" y="${(y+1).toFixed(1)}" width="${(sx(s.t1)-sx(s.t0)).toFixed(1)}" height="${(rh-2).toFixed(1)}" fill="${r.c}"${on==='strobe'?' fill-opacity="0.35"':''}/>`; } });
   for(let i=1;i<spans.length;i++) g+=`<line x1="${sx(spans[i].t0).toFixed(1)}" y1="0" x2="${sx(spans[i].t0).toFixed(1)}" y2="${H}" stroke="#fff" vector-effect="non-scaling-stroke"/>`;
   g+='</svg>';
-  const leg='<span class="ovleg">'+rows.map(r=>`<b style="color:${r.c}">■ ${r.label}</b>`).join('')+'</span>';
+  const leg='<span class="ovleg">'+rows.map(r=>`<b style="color:${r.c}">■ ${r.label}</b>`).join('')+'<b>faded = strobe</b></span>';
   return `<div class="ovstrip"><div class="ovlab">visible ${leg}</div>${g}</div>`;
 }
 function drawOverview() {
@@ -350,6 +356,19 @@ function renderVisualRow(ph) {
   const rowc = el('div','chanrow'); rowc.append(el('span','clab','visible'));
   const seg = ph.visual || (ph.visual = {});
   const fields = el('div','row');
+  for (const [k,label] of VISIBILITY) {
+    const f = el('div','fld'); f.append(el('label',null,label));
+    const sel = el('select');
+    for (const [txt,val] of VIS_OPTIONS) { const o=el('option',null,txt); o.value=txt; if(visVal(seg[k])===val) o.selected=true; sel.append(o); }
+    sel.onchange = () => { seg[k] = VIS_OPTIONS.find(([t])=>t===sel.value)[1]; strobeBox.style.display = anyStrobe(seg)?'':'none'; sync(); };
+    f.append(sel); fields.append(f);
+  }
+  // Flash rate / duration — shared by every strobed field in this phase; hidden unless one is strobed.
+  const strobeBox = el('div','row');
+  strobeBox.append(numField(seg,'strobe_hz',`strobe Hz (${STROBE_DEF.strobe_hz})`),
+                   numField(seg,'strobe_ms',`flash ms (${STROBE_DEF.strobe_ms})`));
+  strobeBox.style.display = anyStrobe(seg)?'':'none';
+  fields.append(strobeBox);
   for (const [k,label,def] of VISUAL_BOOLS) {
     const f = el('div','fld chk'); const cb=el('input'); cb.type='checkbox';
     cb.checked = (k in seg)? !!seg[k] : def;
@@ -436,9 +455,13 @@ function segToJson(ch, dur, seg) {
 }
 function visualToJson(dur, seg) {
   const o = { duration_s:num(dur,1) };
-  o.scene_present  = (seg.scene_present==null)?true:!!seg.scene_present;
-  o.target_present = (seg.target_present==null)?true:!!seg.target_present;
-  if (seg.cover_L) o.cover_L=true; if (seg.cover_R) o.cover_R=true; if (seg.target_strobed) o.target_strobed=true;
+  o.scene_present  = visVal(seg.scene_present);
+  o.target_present = visVal(seg.target_present);
+  if (anyStrobe(seg)) {
+    if (seg.strobe_hz!=null) o.strobe_hz=num(seg.strobe_hz,STROBE_DEF.strobe_hz);
+    if (seg.strobe_ms!=null) o.strobe_ms=num(seg.strobe_ms,STROBE_DEF.strobe_ms);
+  }
+  if (seg.cover_L) o.cover_L=true; if (seg.cover_R) o.cover_R=true;
   if (Array.isArray(seg.prism_L)&&seg.prism_L.length===3&&seg.prism_L.some(x=>x)) o.prism_L=seg.prism_L;
   if (Array.isArray(seg.prism_R)&&seg.prism_R.length===3&&seg.prism_R.some(x=>x)) o.prism_R=seg.prism_R;
   return o;
@@ -504,7 +527,9 @@ function schemaSegToModel(ch, seg) {
 }
 function schemaVisualToModel(seg) {
   const m={};
-  for (const k of ['scene_present','target_present','cover_L','cover_R','target_strobed']) if (k in seg) m[k]=seg[k];
+  for (const k of ['scene_present','target_present','strobe_hz','strobe_ms','cover_L','cover_R']) if (k in seg) m[k]=seg[k];
+  // Legacy saved scenarios: target_strobed:true (old velocity-off flag) → a strobed target.
+  if (seg.target_strobed && m.target_present!==false) m.target_present='strobe';
   if (Array.isArray(seg.prism_L)) m.prism_L=seg.prism_L; if (Array.isArray(seg.prism_R)) m.prism_R=seg.prism_R;
   return m;
 }

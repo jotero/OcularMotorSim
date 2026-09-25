@@ -379,6 +379,12 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     head_ds  = head_pos[::step]
 
     ones = np.ones(len(t))
+    def _any_ds(mask):
+        # Frame is ON if ANY sample in its window is on — plain [::step] would drop
+        # brief events (a 10 ms strobe flash falls between 30-60 fps frames).
+        m = np.asarray(mask, bool); n = -(-len(m) // step)
+        m = np.concatenate([m, np.zeros(n * step - len(m), bool)])
+        return m.reshape(n, step).any(axis=1).astype(int)
     spL = np.array(sim_data.get('scene_present_L',  ones))
     spR = np.array(sim_data.get('scene_present_R',  ones))
     tpL = np.array(sim_data.get('target_present_L', ones))
@@ -410,7 +416,7 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
 
     if 'p_target' in sim_data and sim_data['p_target'] is not None:
         tgt = np.array(sim_data['p_target'])[::step]
-        target_present = ((tpL > 0.5) | (tpR > 0.5)).astype(int)[::step]
+        target_present = _any_ds((tpL > 0.5) | (tpR > 0.5))
         out['target']         = [[round(float(v), 4) for v in row] for row in tgt.tolist()]
         out['target_present'] = target_present.tolist()
 
@@ -420,7 +426,7 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
     # Scene presence flag — ALWAYS emitted (not gated on scene motion) so the viewer
     # can darken the backdrop whenever the scene is off, e.g. VOR / OKAN in the dark
     # where there is no scene_vel at all.
-    out['scene_present'] = ((spL > 0.5) | (spR > 0.5)).astype(int)[::step].tolist()
+    out['scene_present'] = _any_ds((spL > 0.5) | (spR > 0.5)).tolist()
 
     # Scene angular position (integrate scene velocity) for the world dot-cloud —
     # only when the scene is actually moving (OKN).

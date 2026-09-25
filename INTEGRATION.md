@@ -53,7 +53,7 @@ class RetinaOut(NamedTuple):
     scene_angular_vel: jnp.ndarray  # (3,) [yaw, pitch, roll] deg/s — gated by scene_visible + saturated
     scene_linear_vel:  jnp.ndarray  # (3,) [x, y, z] m/s (head frame, per-eye) — gated by scene_visible
     target_pos:        jnp.ndarray  # (3,) [yaw, pitch, 0] deg — gated by target_visible
-    target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] deg/s — gated by target_motion_vis + saturated
+    target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] deg/s — gated by target_visible + saturated
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
     target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf
     defocus:           jnp.ndarray  # scalar — delayed defocus (D)
@@ -192,8 +192,7 @@ acc_x   = jnp.array([params.brain.tonic_acc])
 # ── Resting canal + otolith baseline (upright head, no acceleration) ───────
 # read_outputs fills canal afferents and the head-frame GIA (gravity) correctly.
 _base = sensory_model.read_outputs(
-    sensory_model.rest_state(), params.sensory,
-    q_head=jnp.zeros(3), a_head=jnp.zeros(3))
+    sensory_model.rest_state(params.sensory), params.sensory)
 canal_rest, otolith_rest = _base.canal, _base.otolith
 
 # ── Your retinal front-end ─────────────────────────────────────────────────

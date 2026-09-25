@@ -62,6 +62,10 @@ class SensoryParams(NamedTuple):
     # running estimate of GIA (small lag + light noise smoothing), NOT a slow
     # adaptation; this state is what the gravity estimator reads.
     tau_oto:            float       = 0.02   # otolith GIA-tracking TC (s); short → tracks GIA closely
+    # Physical gravity magnitude, world up (+y). 0 → orbital microgravity; parabolic
+    # flight needs no change here — its free-fall arc is a head trajectory (v_head).
+    # The brain's internal-model G0 (perception_self_motion) stays at 9.81 on purpose.
+    gravity:            float       = 9.81   # m/s²
 
     # Visual pathway — sensor-side parameters only. The brain-side LP smoothing
     # TCs (tau_vis_smooth_*) and the binocular-fusion-policy parameters (npc /
@@ -148,11 +152,15 @@ class State(NamedTuple):
     retina_R: _retina.State     # (91,)  per-eye sharp cascade + luminance — right eye
 
 
-def rest_state():
-    """Initial sensory state (otolith starts settled to gravity, others zero)."""
+def rest_state(sensory_params=None):
+    """Initial sensory state (otolith starts settled to gravity, others zero).
+
+    Pass sensory_params so the otolith settles to SensoryParams.gravity
+    (None → 1 g).
+    """
     return State(
         canal    = _canal.rest_state(),
-        otolith  = _otolith.rest_state(),
+        otolith  = _otolith.rest_state(sensory_params),
         retina_L = _retina.rest_state(),
         retina_R = _retina.rest_state(),
     )
@@ -181,15 +189,12 @@ class SensoryOutput(NamedTuple):
     retina_R:  RetinaOut             # delayed per-eye signals (incl. luminance) — right eye
 
 
-def read_outputs(state, sensory_params, target_strobed=0.0):
+def read_outputs(state, sensory_params):
     """Read all sensory outputs from the current state (pure state readout).
 
     Args:
         state:          sensory_model.State
         sensory_params: SensoryParams
-        target_strobed: scalar strobe gate ∈ [0,1] (global, both eyes). Needed only
-                        for RetinaOut.target_motion_visible, which is algebraic
-                        rather than cascaded. Defaults to 0 (= not strobed).
 
     Returns:
         SensoryOutput with delayed per-eye signals.
@@ -200,8 +205,8 @@ def read_outputs(state, sensory_params, target_strobed=0.0):
     return SensoryOutput(
         canal    = _canal.read_outputs(state.canal, sensory_params),
         otolith  = _otolith.read_outputs(state.otolith),
-        retina_L = _retina.read_outputs(state.retina_L, target_strobed),
-        retina_R = _retina.read_outputs(state.retina_R, target_strobed),
+        retina_L = _retina.read_outputs(state.retina_L),
+        retina_R = _retina.read_outputs(state.retina_R),
     )
 
 
@@ -223,7 +228,7 @@ def step(state,
          x_acc_eff_L, x_acc_eff_R,
          # ── Visibility flags ──────────────────────────────────────────────────
          scene_present_L, scene_present_R,
-         target_present_L, target_present_R, target_strobed,
+         target_present_L, target_present_R,
          # ── Parameters ───────────────────────────────────────────────────────
          sensory_params):
     """Single ODE step for the sensory subsystem (canal + otolith + per-eye retina).
@@ -245,12 +250,12 @@ def step(state,
     dretina_L = _retina.step(
         state.retina_L, eye_off_L, q_head, w_head, x_head, v_head,
         q_eye_L, w_eye_L, w_scene_L, v_scene_L, p_target_L, dp_dt_L,
-        x_acc_eff_L, scene_present_L, target_present_L, target_strobed,
+        x_acc_eff_L, scene_present_L, target_present_L,
         sensory_params)
     dretina_R = _retina.step(
         state.retina_R, eye_off_R, q_head, w_head, x_head, v_head,
         q_eye_R, w_eye_R, w_scene_R, v_scene_R, p_target_R, dp_dt_R,
-        x_acc_eff_R, scene_present_R, target_present_R, target_strobed,
+        x_acc_eff_R, scene_present_R, target_present_R,
         sensory_params)
 
     # Per-eye afferent luminance (pupillary light reflex) is advanced inside each

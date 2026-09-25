@@ -100,7 +100,7 @@ tr:last-child { border-bottom: none; }
     <a href="#sensoryparams">SensoryParams</a>
     <a href="#sensoryparams-canals" style="padding-left:32px;font-size:11px;color:#aaa">Canals <span style="color:#666">(4)</span></a>
     <a href="#sensoryparams-self_motion_estimation" style="padding-left:32px;font-size:11px;color:#aaa">Self Motion Estimation <span style="color:#666">(1)</span></a>
-    <a href="#sensoryparams-otolith" style="padding-left:32px;font-size:11px;color:#aaa">Otolith <span style="color:#666">(1)</span></a>
+    <a href="#sensoryparams-otolith" style="padding-left:32px;font-size:11px;color:#aaa">Otolith <span style="color:#666">(2)</span></a>
     <a href="#sensoryparams-visual" style="padding-left:32px;font-size:11px;color:#aaa">Visual <span style="color:#666">(5)</span></a>
     <a href="#sensoryparams-noise" style="padding-left:32px;font-size:11px;color:#aaa">Noise <span style="color:#666">(5)</span></a>
     <a href="#sensoryparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(3)</span></a>
@@ -120,9 +120,9 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-09-23 10:28</strong> &nbsp;|&nbsp;
-      Version: <strong>2ac900d</strong> &nbsp;|&nbsp;
-      Schema: <strong>D:\OneDrive\UC Berkeley\OMlab - Documents\JOM\Code\OcularMotorSim\src\oculomotor\schema\parameters_schema.yaml</strong>
+      Generated: <strong>2026-09-25 15:45</strong> &nbsp;|&nbsp;
+      Version: <strong>4ccbd33-dirty</strong> &nbsp;|&nbsp;
+      Schema: <strong>/Users/jorge/Library/CloudStorage/OneDrive-SharedLibraries-UCBerkeley/OMlab - JOM/Code/OcularMotorSim/src/oculomotor/schema/parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
     <div id="match-count" class="match-count"></div>
@@ -1918,7 +1918,7 @@ tr:last-child { border-bottom: none; }
   </section>
     
   <section class="section" id="sensoryparams">
-    <h2>SensoryParams <small style="font-size:12px;font-weight:400;color:#888">(24 fields)</small></h2>
+    <h2>SensoryParams <small style="font-size:12px;font-weight:400;color:#888">(25 fields)</small></h2>
     <p class="desc">Peripheral sensor parameters — canal/otolith dynamics, visual delay, retinal noise, IPD.</p>
     
     <div class="subsection" id="sensoryparams-canals">
@@ -2004,7 +2004,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="sensoryparams-otolith">
-      <h3>Otolith <small style="font-size:11px;font-weight:400;color:#888">(1 field)</small></h3>
+      <h3>Otolith <small style="font-size:11px;font-weight:400;color:#888">(2 fields)</small></h3>
       <table class="param-table">
         <thead><tr>
           <th style="width:160px">Parameter</th>
@@ -2023,6 +2023,16 @@ tr:last-child { border-bottom: none; }
           <td class="range-cell"></td>
           <td class="desc-cell"><p>Otolith adaptation TC. Large value → near-DC pass — otoliths report sustained gravito-inertial force with little adaptation.</p><div class="refs">Fernandez & Goldberg (1976)</div></td>
           <td class="anatomy-cell">Utricle/saccule afferent low-pass adaptation</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td class="param-name">gravity</td>
+          <td><span class="default">9.81</span></td>
+          <td class="units">m/s²</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Magnitude of gravity, along world up (+y). The otolith senses f = R(q_head)ᵀ · ([0, gravity, 0] + a_head), with a_head = d/dt v_head. Set 0 for orbital microgravity (3.71 for Mars). Parabolic flight needs no change: its free-fall arc is a head trajectory (a_head = −g → f = 0). The brain's internal-model G0 (perception_self_motion) deliberately stays at 9.81, so a non-default value creates the sensory/internal-model mismatch behind microgravity orientation effects.</p></td>
+          <td class="anatomy-cell">Physical gravity (environment, not physiology)</td>
           <td></td>
         </tr>
         </tbody>

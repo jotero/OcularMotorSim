@@ -1,12 +1,39 @@
-"""Visual-flags segment builder — the only stimulus helper still in this module.
+"""Visibility-flag builders — the only stimulus helpers still in this module.
 
 All kinematic stimulus construction (head, scene, target) has moved to
-``oculomotor.sim.kinematics``.  This module retains only the per-eye
-visibility-flag builder used by the LLM pipeline.
+``oculomotor.sim.kinematics``.  This module retains the per-eye visibility-flag
+builders used by the LLM pipeline, plus ``strobe_train`` — THE way to strobe a
+target or a scene (a genuine flash train on target_present / scene_present;
+there is no separate strobe flag).
 """
 
 import numpy as np
 import jax.numpy as jnp
+
+STROBE_HZ_DEFAULT = 1.0    # flashes per second
+STROBE_MS_DEFAULT = 20.0   # flash duration (ms)
+
+
+def strobe_train(t, rate_hz: float = STROBE_HZ_DEFAULT, flash_ms: float = STROBE_MS_DEFAULT,
+                 t0: float = 0.0) -> np.ndarray:
+    """Stroboscopic visibility: (T,) float32 in {0, 1}, 1 during each flash.
+
+    Flashes start at t0 and repeat every 1/rate_hz s, each lasting flash_ms.
+    Before t0 the array is 0.  Use as target_present / scene_present (or a
+    per-eye override) — between flashes the stimulus is genuinely absent, so
+    position is only sampled at the flashes and there is no usable motion signal.
+    """
+    t     = np.asarray(t, dtype=np.float64)
+    rel   = t - t0
+    phase = np.mod(np.maximum(rel, 0.0), 1.0 / rate_hz)
+    return ((rel >= 0.0) & (phase < flash_ms * 1e-3)).astype(np.float32)
+
+
+def _visibility(value, t_seg, rate_hz, flash_ms):
+    """Segment visibility (True / False / 'strobe') → (T_seg,) float32 array."""
+    if value == 'strobe':
+        return strobe_train(t_seg, rate_hz, flash_ms)
+    return np.full(len(t_seg), float(bool(value)), dtype=np.float32)
 
 
 def build_cover_flags(
@@ -44,12 +71,16 @@ def build_visual_flags(
     segments,   # list[VisualFlagsSegment]
     total_T: int,
     dt: float = 0.001,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Convert VisualFlagsSegments to per-eye visual flag + cover arrays.
 
     scene_present_L/R and target_present_L/R default to the segment's scene_present /
     target_present value when the per-eye override fields are None — enabling monocular
     occlusion and cover-test scenarios.
+
+    Each visibility value is True / False / 'strobe'.  'strobe' expands to a flash
+    train (strobe_train) at the segment's strobe_hz / strobe_ms, phase-locked to
+    the segment start.
 
     cover_L/cover_R are the high-level cover intent: when set, that eye's scene AND
     target are forced off for the simulation (the eye sees nothing), and a cover
@@ -61,31 +92,29 @@ def build_visual_flags(
         scene_present_R:  (T,) float32 in [0, 1] — R eye scene visibility
         target_present_L: (T,) float32 in [0, 1] — L eye target visibility
         target_present_R: (T,) float32 in [0, 1] — R eye target visibility
-        target_strobed:   (T,) float32 in {0, 1} — 1 = stroboscopic (velocity absent)
         cover_L:          (T,) float32 in {0, 1} — 1 = left eye covered
         cover_R:          (T,) float32 in {0, 1} — 1 = right eye covered
     """
-    spL_chunks, spR_chunks, tpL_chunks, tpR_chunks, ts_chunks = [], [], [], [], []
+    spL_chunks, spR_chunks, tpL_chunks, tpR_chunks = [], [], [], []
     cvL_chunks, cvR_chunks = [], []
     for seg in segments:
-        T   = max(1, round(seg.duration_s / dt))
-        sp  = float(seg.scene_present)
-        spL = float(seg.scene_present_L)  if seg.scene_present_L  is not None else sp
-        spR = float(seg.scene_present_R)  if seg.scene_present_R  is not None else sp
-        tp  = float(seg.target_present)
-        tpL = float(seg.target_present_L) if seg.target_present_L is not None else tp
-        tpR = float(seg.target_present_R) if seg.target_present_R is not None else tp
+        T     = max(1, round(seg.duration_s / dt))
+        t_seg = np.arange(T) * dt
+        hz    = getattr(seg, 'strobe_hz', STROBE_HZ_DEFAULT)
+        ms    = getattr(seg, 'strobe_ms', STROBE_MS_DEFAULT)
+        def vis(v, fallback):
+            return _visibility(fallback if v is None else v, t_seg, hz, ms)
+        spL = vis(seg.scene_present_L,  seg.scene_present)
+        spR = vis(seg.scene_present_R,  seg.scene_present)
+        tpL = vis(seg.target_present_L, seg.target_present)
+        tpR = vis(seg.target_present_R, seg.target_present)
         # Cover is the high-level intent: occlude that eye entirely (scene+target off).
         cvL = 1.0 if getattr(seg, 'cover_L', False) else 0.0
         cvR = 1.0 if getattr(seg, 'cover_R', False) else 0.0
-        if cvL: spL = tpL = 0.0
-        if cvR: spR = tpR = 0.0
-        ts  = float(getattr(seg, 'target_strobed', False))
-        spL_chunks.append(np.full(T, spL, dtype=np.float32))
-        spR_chunks.append(np.full(T, spR, dtype=np.float32))
-        tpL_chunks.append(np.full(T, tpL, dtype=np.float32))
-        tpR_chunks.append(np.full(T, tpR, dtype=np.float32))
-        ts_chunks.append(np.full(T, ts,  dtype=np.float32))
+        if cvL: spL = tpL = np.zeros(T, dtype=np.float32)
+        if cvR: spR = tpR = np.zeros(T, dtype=np.float32)
+        spL_chunks.append(spL); spR_chunks.append(spR)
+        tpL_chunks.append(tpL); tpR_chunks.append(tpR)
         cvL_chunks.append(np.full(T, cvL, dtype=np.float32))
         cvR_chunks.append(np.full(T, cvR, dtype=np.float32))
 
@@ -93,7 +122,6 @@ def build_visual_flags(
     spR = np.concatenate(spR_chunks)
     tpL = np.concatenate(tpL_chunks)
     tpR = np.concatenate(tpR_chunks)
-    ts  = np.concatenate(ts_chunks)
     cvL = np.concatenate(cvL_chunks)
     cvR = np.concatenate(cvR_chunks)
 
@@ -103,7 +131,6 @@ def build_visual_flags(
 
     return (_fit1d(spL, total_T), _fit1d(spR, total_T),
             _fit1d(tpL, total_T), _fit1d(tpR, total_T),
-            _fit1d(ts,  total_T),
             _fit1d(cvL, total_T), _fit1d(cvR, total_T))
 
 

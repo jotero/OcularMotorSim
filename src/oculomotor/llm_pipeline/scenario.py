@@ -52,7 +52,7 @@ Per-body semantics
 from __future__ import annotations
 
 import math
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, Union
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -153,8 +153,14 @@ class BodySegment(BaseModel):
 
 # ── Visual flags ───────────────────────────────────────────────────────────────
 
+# Visibility of the scene or the target: on, off, or stroboscopic.
+Visibility = Union[bool, Literal['strobe']]
+
+
 class VisualFlagsSegment(BaseModel):
     """Scene / target visibility flags for one time segment.
+
+    Every visibility field is True (visible) / False (absent) / 'strobe'.
 
     scene_present  = is the room lit?  True → OKR and visual stabilisation active.
     target_present = is there a discrete foveal target?  True → pursuit and saccades active.
@@ -162,6 +168,13 @@ class VisualFlagsSegment(BaseModel):
     scene_present_L / scene_present_R   = per-eye scene override.
     target_present_L / target_present_R = per-eye target override.
                      None (default) = inherit the both-eye value.
+
+    STROBE: 'strobe' = a genuine flash train — the stimulus flashes on for strobe_ms
+    every 1/strobe_hz s (default 20 ms at 1 Hz), phase-locked to the segment start,
+    and is ABSENT between flashes.  Position is only sampled at the flashes and there
+    is no usable motion signal, so a strobed target drives saccades but not pursuit,
+    and a strobed room gives no OKR.  strobe_hz / strobe_ms apply to every strobed
+    field in the segment.
 
     COVER / EYE PATCH: use cover_L / cover_R — the high-level intent. Setting
     cover_R=True occludes the RIGHT eye completely: the runner forces that eye's
@@ -185,21 +198,35 @@ class VisualFlagsSegment(BaseModel):
     Smooth pursuit:        scene_present=True,  target_present=True
     Cover R eye (patch):   cover_R=True   (left eye keeps seeing)
     4Δ base-out R prism:   prism_R=[2.29, 0, 0]   (4 × 0.573°, horizontal)
-    Stroboscopic pursuit:  scene_present=True,  target_present=True, target_strobed=True
-                           (position visible → saccades; velocity absent → no pursuit drive)
+    Strobed target, dark:  scene_present=False, target_present='strobe'
+                           (flashes → saccades to it; no motion signal → no pursuit)
+    Strobe-lit room:       scene_present='strobe', target_present=False  (no OKN)
     """
-    duration_s:       float          = Field(gt=0, le=120, description="Duration of this segment (s).")
-    scene_present:    bool           = Field(default=True,  description="Both-eye shorthand: True = lit room → OKR active for both eyes.")
-    scene_present_L:  Optional[bool] = Field(default=None,  description="L-eye override. None = inherit scene_present. False = L eye in darkness.")
-    scene_present_R:  Optional[bool] = Field(default=None,  description="R-eye override. None = inherit scene_present. False = R eye in darkness.")
-    target_present:   bool           = Field(default=True,  description="Both-eye shorthand: True = target visible for both eyes.")
-    target_present_L: Optional[bool] = Field(default=None,  description="L-eye target override. None = inherit target_present.")
-    target_present_R: Optional[bool] = Field(default=None,  description="R-eye target override. None = inherit target_present.")
+    duration_s:       float                = Field(gt=0, le=120, description="Duration of this segment (s).")
+    scene_present:    Visibility           = Field(default=True,  description="Both-eye shorthand: True = lit room → OKR active for both eyes. False = darkness. 'strobe' = strobe-lit room (flashes; no OKR).")
+    scene_present_L:  Optional[Visibility] = Field(default=None,  description="L-eye override (True/False/'strobe'). None = inherit scene_present. False = L eye in darkness.")
+    scene_present_R:  Optional[Visibility] = Field(default=None,  description="R-eye override (True/False/'strobe'). None = inherit scene_present. False = R eye in darkness.")
+    target_present:   Visibility           = Field(default=True,  description="Both-eye shorthand: True = target visible for both eyes. False = no target. 'strobe' = flashing target (position at the flashes only, no motion signal).")
+    target_present_L: Optional[Visibility] = Field(default=None,  description="L-eye target override (True/False/'strobe'). None = inherit target_present.")
+    target_present_R: Optional[Visibility] = Field(default=None,  description="R-eye target override (True/False/'strobe'). None = inherit target_present.")
+    strobe_hz:        float                = Field(default=1.0,  gt=0, le=100, description="Flash rate for every 'strobe' field in this segment (flashes/s).")
+    strobe_ms:        float                = Field(default=20.0, gt=0, le=1000, description="Flash duration for every 'strobe' field in this segment (ms).")
     cover_L:          bool           = Field(default=False, description="Cover/patch the LEFT eye: forces its scene+target off (sim) and flags the avatar patch.")
     cover_R:          bool           = Field(default=False, description="Cover/patch the RIGHT eye: forces its scene+target off (sim) and flags the avatar patch.")
     prism_L:          Optional[list[float]] = Field(default=None, description="LEFT-eye prism deviation [yaw, pitch, roll] deg (head frame). None = no prism.")
     prism_R:          Optional[list[float]] = Field(default=None, description="RIGHT-eye prism deviation [yaw, pitch, roll] deg (head frame). None = no prism.")
-    target_strobed:   bool           = Field(default=False, description="Stroboscopic illumination: True = position signal present but velocity signal absent. Blocks pursuit drive while preserving saccadic targeting.")
+
+    @model_validator(mode='before')
+    @classmethod
+    def _legacy_target_strobed(cls, data):
+        # Saved scenarios from before the flash-train strobe carry
+        # `target_strobed: true` (position continuous, velocity off). That flag no
+        # longer exists; the closest meaning is a strobed target.
+        if isinstance(data, dict) and 'target_strobed' in data:
+            data = dict(data)
+            if data.pop('target_strobed') and data.get('target_present', True) is not False:
+                data['target_present'] = 'strobe'
+        return data
 
 
 # ── Patient (unchanged) ────────────────────────────────────────────────────────

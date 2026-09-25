@@ -41,6 +41,7 @@ from oculomotor.sim.simulator import (
     PARAMS_DEFAULT, with_brain, with_sensory, simulate, SimConfig,
 )
 from oculomotor.sim import kinematics as km
+from oculomotor.sim.stimuli import strobe_train, STROBE_HZ_DEFAULT, STROBE_MS_DEFAULT
 from oculomotor.analysis import (ax_fmt, ni_net, extract_spv_states, extract_sg,
                                  read_brain_decoded)
 from oculomotor.benchmarks.bench_metrics import Metric
@@ -55,6 +56,12 @@ ECCENTRICITIES = [-40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0]
 T_STEP  = 0.1    # s — target jumps to the eccentric position
 T_HOLD  = 6.0    # s — total record
 T_MEAS  = 2.0    # s — start of the measurement window (after the saccade settles)
+
+# The strobed target (both conditions): the standard strobe from sim.stimuli.
+FLASH_HZ  = STROBE_HZ_DEFAULT    # 1 Hz
+FLASH_MS  = STROBE_MS_DEFAULT    # 20 ms
+FLASH_PERIOD = 1.0 / FLASH_HZ   # s
+FLASH_ACQ = 1.0                  # s — target continuously on until here (acquisition)
 
 THETA = with_brain(with_sensory(PARAMS_DEFAULT, sigma_canal=0.0, sigma_pos=0.0,
                                 sigma_vel=0.0, sigma_slip=0.0), sigma_acc=0.0)
@@ -72,22 +79,26 @@ def _target_at(t_np, deg):
     return pt
 
 
-def _simulate_hold(deg, lit, t_np, present=None, strobed=1.0, key=0):
+def _flash_train(t_np):
+    """Strobed target: continuous until FLASH_ACQ (so the eye acquires it), then a
+    genuine flash train (stimuli.strobe_train defaults) — absent between flashes."""
+    p = strobe_train(t_np, FLASH_HZ, FLASH_MS, t0=FLASH_ACQ)
+    p[t_np < FLASH_ACQ] = 1.0
+    return p
+
+
+def _simulate_hold(deg, lit, t_np, present=None, key=0):
     """Raw simulation of an eccentric hold — returns the full SimState.
 
-    present: (T,) target_present schedule. None → continuously present. Pass a
-             pulse train here for a GENUINE strobe (the target is actually absent
-             between flashes) as opposed to `strobed`, which merely suppresses the
-             target's velocity channel while position stays continuously visible.
+    present: (T,) target_present schedule. None → the strobed target (_flash_train).
     """
     T = len(t_np)
     scene = np.ones(T, np.float32) if lit else np.zeros(T, np.float32)
     if present is None:
-        present = np.ones(T, np.float32)
+        present = _flash_train(t_np)
     return simulate(THETA, t_np,
                     target=km.build_target(t_np, lin_pos=_target_at(t_np, deg),
                                            lin_vel=np.zeros((T, 3), np.float32)),
-                    target_strobed_array=np.full(T, float(strobed), np.float32),
                     scene_present_array=scene,
                     target_present_array=np.asarray(present, np.float32),
                     max_steps=int(T * 1.1) + 1000,
@@ -99,9 +110,9 @@ def _simulate_hold(deg, lit, t_np, present=None, strobed=1.0, key=0):
 def _run_hold(deg, lit, key=0):
     """Hold gaze at `deg`; return (t, eye_yaw, spv_yaw, ni_yaw).
 
-    The target is strobed in BOTH conditions (lin_vel = 0 and target_strobed = 1)
-    so a stationary dot never injects a velocity transient into the pursuit
-    channel; the light/dark difference is then purely the full-field scene.
+    The target is strobed (a flash train) in BOTH conditions so a stationary dot
+    carries no usable motion signal into the pursuit channel; the light/dark
+    difference is then purely the full-field scene.
     """
     t_np = np.arange(0.0, T_HOLD, DT)
     st = _simulate_hold(deg, lit, t_np, key=key)
@@ -294,19 +305,7 @@ def _drift_vs_position(show):
 # survives, where it is attenuated, and what holds the position between flashes.
 
 FLASH_DEG    = 40.0
-FLASH_MS     = 20.0     # 10 ms only reaches ~0.21 of full delayed target_visible
-FLASH_PERIOD = 1.0
 FLASH_TEND   = 10.0
-FLASH_ACQ    = 1.0      # target continuously on until here, so the eye acquires first
-
-
-def _flash_train(t_np, on_ms=FLASH_MS, period=FLASH_PERIOD, acq=FLASH_ACQ):
-    """Continuous during acquisition, then `on_ms` flashes every `period`."""
-    p = np.zeros(len(t_np), np.float32)
-    p[(t_np >= T_STEP) & (t_np < acq)] = 1.0
-    phase = np.mod(t_np - acq, period)
-    p[(t_np >= acq) & (phase < on_ms * 1e-3)] = 1.0
-    return p
 
 
 def _flash_cascade(show):
@@ -314,9 +313,7 @@ def _flash_cascade(show):
 
     t_np   = np.arange(0.0, FLASH_TEND, DT)
     flash  = _flash_train(t_np)
-    # strobed=0: the flash train IS the strobe. Adding the flag on top would also
-    # kill the velocity channel during the flashes themselves.
-    st     = _simulate_hold(FLASH_DEG, lit=False, t_np=t_np, present=flash, strobed=0.0)
+    st     = _simulate_hold(FLASH_DEG, lit=False, t_np=t_np, present=flash)
 
     eye  = (np.array(st.plant.left[:, 0]) + np.array(st.plant.right[:, 0])) / 2.0
     ret  = st.sensory.retina_L
@@ -334,9 +331,6 @@ def _flash_cascade(show):
     tvel_ret  = np.array(ret.target_vel)[:, -3]
     tvel_cyc  = (x_cyc @ np.array(pc_mod.C_vel).T)[:, 0]
     slip_cyc  = (x_cyc @ np.array(pc_mod.C_slip).T)[:, 0]
-    # (RetinaOut.target_motion_visible is algebraic, not a stored state, so it is
-    #  not in the trajectory. With strobed=0 it equals target_visible in row 1:
-    #  here the motion gate IS the visibility gate, which is the point.)
     pu_net    = np.array(read_brain_decoded(st, THETA).pu.net)[:, 0]
     eye_vel   = np.gradient(eye, DT)
 

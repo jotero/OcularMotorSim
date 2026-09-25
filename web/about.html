@@ -132,7 +132,8 @@
     <tr><td>scene_present_{L,R}<br>target_present_{L,R}</td><td>per-eye overrides of the above</td></tr>
     <tr><td>cover_L / cover_R</td><td>patch (occlude) an eye — it goes dark, vergence drifts toward phoria</td></tr>
     <tr><td>prism_L / prism_R</td><td>prism over an eye: [yaw, pitch, roll] deviation in deg (1Δ ≈ 0.57°)</td></tr>
-    <tr><td>target_strobed</td><td>stroboscopic target — position visible (saccades) but velocity absent (no pursuit)</td></tr>
+    <tr><td>"strobe"</td><td>any scene/target visibility field can also be "strobe": a flash train (default 20 ms every 1 s) — a strobed target drives saccades but not pursuit; a strobe-lit room gives no OKN</td></tr>
+    <tr><td>strobe_hz / strobe_ms</td><td>flash rate (Hz) and flash duration (ms) for the strobed fields of that segment</td></tr>
   </table>
 
   <h3>Patient</h3>

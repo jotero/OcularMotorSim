@@ -25,6 +25,7 @@ from oculomotor.sim.simulator import (
     with_uvh,
 )
 from oculomotor.sim import kinematics as km
+from oculomotor.sim.stimuli import strobe_train
 from oculomotor.analysis import (
     ax_fmt, vs_net, vs_null, ni_net, ni_null, extract_spv_states,
 )
@@ -53,21 +54,22 @@ C_ADAPT   = '#1a9641'
 def _sim_lit(params, t_arr, pt_3d, scene_on=True, key=0):
     """Simulate with a stationary fixation target in a lit environment.
 
-    The target is treated as a strobed dot (no motion feedback): lin_vel=0
-    suppresses the velocity spike from step changes in lin_pos, and
-    target_strobed_array=1 gates the pursuit motion channel so the pursuit
-    integrator is never driven by target velocity.  Position feedback
-    (pos_delayed → saccade generator) is unaffected.
+    The target is a strobed dot (no motion feedback): lin_vel=0 suppresses the
+    velocity spike from step changes in lin_pos, and the target is a genuine
+    flash train (stimuli.strobe_train, continuous for the first 1 s so the eye
+    acquires it) so the pursuit integrator gets no usable target-velocity drive.
+    Position is sampled at each flash (→ saccade generator).
     """
     T   = len(t_arr)
     t   = np.asarray(t_arr)
     sp  = np.ones(T, np.float32) if scene_on else np.zeros(T, np.float32)
     lv  = np.zeros((T, 3), np.float32)   # stationary target — zero velocity
+    tp  = strobe_train(t, t0=1.0)
+    tp[t < 1.0] = 1.0
     return simulate(params, t,
                     target=km.build_target(t, lin_pos=pt_3d, lin_vel=lv),
-                    target_strobed_array=np.ones(T, np.float32),
                     scene_present_array=sp,
-                    target_present_array=sp,
+                    target_present_array=sp * tp,
                     max_steps=int(T * 1.1) + 1000,
                     sim_config=SimConfig(warmup_s=0.0),
                     return_states=True,

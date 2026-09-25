@@ -46,6 +46,8 @@ class KinematicTrajectory:
     lin_pos: (T,3) float32  linear position  [x, y, z]          m
     lin_vel: (T,3) float32  linear velocity                     m/s
     lin_acc: (T,3) float32  linear acceleration                 m/s²
+                            (informational — simulate() re-derives it as
+                            d/dt lin_vel, so it can never disagree with lin_vel)
     """
     t:       np.ndarray
     rot_pos: np.ndarray
@@ -287,7 +289,7 @@ def _resolve_lin_dof(pos, vel, acc, t: np.ndarray, pos_0
         vel = np.asarray(vel, np.float64)
         p0  = np.asarray(pos_0, np.float64) if pos_0 is not None else np.zeros(vel.shape[-1] if vel.ndim > 1 else 1)
         pos = _cumtrapz(vel, t, x0=p0)
-        acc = _central_diff(vel, t) if acc is None else np.asarray(acc, np.float64)
+        acc = _central_diff(vel, t)   # always derived — a separate acc could contradict vel
     elif acc is not None:
         acc = np.asarray(acc, np.float64)
         vel = _cumtrapz(acc, t)
@@ -315,7 +317,8 @@ def build_kinematics(
         nothing given → zeros
 
     If both pos and vel/acc are provided, position takes precedence and the
-    others are re-derived from it to guarantee internal consistency.
+    others are re-derived from it to guarantee internal consistency.  Likewise
+    for linear motion, vel beats acc (acc is always re-derived from vel).
 
     Args:
         t:         (T,)   time array (s)

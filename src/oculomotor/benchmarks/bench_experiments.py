@@ -29,6 +29,7 @@ from oculomotor.models.brain_models.perception_cyclopean import (
 )
 from oculomotor.sim import kinematics as km
 from oculomotor.sim.kinematics import build_target
+from oculomotor.sim.stimuli import strobe_train
 from oculomotor.analysis import extract_spv_states, read_brain_acts
 
 SHOW  = '--show' in sys.argv
@@ -55,15 +56,14 @@ def _make_flags(t_np, cond, occ_eye):
     T    = len(t_np)
     ones = np.ones(T,  dtype=np.float32)
     off  = np.where(t_np >= _T_FIX, 0.0, 1.0).astype(np.float32)
-    no_strobe = np.zeros(T, dtype=np.float32)
 
     if cond == 'dark':
-        return off, off, no_strobe
+        return off, off
 
     if cond == 'pulsed':
         # 80 ms target ON, 900 ms target OFF (period 980 ms) after T_FIX.
         # Before T_FIX target is continuously on. Implemented via target_present
-        # pulsing — no strobe-flag mechanism (target_strobed stays 0).
+        # pulsing — a genuine flash train.
         T_ON     = 0.050
         T_PERIOD = 0.980
         rel_t  = t_np - _T_FIX
@@ -77,14 +77,14 @@ def _make_flags(t_np, cond, occ_eye):
     else:
         tL, tR = viewing, off
 
-    return tL, tR, no_strobe
+    return tL, tR
 
 
 def _run_cond(t_np, cond, occ_eye, *, theta_base, dist_m, lens_d, dark_tonic_verg):
     t  = jnp.array(t_np)
     T  = len(t_np)
     pt = jnp.tile(jnp.array([0.0, 0.0, dist_m]), (T, 1))
-    tL, tR, ts = _make_flags(t_np, cond, occ_eye)
+    tL, tR = _make_flags(t_np, cond, occ_eye)
     lens_arr = jnp.full((T,), lens_d, dtype=jnp.float32)
     # Dark condition: per-experiment override of tonic vergence to test how far
     # the eyes drift when nothing constrains them.
@@ -95,7 +95,6 @@ def _run_cond(t_np, cond, occ_eye, *, theta_base, dist_m, lens_d, dark_tonic_ver
         scene_present_array    = jnp.zeros(T),
         target_present_L_array = jnp.array(tL),
         target_present_R_array = jnp.array(tR),
-        target_strobed_array   = jnp.array(ts),
         lens_L_array           = lens_arr,
         lens_R_array           = lens_arr,
         return_states          = True,
@@ -188,7 +187,7 @@ def _occlusion(show, *, save_name, plot_title, dist_m, lens_d, theta_base, dark_
         cyc_defocus = np.array(pc_acts.defocus)                         # scalar LP
 
         # Row 0: target visibility per eye as colored patches (L on top, R on bottom)
-        tL_flag, tR_flag, _ts = flag_arrays[ci]
+        tL_flag, tR_flag = flag_arrays[ci]
         ax_vis = axes[0, ci]
         ax_vis.fill_between(t_np, 0.55, 1.0, where=tL_flag > 0.5,
                             color=C_L, alpha=0.7, step='post', label='L eye target on')
@@ -374,7 +373,12 @@ def _drift_quiver(show):
 
     def _run_condition(params, strobed=False):
         drifts = []
-        strobe_arr = jnp.ones(T) if strobed else jnp.zeros(T)
+        if strobed:   # genuine flash train, continuous for the first 1 s (acquisition)
+            tp = strobe_train(np.asarray(t), t0=1.0)
+            tp[np.asarray(t) < 1.0] = 1.0
+            tp = jnp.asarray(tp)
+        else:
+            tp = jnp.ones(T)
         for k, (px_deg, py_deg) in enumerate(targets_deg):
             wx = DEPTH * np.tan(np.radians(px_deg))
             wy = DEPTH * np.tan(np.radians(py_deg))
@@ -383,8 +387,7 @@ def _drift_quiver(show):
             states  = simulate(params, t,
                                target=target,
                                scene_present_array=jnp.ones(T),
-                               target_present_array=jnp.ones(T),
-                               target_strobed_array=strobe_arr,
+                               target_present_array=tp,
                                max_steps=int(DURATION / DT) + 2000,
                                return_states=True,
                                key=jax.random.PRNGKey(100 + k))

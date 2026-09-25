@@ -435,20 +435,9 @@ class RetinaOut(NamedTuple):
     scene_angular_vel: jnp.ndarray  # (3,) [yaw, pitch, roll] (deg/s) — gated by scene_visible + saturated
     scene_linear_vel:  jnp.ndarray  # (3,) [x, y, z] (m/s, head frame, per-eye) — gated by scene_visible
     target_pos:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg) — gated by target_visible
-    target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg/s) — gated by target_motion_vis + saturated
+    target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg/s) — gated by target_visible + saturated
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
-    target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf (NOT strobe-gated)
-    target_motion_visible: jnp.ndarray  # scalar — target_visible × (1 − target_strobed): is target
-                                    #   MOTION available? Separates "target is not moving" from
-                                    #   "motion signal is suppressed (strobed)" — target_visible
-                                    #   alone cannot, since both read visible=1, target_vel=0.
-                                    #   Algebraic, NOT cascaded (same treatment as
-                                    #   CyclopeanOut.target_fusable). NOTE: the strobe term is the
-                                    #   CURRENT flag, so under a time-varying strobe this is not
-                                    #   delay-matched to the target_vel cascade it describes.
-                                    #   Exposed for inspection only — no consumer gates on it yet
-                                    #   (cerebellum ec_correction / vpf_drive and the brain_model
-                                    #   pursuit slip drive still gate on target_visible).
+    target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf
     defocus:           jnp.ndarray  # scalar — delayed defocus (D)
     luminance:         jnp.ndarray  # scalar — afferent retinal luminance (~[0,1]) → pupil light reflex
 
@@ -458,7 +447,7 @@ def step(state,
          q_eye, w_eye,
          w_scene, v_scene, p_target, dp_dt,
          x_acc_eff,
-         scene_present, target_present, target_strobed,
+         scene_present, target_present,
          sensory_params):
     """Per-eye retina step: world_to_retina + sensor saturation + sharp cascade.
 
@@ -476,8 +465,9 @@ def step(state,
                          plant's accommodation already offset by any external lens
                          (simulator._apply_lens). refractive_error comes from
                          sensory_params.
-        scene_present, target_present: scalar visibility flags (this eye)
-        target_strobed:  scalar global strobe gate; (1−strobed) gates target_vel only
+        scene_present, target_present: scalar visibility flags (this eye). A strobe
+                         is a flash train on these (sim.stimuli.strobe_train) —
+                         there is no separate strobe gate.
         sensory_params:  SensoryParams — reads tau_vis_sharp, v_max_scene_vel,
                          v_max_target_vel, visual_field_limit, k_visual_field,
                          lum_scene, lum_target, tau_lum (luminance afferent)
@@ -497,11 +487,8 @@ def step(state,
         )
 
     # ── 2. Per-eye gating + sensor saturation ────────────────────────────────
-    # Strobe gate: only target_vel sees it (so SG still sees target_visible during
-    # strobed pursuit and can re-target accurately).
-    target_motion_vis  = target_vis * (1.0 - target_strobed)
     scene_angular_in   = velocity_saturation(scene_angular_vel * scene_vis, sensory_params.v_max_scene_vel)
-    target_vel_in      = velocity_saturation(target_vel * target_motion_vis, sensory_params.v_max_target_vel)
+    target_vel_in      = velocity_saturation(target_vel * target_vis, sensory_params.v_max_target_vel)
     scene_linear_in    = scene_linear_vel * scene_vis
     target_pos_in      = target_pos * target_vis
     # Retinal defocus (blur, D) is computed HERE from the optics — the dioptric
@@ -535,33 +522,22 @@ def step(state,
     return dstate
 
 
-def read_outputs(state, target_strobed=0.0):
+def read_outputs(state):
     """State readout — returns RetinaOut from a per-eye retina.State.
 
     Last n_axes of each cascade buffer = sharp-cascade output (delayed signal);
     luminance is the current 1-pole afferent register.
 
     Args:
-        state:          per-eye retina.State
-        target_strobed: scalar strobe gate ∈ [0,1], the same input `step` receives.
-                        Only used to report `target_motion_visible`, which is
-                        algebraic rather than cascaded and so cannot be recovered
-                        from state alone. Defaults to 0 (= not strobed), which
-                        makes target_motion_visible == target_visible — the
-                        correct answer whenever no strobe is in play, and it keeps
-                        external callers (see INTEGRATION.md) working unchanged.
+        state: per-eye retina.State
     """
-    target_visible = state.target_visible[-1]
     return RetinaOut(
         scene_angular_vel = state.scene_angular_vel[-3:],
         scene_linear_vel  = state.scene_linear_vel[-3:],
         target_pos        = state.target_pos[-3:],
         target_vel        = state.target_vel[-3:],
         scene_visible     = state.scene_visible[-1],
-        target_visible    = target_visible,
-        # Mirrors the gate `step` applies to target_vel (see target_motion_vis
-        # there); exposed here so downstream can SEE it instead of inferring it.
-        target_motion_visible = target_visible * (1.0 - target_strobed),
+        target_visible    = state.target_visible[-1],
         defocus           = state.defocus[-1],
         luminance         = state.luminance[-1],
     )

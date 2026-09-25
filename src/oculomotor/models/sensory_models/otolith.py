@@ -18,15 +18,17 @@ Anatomy summary
 
 ──────────────────────────────────────────────────────────────────────────
 Physical signal
-    GIA in head frame:  f(t) = g_head(t) + a_head(t)
-        g_head  — gravity resolved into head frame = R(q_head)ᵀ · g_world
-        a_head  — head linear acceleration (m/s²)
+    GIA in head frame:  f(t) = R(q_head)ᵀ · (g_world + a_head(t))
+        g_world — specific force of gravity at rest = [0, +gravity, 0] m/s²
+                  (sensory_params.gravity; 0 → microgravity)
+        a_head  — head linear acceleration, WORLD frame (m/s²).  Derived by the
+                  simulator as d/dt of v_head — never an independent input.
 
     Axis convention (left-handed world frame: x=right, y=up, z=forward):
         specific force is +y when head is upright (y=up)
-        g_world = [0, +9.81, 0] m/s²
 
-    At rest, upright: f = g_world = [0, +9.81, 0] m/s²
+    At rest, upright: f = g_world = [0, +9.81, 0] m/s²  (default gravity)
+    Free fall (a_head = −g_world, e.g. a parabolic-flight arc): f = 0
 
 ──────────────────────────────────────────────────────────────────────────
 SSM interface (follows canal.py convention)
@@ -58,8 +60,13 @@ from oculomotor.models.plant_models.readout import rotation_matrix
 
 # ── Sensor geometry ────────────────────────────────────────────────────────────
 
-G0        = 9.81   # standard gravity (m/s²)
-G_WORLD   = jnp.array([0., G0, 0.])   # specific force at rest, world frame (y=up)
+G0        = 9.81   # standard gravity (m/s²) — default of SensoryParams.gravity
+G_WORLD   = jnp.array([0., G0, 0.])   # specific force at rest, world frame (y=up), 1 g
+
+
+def g_world(sensory_params):
+    """Specific force of gravity at rest, world frame (y=up), from SensoryParams.gravity."""
+    return jnp.array([0., 1., 0.]) * sensory_params.gravity
 
 # Sensitivity matrices (per side): full 3-D, identity (all axes equally sensitive)
 SENS_LEFT  = jnp.eye(3)   # (3, 3)
@@ -91,9 +98,10 @@ class State(NamedTuple):
     x_R: jnp.ndarray   # (3,) right utricle/saccule LP state (m/s²)
 
 
-def rest_state():
-    """Initial state — both sides settled at upright gravity."""
-    return State(x_L=SENS_LEFT @ G_WORLD, x_R=SENS_RIGHT @ G_WORLD)
+def rest_state(sensory_params=None):
+    """Initial state — both sides settled at upright gravity (1 g if no params)."""
+    g = G_WORLD if sensory_params is None else g_world(sensory_params)
+    return State(x_L=SENS_LEFT @ g, x_R=SENS_RIGHT @ g)
 
 
 # ── GIA readout (running estimate → brain) ───────────────────────────────────────
@@ -124,15 +132,15 @@ def step(state, u, sensory_params):
     Args:
         state:          otolith.State  (x_L, x_R) bilateral adaptation states (m/s²)
         u:              (6,)  [a_head (3) | q_head (3)]
-                              a_head — head linear acceleration (m/s²)
+                              a_head — head linear acceleration, world frame (m/s²)
                               q_head — head orientation rotation vector (deg)
-        sensory_params: SensoryParams  (reads tau_oto)
+        sensory_params: SensoryParams  (reads tau_oto, gravity)
 
     Returns:
         dstate: otolith.State  state derivative (m/s³)
         f_gia:  (3,)           running GIA estimate → gravity_estimator (m/s²)
     """
-    a_head = u[:3]   # (3,) head linear acceleration (m/s²)
+    a_head = u[:3]   # (3,) head linear acceleration, world frame (m/s²)
     q_head = u[3:]   # (3,) head orientation rotation vector (deg)
 
     x_L = state.x_L
@@ -144,7 +152,7 @@ def step(state, u, sensory_params):
     # ypr_to_xyz convention: yaw→+y, pitch→−x, roll→+z (left-handed world frame).
     q_xyz = jnp.array([-q_head[1], q_head[0], q_head[2]])
     R     = rotation_matrix(q_xyz)          # (3,3) world←head rotation
-    f     = R.T @ G_WORLD + R.T @ a_head    # (3,) raw GIA, head frame
+    f     = R.T @ (g_world(sensory_params) + a_head)   # (3,) raw GIA, head frame
 
     # First-order tracking: each side runs a low-pass estimate of the GIA.
     # tau_oto is SHORT (light smoothing) so the estimate tracks GIA with a small

@@ -1544,6 +1544,19 @@ sensory.canal_floor:
 # SensoryParams — Otolith
 # ─────────────────────────────────────────────────────────────────────────────
 
+sensory.gravity:
+  group: otolith
+  units: "m/s²"
+  anatomy: "Physical gravity (environment, not physiology)"
+  description: |
+    Magnitude of gravity, along world up (+y). The otolith senses
+    f = R(q_head)ᵀ · ([0, gravity, 0] + a_head), with a_head = d/dt v_head.
+    Set 0 for orbital microgravity (3.71 for Mars). Parabolic flight needs no
+    change: its free-fall arc is a head trajectory (a_head = −g → f = 0).
+    The brain's internal-model G0 (perception_self_motion) deliberately stays
+    at 9.81, so a non-default value creates the sensory/internal-model mismatch
+    behind microgravity orientation effects.
+
 sensory.tau_oto:
   group: otolith
   units: "s"

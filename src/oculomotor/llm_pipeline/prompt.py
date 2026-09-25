@@ -80,25 +80,37 @@ time to settle and provides a clear pre-stimulus reference in the figure.
 
 ### visual: list of segments   — scene / target visibility flags
 
-  scene_present  = lit room?  True → OKR active. False → darkness.
-  target_present = discrete foveal target?  True → pursuit + saccades active.
+  Each visibility field takes one of THREE values: true / false / "strobe".
+  scene_present  = the room:   true → lit (OKR active). false → darkness. "strobe" → strobe-lit room.
+  target_present = the target: true → visible (pursuit + saccades). false → absent. "strobe" → flashing.
 
-  | Paradigm              | scene_present | target_present | target_strobed |
-  |-----------------------|:---:|:---:|:---:|
-  | VOR in the dark       | False | False | False |
-  | HIT (fixating dot)    | False | True  | False |
-  | VVOR / saccades       | True  | True  | False |
-  | OKN drum (no dot)     | True  | False | False |
-  | Smooth pursuit        | True  | True  | False |
-  | Pursuit in darkness   | False | True  | False |
-  | Stroboscopic / flashing / intermittent target | True | True | **True** |
+  | Paradigm                          | scene_present | target_present |
+  |-----------------------------------|:---:|:---:|
+  | VOR in the dark                   | false | false |
+  | HIT (fixating dot)                | false | true  |
+  | VVOR / saccades                   | true  | true  |
+  | OKN drum (no dot)                 | true  | false |
+  | Smooth pursuit                    | true  | true  |
+  | Pursuit in darkness               | false | true  |
+  | Flashing / strobed target, dark   | false | "strobe" |
+  | Flashing target in a lit room     | true  | "strobe" |
+  | Strobe-lit room (OKN abolished)   | "strobe" | false |
 
-  **target_strobed = True** — Use whenever the user says the target is "flashing",
-  "stroboscopic", "intermittent", "pulsed", or "strobed".
-  Effect: position signal is present (saccades can target it) but the velocity signal
-  is absent (no pursuit drive, no efference-copy contamination of the smooth-eye pathway).
-  This is distinct from target_present=False (target completely gone) — the target is
-  still visible as a flash, just not continuously illuminated.
+  **"strobe"** — a genuine flash train: the stimulus flashes on for strobe_ms every
+  1/strobe_hz s and is ABSENT in between (flashes are phase-locked to the segment start).
+  Position is only sampled at the flashes, and there is no usable motion signal: a strobed
+  target still drives saccades but not pursuit; a strobed room gives no OKR.
+  Use it whenever the user says "flashing", "stroboscopic", "strobed", "strobe light", or
+  "intermittently flashed".
+  - strobe_hz / strobe_ms (segment fields) set the flash rate and duration for every
+    "strobe" field in that segment. Defaults: 1 Hz, 20 ms. Take them from the user's words
+    ("4 Hz strobe" → strobe_hz: 4; "50 ms flashes" → strobe_ms: 50; "flashed every 500 ms"
+    → strobe_hz: 2). Keep strobe_ms below the flash period (1000/strobe_hz ms).
+  - To let the eye acquire the target first, start with a short segment where
+    target_present is true, then switch to "strobe" (see the example below).
+  - NOT strobe: a target that disappears for a gap and comes back (gap / memory-guided
+    paradigms, "target off for 500 ms") — that is a segment with target_present: false.
+    Use "strobe" only for a REPEATING flash train.
 
   **cover_L / cover_R = True** — Use for an eye patch / cover / occluder on one eye.
   This is the correct way to cover an eye: it occludes that eye completely (its scene
@@ -209,10 +221,10 @@ time to settle and provides a clear pre-stimulus reference in the figure.
   target: [{duration_s: 0.3, lin_z_0: 1.0, lin_x_0: 0.0},
            {duration_s: 4.7, lin_x_vel: 0.349}]   # 20 deg/s × π/180 × 1 m
   scene:  [{duration_s: 5}]
-  visual: [{duration_s: 0.3, scene_present: true, target_present: true, target_strobed: false},
-           {duration_s: 4.7, scene_present: true, target_present: true, target_strobed: true}]
+  visual: [{duration_s: 0.3, scene_present: true, target_present: true},
+           {duration_s: 4.7, scene_present: true, target_present: "strobe", strobe_hz: 4, strobe_ms: 20}]
   # Use panels: ['visual_flags', 'target_velocity', 'eye_position', 'eye_velocity', 'pursuit_drive', 'saccade_burst']
-  # Compare with target_strobed: false to show pursuit vs. saccade-only tracking
+  # Compare with target_present: true to show pursuit vs. saccade-only tracking
 
 ### Gap paradigm (fixation → 200 ms gap → saccade):
   head:   [{duration_s: 3}]

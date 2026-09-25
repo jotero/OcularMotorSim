@@ -138,19 +138,16 @@ _THETA_BASE = with_brain(_THETA_BASE, sigma_acc=0.0)
 # ── Stimulus arrays (numpy — recomputed once, deterministic per condition) ─────
 
 def _make_flags(t_np: np.ndarray, cond: str, occ_eye: str):
-    """Per-eye target-presence + strobe arrays — copy of bench_experiments logic."""
+    """Per-eye target-presence arrays — copy of bench_experiments logic (pulsed = flash train)."""
     rel_t = t_np - T_FIX
     on_off = np.where(rel_t < 0, 1.0, 0.0).astype(np.float32)
     if cond == 'continuous':
         viewing = np.ones_like(t_np, dtype=np.float32)
-        no_strobe = np.zeros_like(viewing)
     elif cond == 'pulsed':
         phase = np.mod(np.maximum(rel_t, 0.0), T_PERIOD)
         viewing = np.where(rel_t < 0, 1.0, (phase < T_ON).astype(np.float32)).astype(np.float32)
-        no_strobe = np.where(rel_t < 0, 0.0, 1.0).astype(np.float32)
     elif cond == 'dark':
         viewing = on_off
-        no_strobe = np.zeros_like(viewing)
     else:
         raise ValueError(f'unknown cond {cond}')
     off = on_off
@@ -158,16 +155,16 @@ def _make_flags(t_np: np.ndarray, cond: str, occ_eye: str):
         tL, tR = off, viewing
     else:
         tL, tR = viewing, off
-    return tL, tR, no_strobe
+    return tL, tR
 
 
 def _build_inputs(t_np: np.ndarray, cond: str, occ_eye: str, dist_m: float, lens_d: float):
     """Build all (constant) input arrays for one column."""
     T = len(t_np)
     pt = np.tile(np.array([0.0, 0.0, dist_m]), (T, 1)).astype(np.float32)
-    tL, tR, ts = _make_flags(t_np, cond, occ_eye)
+    tL, tR = _make_flags(t_np, cond, occ_eye)
     lens_arr = np.full((T,), lens_d, dtype=np.float32)
-    return pt, tL, tR, ts, lens_arr
+    return pt, tL, tR, lens_arr
 
 
 # ── Forward pass: params → 6 averaged (vergence, vergence_velocity) traces ─────
@@ -189,7 +186,7 @@ def _make_theta(p: dict, dist_m: float, lens_d: float, dark: bool):
     )
 
 
-def _simulate_column(theta, t_jnp, target, tL_jnp, tR_jnp, ts_jnp, lens_jnp):
+def _simulate_column(theta, t_jnp, target, tL_jnp, tR_jnp, lens_jnp):
     """Run one occlusion column and return per-eye eye-yaw time series.
 
     `target` is a pre-built TargetMotion (built outside jit because build_target
@@ -201,7 +198,6 @@ def _simulate_column(theta, t_jnp, target, tL_jnp, tR_jnp, ts_jnp, lens_jnp):
         scene_present_array    = jnp.zeros(t_jnp.shape[0]),
         target_present_L_array = tL_jnp,
         target_present_R_array = tR_jnp,
-        target_strobed_array   = ts_jnp,
         lens_L_array           = lens_jnp,
         lens_R_array           = lens_jnp,
         return_states          = True,
@@ -255,10 +251,10 @@ def prepare_stim(t_np: np.ndarray) -> dict:
         dist_m = _CONV_DIST_M if tag == 'conv' else _DIV_DIST_M
         lens_d = _CONV_LENS_D if tag == 'conv' else _DIV_LENS_D
         for occ_eye, _ in weights:
-            pt, tL, tR, ts, lens = _build_inputs(t_np, cond, occ_eye, dist_m, lens_d)
+            pt, tL, tR, lens = _build_inputs(t_np, cond, occ_eye, dist_m, lens_d)
             target = build_target(t_jnp, lin_pos=jnp.array(pt))   # outside jit
             cols[(tag, cond, occ_eye)] = (
-                target, jnp.array(tL), jnp.array(tR), jnp.array(ts), jnp.array(lens)
+                target, jnp.array(tL), jnp.array(tR), jnp.array(lens)
             )
     return {'t': t_jnp, 'col': cols}
 
