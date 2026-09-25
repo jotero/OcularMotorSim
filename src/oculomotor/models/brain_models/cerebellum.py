@@ -65,9 +65,14 @@ a residual MN-LP-scale (~5 ms) position lag of the eye behind NI_net — but
 that's ~5 ms on top of a 75–150 ms visual cascade, a small perturbation
 post-cascade.  So the cerebellum no longer keeps an internal eye model: it
 just rotates the predicted eye velocity through `ec_pos = NI_net` and uses
-`eye_vel_pred = ec_vel + fl_drive − ni_leak`, i.e. what the NI state actually
-does: the input it sees (≈ u_ni_in modulo Listing / direct-VOR) less the leak
-that fl_drive is cancelling.  No state.
+`eye_vel_pred = ec_vel` — the COMMANDED version velocity only.  No state.
+
+The EC holds what the brain commanded, never the system's imperfections: the
+uncancelled NI leak, VOR errors (head − w_est) and plant lag are deliberately
+left OUT, so they appear as retinal slip and a visible target lets pursuit /
+OKR correct them exactly once.  (Predicting the leak hid gaze-holding drift
+from pursuit; predicting ec_vel + fl_drive over-corrected into centrifugal
+drift.  Both were tried; see git history of this line.)
 
 This is the right scope-trade now that NERVE_MAX is bumped (so the FCP f-I
 clip doesn't engage during normal saccades) and the EC's visual delay
@@ -134,7 +139,7 @@ class State(NamedTuple):
     No internal eye-position forward model: the Robinson pulse-step inside
     the NI is assumed to (mostly) cancel the plant lag, so the cerebellum
     uses NI_net directly as its eye-position estimate for the head→eye
-    rotation, and the NI's velocity input `ec_vel + fl_drive` directly as
+    rotation, and the commanded version velocity `ec_vel` directly as
     its eye-velocity estimate.  See the module docstring.
     """
     scene:      jnp.ndarray   # (21,) cascade buffer matching scene_angular_vel
@@ -348,23 +353,21 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     # Order mirrors the path from motor command to retinal cascade:
     #   rotate (head->eye) -> retinal saturation -> visual delays.
     # No internal eye forward model: rotate through NI_net (= ec_pos) and use
-    # the NI's velocity input (ec_vel + fl_drive ≈ u_ni_in) as the eye velocity
-    # estimate.  Conditional on the Robinson pulse-step cancelling the plant
-    # lag — currently it cancels only the plant LP (not the FCP MN_LP), so
+    # the commanded velocity (ec_vel) as the eye velocity estimate.  Conditional
+    # on the Robinson pulse-step cancelling the plant lag — currently it cancels only the plant LP (not the FCP MN_LP), so
     # there's a ~5 ms residual eye lag behind NI_net.  That's small relative
     # to the 75–150 ms visual cascade that follows.
     x_p_pred     = ec_pos                       # NI_net is the eye position estimate
-    # The eye's ACTUAL velocity is the NI's input MINUS the leak that input is
-    # cancelling:  d(x_ni)/dt = −ni_leak + ec_vel + fl_drive = ec_vel − (1−K)·ni_leak.
-    # Predicting `ec_vel + fl_drive` over-predicts by exactly fl_drive — a phantom
-    # eye velocity that never occurs, because fl_drive does not move the eye, it
-    # only stops the leak from moving it.  The EC subtracts that phantom from
-    # retinal slip, the brain reads the remainder as TARGET motion, and chases it:
-    # centrifugal drift of ~K·ecc/tau_i whenever a target is continuously visible
-    # (1.6 deg/s at 40 deg under the old K=1 / tau_i=25 s, 6.4 at K=0.8 / tau_i=5).
-    # Open-loop conditions never saw it — with no visible target there is no slip
-    # to corrupt — which is why it survived as a small unexplained bench failure.
-    eye_vel_pred = ec_vel + fl_drive - ni_leak  # = ec_vel − (1 − K_cereb_fl)·ni_leak
+    # EC = what the brain COMMANDED (saccade + pursuit + T-VOR), nothing else.
+    # The uncancelled NI leak −(1−K_cereb_fl)·ni_leak and any VOR error are real
+    # eye motion the brain did not command; leaving them out of the EC means they
+    # show up as retinal slip, so with a visible target pursuit corrects them
+    # once.  Two wrong alternatives, both tried:
+    #   ec_vel + fl_drive           → phantom velocity fl_drive → pursuit chases
+    #                                 it → centrifugal drift (over-correction);
+    #   ec_vel + fl_drive − ni_leak → leak predicted → drift hidden from pursuit
+    #                                 → never corrected (pursuit gain ≈ 0.79).
+    eye_vel_pred = ec_vel
 
     # 2. Rotation: head-frame velocity → eye-frame velocity using x_p_pred
     #    (= NI_net here; assumed equal to the actual eye position to within
