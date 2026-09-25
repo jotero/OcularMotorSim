@@ -374,24 +374,26 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     #    the pulse-step's lag-cancellation residual).
     R_eye         = rotation_matrix(ypr_to_xyz(x_p_pred))
     eye_vel_pred_eye = xyz_to_ypr(R_eye.T @ ypr_to_xyz(eye_vel_pred))
-    w_est_eye        = xyz_to_ypr(R_eye.T @ ypr_to_xyz(w_est))
 
-    # 3. Retinal velocity saturation, offset by −w_est_eye: gain rolloff is
-    #    computed on the residual (eye_vel_pred + w_est ≈ eye_vel_in_world).
-    #    During perfect VOR the residual is zero so the cascade input passes
-    #    through unchanged.
-    v_offset_eye     = -w_est_eye
-    ec_vel_scene_in  = velocity_saturation(eye_vel_pred_eye, bp.v_max_okr,
-                                            v_offset=v_offset_eye)      # NOT/AOS
-    ec_vel_target_in = velocity_saturation(eye_vel_pred_eye, bp.v_max_pursuit,
-                                            v_offset=v_offset_eye)      # MT/MST
+    # 3. Retinal velocity saturation.  eye_vel_pred excludes the VOR, so it is
+    #    used directly as the predicted RETINAL (gaze) velocity: gaze = eye + head
+    #    = (ec_vel − w_est) + head ≈ ec_vel.  ASSUMPTION: this treats the VOR as
+    #    perfect (w_est = true head velocity).  It is not — onset lag, canal
+    #    dynamics, gain ≠ 1 — but those errors are real slip that pursuit/OKR
+    #    should see and correct, so they are deliberately not predicted here.
+    #    (Previously w_est was added as an offset, i.e. counted as if the EC
+    #    included the VOR: a 200 °/s head impulse then read as 200 °/s retinal
+    #    motion, the saturation zeroed the prediction and injected −w_est into
+    #    the EC → ~13° pursuit-driven overshoot after every head impulse.)
+    ec_vel_scene_in  = velocity_saturation(eye_vel_pred_eye, bp.v_max_okr)      # NOT/AOS
+    ec_vel_target_in = velocity_saturation(eye_vel_pred_eye, bp.v_max_pursuit)  # MT/MST
 
     # 4. Saccadic-suppression flags = 1 − cosine-rolloff gain.  Detects when
-    #    the residual eye-velocity (eye_vel_pred_eye + w_est_eye) is fast
+    #    the predicted retinal velocity (same perfect-VOR assumption) is fast
     #    enough that the retinal-pathway saturation is engaged.  Two flags
     #    because target (v_max_pursuit) and scene (v_max_okr) have different
     #    thresholds.  Flag ∈ [0, 1]:  0 = no saturation, 1 = full clamp.
-    v_rel  = eye_vel_pred_eye - v_offset_eye       # = eye_vel_pred_eye + w_est_eye
+    v_rel  = eye_vel_pred_eye
     speed  = jnp.linalg.norm(v_rel)
 
     def _sat_flag(spd, v_sat):
