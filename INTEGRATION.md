@@ -283,8 +283,8 @@ or swap a single stage (Pattern B) than to rebuild the closed loop by hand.
 
 **Pattern A — use `simulate()`, drive it with stimulus arrays.**
 You don't write a loop at all; you describe head/scene/target trajectories and let
-the shipped solver run. This is the default and handles warmup, noise, per-eye
-stereo, prisms, and lenses. Reach for a custom loop only when `simulate()` can't
+the shipped solver run. This is the default and handles warmup, noise, covers,
+prisms, and lenses. Reach for a custom loop only when `simulate()` can't
 express what you need.
 
 **Pattern B — swap one stage, keep the rest.**

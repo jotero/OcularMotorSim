@@ -199,8 +199,8 @@ def xyz_to_ypr(v):
 
 # ── Geometry ────────────────────────────────────────────────────────────────────
 
-def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
-                    q_eye, w_eye, w_scene, v_scene, dp_dt,
+def world_to_retina(x_target, eye_offset_head, q_head, w_head, x_head, v_head,
+                    q_eye, w_eye, w_scene, v_scene, v_target,
                     scene_present, target_present, vf_limit, k_vf):
     """Compute instantaneous retinal signals and per-eye visibility gates.
 
@@ -222,7 +222,7 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
 
     Inputs
     ------
-    p_target:        target 3-D position in world frame (m)  [x=right, y=up, z=fwd]
+    x_target:        target 3-D position in world frame (m)  [x=right, y=up, z=fwd]
     eye_offset_head: this eye's fixed position in head frame (m)
                      left=[-ipd/2,0,0]  right=[+ipd/2,0,0]
     q_head:          head rotation vector [yaw,pitch,roll]  (deg, world frame)
@@ -233,7 +233,7 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
     w_eye:           eye angular velocity relative to head (deg/s, head frame)
     w_scene:         scene angular velocity [yaw,pitch,roll] (deg/s, world frame)
     v_scene:         scene linear velocity  [x,y,z]          (m/s,   world frame)
-    dp_dt:           target Cartesian velocity [x,y,z] (m/s, world frame)
+    v_target:        target linear velocity [x,y,z] (m/s, world frame)
     scene_present:   scalar ∈ [0,1] — is the scene lit for this eye?
     target_present:  scalar ∈ [0,1] — is the target visible (not occluded) for this eye?
     vf_limit:        visual field half-width (deg)
@@ -247,12 +247,12 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
 
     Target position in eye frame (exact, no small-angle approximation):
         eye_world  = x_head + R_head @ eye_offset_head   eye position in world frame
-        p_from_eye = p_target − eye_world                target direction from this eye
+        p_from_eye = x_target − eye_world                target direction from this eye
         p_eye      = R_gaze.T @ p_hat                   target direction in eye frame
         target_pos = [arctan2(x,z), arctan2(y,√(x²+z²)), 0]  (deg, eye frame)
 
     Target angular velocity (computed from Cartesian position + velocity):
-        v_target = xyz_to_ypr( cross(p_target, dp_dt) / |p_target|² )  [deg/s, world frame]
+        w_target = xyz_to_ypr( cross(x_target, v_target) / |x_target|² )  [deg/s, world frame]
 
     Retinal velocities in eye frame:
         w_eye_world     = w_head + R_head @ w_eye             total eye angular velocity, world frame
@@ -261,7 +261,7 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
                           parallax velocity from head rotation moving an eccentric eye.
         scene_angular_vel = R_gaze.T @ (w_scene − w_eye_world)  rotational optic flow, [yaw,pitch,roll] deg/s
         scene_linear_vel  = R_head.T @ (v_scene − v_eye_world)  translational optic flow, [x,y,z] m/s, HEAD frame, per-eye
-        target_vel        = R_gaze.T @ (v_target − w_eye_world) target velocity on retina, [yaw,pitch,roll] deg/s
+        target_vel        = R_gaze.T @ (w_target − w_eye_world) target velocity on retina, [yaw,pitch,roll] deg/s
 
     Returns
     -------
@@ -279,7 +279,7 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
 
     # ── Target position in eye frame ──────────────────────────────────────────
     eye_world  = x_head + R_head @ eye_offset_head           # eye position, world frame
-    p_from_eye = p_target - eye_world                        # target from this eye, world frame
+    p_from_eye = x_target - eye_world                        # target from this eye, world frame
     p_hat      = p_from_eye / (jnp.linalg.norm(p_from_eye) + 1e-9)
     p_eye      = R_gaze_T @ p_hat                            # target direction, eye frame
 
@@ -318,13 +318,13 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
     # Angular velocities: convert ypr→xyz before rotation matrix ops, xyz→ypr after.
     # Without this, sustained rotation rotates the yaw axis into pitch/roll, causing
     # OKR to fight VOR.
-    w_head_xyz  = ypr_to_xyz(w_head)
-    w_eye_xyz   = ypr_to_xyz(w_eye)
-    w_scene_xyz = ypr_to_xyz(w_scene)
-    target_dist = jnp.sqrt(jnp.dot(p_target, p_target)) + 1e-9
-    v_target    = jnp.degrees(xyz_to_ypr(jnp.cross(p_target, dp_dt)) / target_dist ** 2)
-    vt_xyz      = ypr_to_xyz(v_target)
-    w_eye_world = w_head_xyz + R_head @ w_eye_xyz
+    w_head_xyz   = ypr_to_xyz(w_head)
+    w_eye_xyz    = ypr_to_xyz(w_eye)
+    w_scene_xyz  = ypr_to_xyz(w_scene)
+    target_dist  = jnp.sqrt(jnp.dot(x_target, x_target)) + 1e-9
+    w_target     = jnp.degrees(xyz_to_ypr(jnp.cross(x_target, v_target)) / target_dist ** 2)
+    w_target_xyz = ypr_to_xyz(w_target)
+    w_eye_world  = w_head_xyz + R_head @ w_eye_xyz
 
     scene_angular_vel = xyz_to_ypr(R_gaze_T @ (w_scene_xyz - w_eye_world))  # [yaw,pitch,roll] deg/s
     # Per-eye linear velocity in world frame: v_head + ω_head × eye_offset_world.
@@ -334,7 +334,7 @@ def world_to_retina(p_target, eye_offset_head, q_head, w_head, x_head, v_head,
     omega_head_rad = jnp.radians(w_head_xyz)
     v_eye_world    = v_head + jnp.cross(omega_head_rad, R_head @ eye_offset_head)
     scene_linear_vel  = R_head.T @ (v_scene - v_eye_world)                   # [x,y,z] m/s, HEAD frame, per-eye
-    target_vel        = xyz_to_ypr(R_gaze_T @ (vt_xyz - w_eye_world))        # [yaw,pitch,roll] deg/s
+    target_vel        = xyz_to_ypr(R_gaze_T @ (w_target_xyz - w_eye_world))        # [yaw,pitch,roll] deg/s
     target_vel        = target_vel.at[2].set(0.0)   # retina is 2D: target translates H/V only
 
     # ── Visibility gates ──────────────────────────────────────────────────────
@@ -445,8 +445,8 @@ class RetinaOut(NamedTuple):
 def step(state,
          eye_offset_head, q_head, w_head, x_head, v_head,
          q_eye, w_eye,
-         w_scene, v_scene, p_target, dp_dt,
-         x_acc_eff,
+         w_scene, v_scene, x_target, v_target,
+         acc,
          scene_present, target_present,
          sensory_params):
     """Per-eye retina step: world_to_retina + sensor saturation + sharp cascade.
@@ -460,8 +460,8 @@ def step(state,
         eye_offset_head: (3,) this eye's anatomical offset in head frame (m)
         q_head, w_head, x_head, v_head: head pose / velocity (world frame)
         q_eye, w_eye:    eye pose / velocity (head frame)
-        w_scene, v_scene, p_target, dp_dt: world-frame scene / target stimulus
-        x_acc_eff:       scalar — effective accommodation for this eye (D): the lens
+        w_scene, v_scene, x_target, v_target: world-frame scene / target stimulus
+        acc:             scalar — this eye's accommodation (D): the lens
                          plant's accommodation already offset by any external lens
                          (simulator._apply_lens). refractive_error comes from
                          sensory_params.
@@ -480,8 +480,8 @@ def step(state,
     # ── 1. Geometry — world_to_retina projection ─────────────────────────────
     target_pos, scene_angular_vel, scene_linear_vel, target_vel, scene_vis, target_vis = \
         world_to_retina(
-            p_target, eye_offset_head, q_head, w_head, x_head, v_head,
-            q_eye, w_eye, w_scene, v_scene, dp_dt,
+            x_target, eye_offset_head, q_head, w_head, x_head, v_head,
+            q_eye, w_eye, w_scene, v_scene, v_target,
             scene_present, target_present,
             sensory_params.visual_field_limit, sensory_params.k_visual_field,
         )
@@ -495,7 +495,7 @@ def step(state,
     # demand (1/target-distance + the eye's refractive error) minus the effective
     # accommodation (accommodation already lens-adjusted upstream). Mirrors how
     # slip/position are derived from the physical eye + world.
-    defocus_in         = 1.0 / (jnp.linalg.norm(p_target) + 1e-9) + sensory_params.refractive_error - x_acc_eff
+    defocus_in         = 1.0 / (jnp.linalg.norm(x_target) + 1e-9) + sensory_params.refractive_error - acc
 
     # ── 3. Advance sharp cascades (N stages × τ_retina, per signal) ──────────
     tau_retina = sensory_params.tau_vis_sharp

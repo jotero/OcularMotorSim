@@ -9,7 +9,7 @@ per-eye signals and are cortical computations, not peripheral.
 Signal flow:
     w_head            → [Canal array]    → y_canals (6,)   afferent firing rates
     a_head, q_head    → [Otolith array]  → f_gia (3,)      running GIA → gravity estimator
-    per-eye stimulus  → [retina.step] L  → RetinaOut_L (delayed per-eye signals + luminance)
+    scene + target    → [retina.step] L  → RetinaOut_L (delayed per-eye signals + luminance)
                       → [retina.step] R  → RetinaOut_R
     SensoryOutput bundles canal + otolith + retina_L + retina_R for the brain.
 
@@ -217,15 +217,13 @@ def step(state,
          q_head, w_head, x_head, v_head, a_head,
          # ── Eye kinematics (prism-shifted by ODE before this call) ────────────
          q_eye_L, w_eye_L, q_eye_R, w_eye_R,
-         # ── Scene stimulus (per eye — L/R split enables stereoscopic displays) ─
-         q_scene_L, w_scene_L, x_scene_L, v_scene_L,
-         q_scene_R, w_scene_R, x_scene_R, v_scene_R,
-         # ── Target stimulus (per eye — L/R split enables stereoscopic displays) ─
-         p_target_L, dp_dt_L,
-         p_target_R, dp_dt_R,
-         # ── Effective accommodation per eye (lens-adjusted; retina reads
-         #    refractive_error from sensory_params and computes defocus) ────────
-         x_acc_eff_L, x_acc_eff_R,
+         # ── Scene + target stimulus (one world for both eyes; per-eye differences
+         #    come from the optics — prism / lens — applied to the eye state) ────
+         q_scene, w_scene, x_scene, v_scene,
+         x_target, v_target,
+         # ── Eye accommodation (D) (lens-shifted by ODE before this call; the
+         #    retina turns it into defocus, like q_eye into position error) ──────
+         acc_L, acc_R,
          # ── Visibility flags ──────────────────────────────────────────────────
          scene_present_L, scene_present_R,
          target_present_L, target_present_R,
@@ -249,13 +247,13 @@ def step(state,
     # Per-eye retina cascades (cyclopean fusion happens in brain).
     dretina_L = _retina.step(
         state.retina_L, eye_off_L, q_head, w_head, x_head, v_head,
-        q_eye_L, w_eye_L, w_scene_L, v_scene_L, p_target_L, dp_dt_L,
-        x_acc_eff_L, scene_present_L, target_present_L,
+        q_eye_L, w_eye_L, w_scene, v_scene, x_target, v_target,
+        acc_L, scene_present_L, target_present_L,
         sensory_params)
     dretina_R = _retina.step(
         state.retina_R, eye_off_R, q_head, w_head, x_head, v_head,
-        q_eye_R, w_eye_R, w_scene_R, v_scene_R, p_target_R, dp_dt_R,
-        x_acc_eff_R, scene_present_R, target_present_R,
+        q_eye_R, w_eye_R, w_scene, v_scene, x_target, v_target,
+        acc_R, scene_present_R, target_present_R,
         sensory_params)
 
     # Per-eye afferent luminance (pupillary light reflex) is advanced inside each

@@ -610,7 +610,7 @@ User description (str)
     ↓  Claude API (tool_use, forced schema)
 SimulationScenario  (oculomotor/llm_pipeline/scenario.py — Pydantic)
     ├── HeadMotion    → oculomotor/sim/stimuli.py → head_vel_array (T, 3)
-    ├── Target        → oculomotor/sim/stimuli.py → p_target_array, v_target_array
+    ├── Target        → oculomotor/sim/stimuli.py → x_target_array, w_target_array
     ├── Visual        → oculomotor/sim/stimuli.py → v_scene_array, scene/target_present arrays
     └── Patient       → with_brain() / with_sensory() → Params NamedTuple
     ↓  oculomotor/llm_pipeline/run.py

@@ -4,7 +4,7 @@ World frame is LEFT-HANDED: x=right, y=up, z=forward  (x × y = −z).
 
 Coordinate conventions
 ----------------------
-Positional / linear vectors  (p_target, x_head, …):   [x, y, z] = [right, up, fwd]
+Positional / linear vectors  (x_target, x_head, …):   [x, y, z] = [right, up, fwd]
 
 Angular vectors  (w_head, w_eye, motor_cmd, …):        [yaw, pitch, roll]
     ≠ xyz order — element 0 (yaw) is rotation about +y, not +x.
@@ -38,9 +38,9 @@ Signal flow (3-D, binocular):
         motor_cmd → Plant_L → q_eye_L
         motor_cmd → Plant_R → q_eye_R
 
-    v_target (target angular velocity for pursuit) is computed in the ODE
-    from the Cartesian target position and velocity:
-        v_target = xyz_to_ypr( cross(p_target, dp_target/dt) / |p_target|² )  [deg/s]
+    w_target (target angular velocity for pursuit) is computed per eye in
+    retina.world_to_retina from the target position and linear velocity v_target:
+        w_target = xyz_to_ypr( cross(x_target, v_target) / |x_target|² )  [deg/s]
 
 State structure — SimState NamedTuple:
 
@@ -124,7 +124,8 @@ def _apply_prism(q_eye_ypr, prism_ypr):
     ALL of world_to_retina: target_pos, scene_angular_vel, scene_linear_vel,
     and target_vel are all rotated by R_prism.
 
-    The eye's physical position (IPD offset, actual w_eye) is unaffected.
+    The eye's physical position (IPD offset) is unaffected. Its angular velocity
+    must be shifted along with the orientation — see _apply_prism_vel.
 
     Args:
         q_eye_ypr:  (3,) actual eye rotation [yaw, pitch, roll] deg
@@ -154,13 +155,42 @@ def _apply_prism(q_eye_ypr, prism_ypr):
     return xyz_to_ypr(q_xyz_deg)
 
 
+def _apply_prism_vel(w_eye_ypr, prism_ypr, dprism_ypr):
+    """Effective eye angular velocity behind a head-fixed prism — companion of _apply_prism.
+
+    The retina needs a consistent eye state: the velocity it receives must be the
+    derivative of the prism-shifted orientation. With R_eff = R_prism.T @ R_eye,
+
+        w_eff = R_prism.T @ (w_eye − w_prism)          (head frame)
+
+    Shifting only the orientation would rotate the eye's OWN movement as if it were
+    image motion: a vertical saccade behind a 4° horizontal prism then leaks ~7 deg/s
+    of spurious torsional slip that no efference copy cancels.
+
+    w_prism is the prism's own rotation rate, taken as d(prism)/dt — exact when the
+    deviation direction is fixed and only its magnitude changes. It is the image
+    motion a prism ramp produces; a step insertion is an instantaneous image jump,
+    which the retina's speed ceiling saturates out like any real jump.
+
+    Args:
+        w_eye_ypr:  (3,) actual eye angular velocity [yaw, pitch, roll] deg/s (head frame)
+        prism_ypr:  (3,) prism deviation [yaw, pitch, roll] deg (head frame)
+        dprism_ypr: (3,) prism deviation rate [yaw, pitch, roll] deg/s
+
+    Returns:
+        w_eff_ypr: (3,) effective eye angular velocity to pass to world_to_retina
+    """
+    R_prism = _rotation_matrix(ypr_to_xyz(prism_ypr))
+    return xyz_to_ypr(R_prism.T @ ypr_to_xyz(w_eye_ypr - dprism_ypr))
+
+
 def _apply_lens(x_acc, lens):
     """Effective accommodation seen by the retina after an external corrective lens.
 
     Mirror of _apply_prism (prism-shifts the eye ORIENTATION): an external lens
     offsets the eye's optical POWER, so the retina's defocus uses this lens-adjusted
     accommodation rather than the raw lens-plant state. Per eye. Sign preserves the
-    model's blur = 1/z + refractive_error − x_acc_eff convention (a positive lens
+    model's blur = 1/z + refractive_error − acc convention (a positive lens
     adds to the residual defocus, like a hyperopic demand shift).
     """
     return x_acc - lens
@@ -468,7 +498,7 @@ def ODE_ocular_motor(t, state, args):
 
     Evaluation order:
         1. read_outputs  — slice delayed signals from sensory state for brain
-        2. Compute v_target from cross(p_target, dp_target/dt) / |p_target|²
+        2. Interpolate stimuli (x_target, v_target, scene, head) at t
         3. brain_model   — VS + NI + SG + EC → motor_cmd
         4. plant_model   — motor_cmd → dx_plant_L/R; w_eye = dx_plant (deg/s)
         5. sensory_model — canal + visual delay cascades driven by w_eye
@@ -476,17 +506,15 @@ def ODE_ocular_motor(t, state, args):
     Args:
         t:     scalar time (s)
         state: SimState pytree
-        args:  31-element tuple — see simulate() for layout
+        args:  26-element tuple — see simulate() for layout
 
     Returns:
         SimState of derivatives (dsensory, dbrain, dplant)
     """
     (theta,
      head_q_interp, head_w_interp, head_x_interp, head_v_interp, head_a_interp,
-     scene_q_L_interp, scene_w_L_interp, scene_x_L_interp, scene_v_L_interp,
-     scene_q_R_interp, scene_w_R_interp, scene_x_R_interp, scene_v_R_interp,
-     target_p_L_interp, target_dv_L_interp,
-     target_p_R_interp, target_dv_R_interp,
+     scene_q_interp, scene_w_interp, scene_x_interp, scene_v_interp,
+     target_x_interp, target_v_interp,
      prism_L_interp, prism_R_interp,
      lens_L_interp, lens_R_interp,
      scene_present_L_interp, scene_present_R_interp,
@@ -503,15 +531,11 @@ def ODE_ocular_motor(t, state, args):
     v_head  = head_v_interp.evaluate(t)       # (3,) linear velocity m/s
     a_head  = head_a_interp.evaluate(t)       # (3,) linear acceleration m/s²
 
-    # Per-eye scene (identical in monocular mode; diverge in stereo or OKN-monocular)
-    q_scene_L = scene_q_L_interp.evaluate(t); w_scene_L = scene_w_L_interp.evaluate(t)
-    x_scene_L = scene_x_L_interp.evaluate(t); v_scene_L = scene_v_L_interp.evaluate(t)
-    q_scene_R = scene_q_R_interp.evaluate(t); w_scene_R = scene_w_R_interp.evaluate(t)
-    x_scene_R = scene_x_R_interp.evaluate(t); v_scene_R = scene_v_R_interp.evaluate(t)
-
-    # Per-eye target (identical in monocular mode; diverge in dichoptic / stereo)
-    p_target_L = target_p_L_interp.evaluate(t); dp_dt_L = target_dv_L_interp.evaluate(t)
-    p_target_R = target_p_R_interp.evaluate(t); dp_dt_R = target_dv_R_interp.evaluate(t)
+    # Scene + target: one world, seen by both eyes. Per-eye differences come only
+    # from the optics (prism / lens) and the per-eye presence flags (covers).
+    q_scene  = scene_q_interp.evaluate(t);  w_scene  = scene_w_interp.evaluate(t)
+    x_scene  = scene_x_interp.evaluate(t);  v_scene  = scene_v_interp.evaluate(t)
+    x_target = target_x_interp.evaluate(t); v_target = target_v_interp.evaluate(t)
 
     scene_present_L  = scene_present_L_interp.evaluate(t)
     scene_present_R  = scene_present_R_interp.evaluate(t)
@@ -559,26 +583,28 @@ def ODE_ocular_motor(t, state, args):
 
     # ── Optical interventions (after plant, before sensory) ─────────────────────
     # Each acts on a plant output before it reaches the retina, not on the physical eye:
-    #   prism → shifts the apparent field (eye ORIENTATION);
+    #   prism → shifts the apparent field (eye ORIENTATION, and with it the eye's
+    #           angular VELOCITY so the pair stays consistent);
     #   lens  → offsets the eye's optical POWER → effective accommodation (per eye).
-    q_eye_L_eff = _apply_prism(state.plant.left, prism_L_interp.evaluate(t))
-    q_eye_R_eff = _apply_prism(state.plant.right, prism_R_interp.evaluate(t))
-    x_acc_eff_L = _apply_lens(state.acc_plant[0], lens_L)
-    x_acc_eff_R = _apply_lens(state.acc_plant[0], lens_R)
+    prism_L, dprism_L = prism_L_interp.evaluate(t), prism_L_interp.derivative(t)
+    prism_R, dprism_R = prism_R_interp.evaluate(t), prism_R_interp.derivative(t)
+    q_eye_L_eff = _apply_prism(state.plant.left,  prism_L)
+    q_eye_R_eff = _apply_prism(state.plant.right, prism_R)
+    w_eye_L_eff = _apply_prism_vel(dplant.left,  prism_L, dprism_L)
+    w_eye_R_eff = _apply_prism_vel(dplant.right, prism_R, dprism_R)
+    acc_L_eff = _apply_lens(state.acc_plant[0], lens_L)
+    acc_R_eff = _apply_lens(state.acc_plant[0], lens_R)
 
     # ── Sensory: ODE step — must follow plant ────────────────────────────────
     # The retina computes its own defocus from the lens-adjusted accommodation
-    # (x_acc_eff) and refractive_error (a SensoryParam).
-    w_eye_L, w_eye_R = dplant.left, dplant.right
+    # (acc_L/R_eff) and refractive_error (a SensoryParam).
     dx_sensory = sensory_model.step(
         state.sensory,
         q_head, w_head, x_head, v_head, a_head,
-        q_eye_L_eff, w_eye_L, q_eye_R_eff, w_eye_R,
-        q_scene_L, w_scene_L, x_scene_L, v_scene_L,
-        q_scene_R, w_scene_R, x_scene_R, v_scene_R,
-        p_target_L, dp_dt_L,
-        p_target_R, dp_dt_R,
-        x_acc_eff_L, x_acc_eff_R,
+        q_eye_L_eff, w_eye_L_eff, q_eye_R_eff, w_eye_R_eff,
+        q_scene, w_scene, x_scene, v_scene,
+        x_target, v_target,
+        acc_L_eff, acc_R_eff,
         scene_present_L, scene_present_R,
         target_present_L, target_present_R,
         theta.sensory)
@@ -612,11 +638,6 @@ def simulate(
     prism_R_array=None,     # (T, 3) prism deviation [yaw, pitch, roll] deg, R eye. None → no prism.
     lens_L_array=None,      # (T,)   accommodation demand offset (diopters), L eye. None → no lens.
     lens_R_array=None,      # (T,)   accommodation demand offset (diopters), R eye. None → no lens.
-    # ── Stereo per-eye scene / target overrides ───────────────────────────────
-    scene_L: KinematicTrajectory = None,   # L-eye scene. None → both eyes use shared `scene`.
-    scene_R: KinematicTrajectory = None,   # R-eye scene. None → both eyes use shared `scene`.
-    target_L: TargetTrajectory   = None,   # L-eye target. None → both eyes use shared `target`.
-    target_R: TargetTrajectory   = None,   # R-eye target. None → both eyes use shared `target`.
     max_steps=10000,
     sim_config=None,
     return_states=False,
@@ -705,24 +726,8 @@ def simulate(
     scene_x = jnp.asarray(scene.lin_pos, dtype=jnp.float32)
     scene_v = jnp.asarray(scene.lin_vel, dtype=jnp.float32)
 
-    tgt_p  = jnp.asarray(target.lin_pos, dtype=jnp.float32)   # (T,3) m
-    tgt_dv = jnp.asarray(target.lin_vel, dtype=jnp.float32)   # (T,3) m/s
-
-    # ── Per-eye scene (default: both eyes use shared scene) ───────────────────
-    scene_q_L = scene_q if scene_L is None else jnp.asarray(scene_L.rot_pos, dtype=jnp.float32)
-    scene_w_L = scene_w if scene_L is None else jnp.asarray(scene_L.rot_vel, dtype=jnp.float32)
-    scene_x_L = scene_x if scene_L is None else jnp.asarray(scene_L.lin_pos, dtype=jnp.float32)
-    scene_v_L = scene_v if scene_L is None else jnp.asarray(scene_L.lin_vel, dtype=jnp.float32)
-    scene_q_R = scene_q if scene_R is None else jnp.asarray(scene_R.rot_pos, dtype=jnp.float32)
-    scene_w_R = scene_w if scene_R is None else jnp.asarray(scene_R.rot_vel, dtype=jnp.float32)
-    scene_x_R = scene_x if scene_R is None else jnp.asarray(scene_R.lin_pos, dtype=jnp.float32)
-    scene_v_R = scene_v if scene_R is None else jnp.asarray(scene_R.lin_vel, dtype=jnp.float32)
-
-    # ── Per-eye target (default: both eyes use shared target) ─────────────────
-    tgt_p_L  = tgt_p  if target_L is None else jnp.asarray(target_L.lin_pos, dtype=jnp.float32)
-    tgt_dv_L = tgt_dv if target_L is None else jnp.asarray(target_L.lin_vel, dtype=jnp.float32)
-    tgt_p_R  = tgt_p  if target_R is None else jnp.asarray(target_R.lin_pos, dtype=jnp.float32)
-    tgt_dv_R = tgt_dv if target_R is None else jnp.asarray(target_R.lin_vel, dtype=jnp.float32)
+    tgt_x = jnp.asarray(target.lin_pos, dtype=jnp.float32)   # (T,3) m
+    tgt_v = jnp.asarray(target.lin_vel, dtype=jnp.float32)   # (T,3) m/s
 
     # ── Prism: deviation in [yaw, pitch, roll] deg per eye ───────────────────
     # Positive yaw = apparent field shifted rightward; positive pitch = upward.
@@ -796,13 +801,7 @@ def simulate(
         head_x = _prepend(head_x); head_v = _prepend(head_v); head_a = _prepend(head_a)
         scene_q = _prepend(scene_q); scene_w = _prepend(scene_w)
         scene_x = _prepend(scene_x); scene_v = _prepend(scene_v)
-        scene_q_L = _prepend(scene_q_L); scene_w_L = _prepend(scene_w_L)
-        scene_x_L = _prepend(scene_x_L); scene_v_L = _prepend(scene_v_L)
-        scene_q_R = _prepend(scene_q_R); scene_w_R = _prepend(scene_w_R)
-        scene_x_R = _prepend(scene_x_R); scene_v_R = _prepend(scene_v_R)
-        tgt_p  = _prepend(tgt_p);  tgt_dv  = _prepend(tgt_dv)
-        tgt_p_L  = _prepend(tgt_p_L);  tgt_dv_L = _prepend(tgt_dv_L)
-        tgt_p_R  = _prepend(tgt_p_R);  tgt_dv_R = _prepend(tgt_dv_R)
+        tgt_x = _prepend(tgt_x); tgt_v = _prepend(tgt_v)
         prism_L = _prepend(prism_L)
         prism_R = _prepend(prism_R)
         lens_L_arr = _prepend(lens_L_arr[:, None])[:, 0]
@@ -829,12 +828,9 @@ def simulate(
     head_q_interp   = _interp(head_q);  head_w_interp = _interp(head_w)
     head_x_interp   = _interp(head_x);  head_v_interp = _interp(head_v)
     head_a_interp   = _interp(head_a)
-    scene_q_L_interp  = _interp(scene_q_L); scene_w_L_interp = _interp(scene_w_L)
-    scene_x_L_interp  = _interp(scene_x_L); scene_v_L_interp = _interp(scene_v_L)
-    scene_q_R_interp  = _interp(scene_q_R); scene_w_R_interp = _interp(scene_w_R)
-    scene_x_R_interp  = _interp(scene_x_R); scene_v_R_interp = _interp(scene_v_R)
-    target_p_L_interp  = _interp(tgt_p_L);  target_dv_L_interp = _interp(tgt_dv_L)
-    target_p_R_interp  = _interp(tgt_p_R);  target_dv_R_interp = _interp(tgt_dv_R)
+    scene_q_interp  = _interp(scene_q); scene_w_interp  = _interp(scene_w)
+    scene_x_interp  = _interp(scene_x); scene_v_interp  = _interp(scene_v)
+    target_x_interp = _interp(tgt_x);   target_v_interp = _interp(tgt_v)
     prism_L_interp = _interp(prism_L)
     prism_R_interp = _interp(prism_R)
     lens_L_interp      = _interp(lens_L_arr)
@@ -887,10 +883,8 @@ def simulate(
     ode_args = (
         params,
         head_q_interp, head_w_interp, head_x_interp, head_v_interp, head_a_interp,
-        scene_q_L_interp, scene_w_L_interp, scene_x_L_interp, scene_v_L_interp,
-        scene_q_R_interp, scene_w_R_interp, scene_x_R_interp, scene_v_R_interp,
-        target_p_L_interp, target_dv_L_interp,
-        target_p_R_interp, target_dv_R_interp,
+        scene_q_interp, scene_w_interp, scene_x_interp, scene_v_interp,
+        target_x_interp, target_v_interp,
         prism_L_interp, prism_R_interp,
         lens_L_interp, lens_R_interp,
         sp_L_interp, sp_R_interp, tp_L_interp, tp_R_interp,

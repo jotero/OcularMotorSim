@@ -414,8 +414,8 @@ def _build_eye_trajectory(sim_data: dict, fps: int = 60) -> dict | None:
         cover_R = cover_R.tolist(),
     )
 
-    if 'p_target' in sim_data and sim_data['p_target'] is not None:
-        tgt = np.array(sim_data['p_target'])[::step]
+    if 'x_target' in sim_data and sim_data['x_target'] is not None:
+        tgt = np.array(sim_data['x_target'])[::step]
         target_present = _any_ds((tpL > 0.5) | (tpR > 0.5))
         out['target']         = [[round(float(v), 4) for v in row] for row in tgt.tolist()]
         out['target_present'] = target_present.tolist()

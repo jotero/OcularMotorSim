@@ -106,15 +106,15 @@ def _build_stimulus(scenario: SimulationScenario) -> dict:
 
     rel_pos  = target_km.lin_pos - head_km.lin_pos         # (T, 3) m
     rel_vel  = target_km.lin_vel - head_km.lin_vel         # (T, 3) m/s
-    p_target = rel_pos.astype(np.float32)
+    x_target = rel_pos.astype(np.float32)
 
     # Angular velocity of target in head frame (deg/s) — for plotting only
     depth   = np.maximum(rel_pos[:, 2], 0.05)
     denom_x = depth ** 2 + rel_pos[:, 0] ** 2
     denom_y = depth ** 2 + rel_pos[:, 1] ** 2
-    v_target = np.zeros((T, 3), dtype=np.float32)
-    v_target[:, 0] = ((rel_vel[:, 0] * depth - rel_pos[:, 0] * rel_vel[:, 2]) / denom_x * (180.0 / np.pi))
-    v_target[:, 1] = ((rel_vel[:, 1] * depth - rel_pos[:, 1] * rel_vel[:, 2]) / denom_y * (180.0 / np.pi))
+    w_target = np.zeros((T, 3), dtype=np.float32)
+    w_target[:, 0] = ((rel_vel[:, 0] * depth - rel_pos[:, 0] * rel_vel[:, 2]) / denom_x * (180.0 / np.pi))
+    w_target[:, 1] = ((rel_vel[:, 1] * depth - rel_pos[:, 1] * rel_vel[:, 2]) / denom_y * (180.0 / np.pi))
 
     # Visual flags — per-eye scene_present, target_present (strobe = flash train) + cover
     spL, spR, tpL, tpR, cvL, cvR = stim.build_visual_flags(scenario.visual, T, dt)
@@ -130,8 +130,8 @@ def _build_stimulus(scenario: SimulationScenario) -> dict:
         # Flat arrays for _draw_panel() / _build_sim_data()
         head_vel_array          = jnp.array(head_vel),
         head_lin_pos_array      = jnp.array(head_km.lin_pos),   # (T,3) m — for optic-flow viz
-        p_target_array          = jnp.array(p_target),
-        v_target_array          = jnp.array(v_target),
+        x_target_array          = jnp.array(x_target),
+        w_target_array          = jnp.array(w_target),
         v_scene_array           = jnp.array(v_scene),
         # Visual flags — used by both simulate() and _draw_panel()
         scene_present_L_array   = jnp.array(spL),
@@ -315,7 +315,7 @@ def _binocular_display(sig: dict, stim_kw: dict, tonic_verg: float) -> dict:
                  zero_label, present).
     """
     ipd = float(sig.get('ipd', 0.064))
-    pt  = np.array(stim_kw['p_target_array'])                     # (T,3) m
+    pt  = np.array(stim_kw['x_target_array'])                     # (T,3) m
     tp  = np.maximum(np.array(stim_kw['target_present_L_array']),
                      np.array(stim_kw['target_present_R_array']))
     present = tp > 0.5
@@ -475,8 +475,8 @@ def _draw_panel(ax, panel_name: str, t: np.ndarray, sig: dict,
 
     # Stimulus arrays (always available)
     hv = np.array(stim_kw['head_vel_array'])           # (T, 3) deg/s
-    pt = np.array(stim_kw['p_target_array'])           # (T, 3) Cartesian
-    vt = np.array(stim_kw['v_target_array'])           # (T, 3) deg/s
+    pt = np.array(stim_kw['x_target_array'])           # (T, 3) Cartesian
+    vt = np.array(stim_kw['w_target_array'])           # (T, 3) deg/s
     vs = np.array(stim_kw['v_scene_array'])            # (T, 3) deg/s
     sp  = np.maximum(np.array(stim_kw['scene_present_L_array']),
                      np.array(stim_kw['scene_present_R_array']))   # (T,)
@@ -815,8 +815,8 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
         head_vel        = np.array(stim_kw['head_vel_array']),        # (T, 3) deg/s
         head_lin_pos    = np.array(stim_kw['head_lin_pos_array']),    # (T, 3) m — for optic-flow viz
         scene_vel       = np.array(stim_kw['v_scene_array']),         # (T, 3) deg/s
-        target_vel      = np.array(stim_kw['v_target_array']),        # (T, 3) deg/s
-        p_target        = np.array(stim_kw['p_target_array']),        # (T, 3) m — target pos rel. head (world Cartesian)
+        target_vel      = np.array(stim_kw['w_target_array']),        # (T, 3) deg/s
+        x_target        = np.array(stim_kw['x_target_array']),        # (T, 3) m — target pos rel. head (world Cartesian)
         scene_present_L  = np.array(stim_kw['scene_present_L_array']),  # (T,)
         scene_present_R  = np.array(stim_kw['scene_present_R_array']),  # (T,)
         target_present_L = np.array(stim_kw['target_present_L_array']), # (T,)
@@ -938,8 +938,8 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
     ev   = sig['eye_vel']
     ep_d = sig['e_pos_delayed']
     hv = np.array(stim_kw['head_vel_array'])
-    pt = np.array(stim_kw['p_target_array'])
-    vt = np.array(stim_kw['v_target_array'])
+    pt = np.array(stim_kw['x_target_array'])
+    vt = np.array(stim_kw['w_target_array'])
     vs = np.array(stim_kw['v_scene_array'])
     sp  = np.maximum(np.array(stim_kw['scene_present_L_array']),
                      np.array(stim_kw['scene_present_R_array']))
@@ -1303,7 +1303,7 @@ def _build_comparison_figure(
             ep  = sig['eye_pos']
             ev  = sig['eye_vel']
             hv  = np.array(stim_kw['head_vel_array'])
-            pt  = np.array(stim_kw['p_target_array'])
+            pt  = np.array(stim_kw['x_target_array'])
             target_yaw = np.degrees(np.arctan2(pt[:, 0], np.maximum(pt[:, 2], 0.05)))
 
             if panel == 'eye_position':
@@ -1418,8 +1418,8 @@ def _build_comparison_spec(
             label = labels[idx]
             ep, ev = sig['eye_pos'], sig['eye_vel']
             hv = np.array(stim_kw['head_vel_array'])
-            pt = np.array(stim_kw['p_target_array'])
-            vt = np.array(stim_kw['v_target_array'])
+            pt = np.array(stim_kw['x_target_array'])
+            vt = np.array(stim_kw['w_target_array'])
             vs = np.array(stim_kw['v_scene_array'])
             dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
             head_angle = np.cumsum(hv[:, 0]) * dt_val
