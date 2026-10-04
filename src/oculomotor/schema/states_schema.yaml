@@ -315,7 +315,7 @@ brain.ni_left:
   frame:      "canal-plane [H, LARP, RALP]"
   representation: "firing-rate-around-bias"
   activation:     "max(0, state)  (NPH/INC neurons rectified; bias b_ni absorbs floor)"
-  baseline:       "b_ni (default 0)"
+  baseline:       "b_ni"
   shape: [3]
   axes:  [H, LARP, RALP]
   units: "deg"
@@ -373,6 +373,45 @@ brain.ni_null:
   state_slice: "brain[_IDX_NI_NULL]"
   references: ["Zee, Yamazaki, Butler, Gücer (1981)"]
   llm_plottable: true
+
+brain.ni_slide_left:
+  group: neural_integrator
+  encodes:    "slide: low-passed positive half of the NI velocity command"
+  frame:      "canal-plane [H, LARP, RALP]"
+  representation: "firing-rate (≥ 0, no resting bias)"
+  activation:     "max(0, state)  (non-negative by construction)"
+  baseline:       "0 (silent at rest)"
+  shape: [3]
+  axes:  [H, LARP, RALP]
+  units: "deg/s"
+  anatomy:
+    - {axes: [H, LARP, RALP], region: "Provisional — slide component of the pulse-slide-step; plausibly NPH/MVN burst-tonic cells"}
+  description: |
+    Slide population for the positive direction: low-pass (tau_slide) of the
+    rectified positive half of the NI velocity command.  ni_slide_left −
+    ni_slide_right = LP(u_vel), which supplies the smoothed velocity and
+    acceleration terms of the pulse-slide-step motor command (cancels the
+    plant's two poles without a glissade).
+  state_slice: "brain.ni.slide_L"
+  references: ["Optican & Miles (1985)"]
+  llm_plottable: false
+
+brain.ni_slide_right:
+  group: neural_integrator
+  encodes:    "slide: low-passed negative half of the NI velocity command"
+  frame:      "canal-plane [H, LARP, RALP]"
+  representation: "firing-rate (≥ 0, no resting bias)"
+  activation:     "max(0, state)  (non-negative by construction)"
+  baseline:       "0 (silent at rest)"
+  shape: [3]
+  axes:  [H, LARP, RALP]
+  units: "deg/s"
+  anatomy:
+    - {axes: [H, LARP, RALP], region: "Provisional — slide component of the pulse-slide-step; plausibly NPH/MVN burst-tonic cells"}
+  description: "Slide population for the negative direction, push-pull with ni_slide_left. Net slide = ni_slide_left − ni_slide_right = LP(u_vel, tau_slide)."
+  state_slice: "brain.ni.slide_R"
+  references: ["Optican & Miles (1985)"]
+  llm_plottable: false
 
 # ─────────────────────────────────────────────────────────────────────────────
 # BRAIN — Saccade Generator (PPRF / riMLF)

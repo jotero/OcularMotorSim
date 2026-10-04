@@ -199,3 +199,5 @@ Pick ONE at a time. Nothing here is in progress.
 | 11 | Lens sign convention (lens power vs demand offset) | decision | benches label +2 "plus lens" but it acts as a minus lens |
 | 12 | Target angular velocity computed about the world origin, not per eye | model fix | affects near targets / translation |
 | 13 | Prism does not reach `scene_linear_vel` (+ `_apply_prism` docstring wrong) | model fix | goes with #5 |
+| 14 | Soft orbital wall in the NI anti-windup | model fix | hard clip → smooth (sigmoid) wall so the EKF linearization / gradients are well defined at the limit; tiny behaviour change at the wall |
+| 15 | Review + homogenize all nonlinearities | review | inventory every nonlinearity (rectification, saturations, gates, sigmoids, clips): where it sits, state vs input, hard vs smooth, its shape and parameters; then converge on a small shared set of primitives, EKF/gradient-friendly. #14 becomes one item of it |

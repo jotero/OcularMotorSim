@@ -97,7 +97,7 @@ src/oculomotor/
 │   │   ├── perception_cyclopean.py    Binocular fusion (NPC gate, OKR, dominance) on delayed
 │   │   │                              per-eye signals + brain LP smoothing (43 states).
 │   │   ├── neural_integrator.py       NI leaky integrator + bilateral push-pull + null adapt
-│   │   │                              (12 states: x_L + x_R + x_null + u_lp)
+│   │   │                              (15 states: x_L + x_R + x_null + slide_L + slide_R)
 │   │   ├── saccade_generator.py       Robinson local-feedback burst (20 states: e_held +
 │   │   │                              z_opn + z_acc + z_trig + z_fac/z_dep + EBN_L/R + IBN_L/R)
 │   │   ├── pursuit.py                 Smooth pursuit + Smith predictor (6 states)
@@ -188,7 +188,7 @@ BrainState(
     sg:   sg.State    # 20  saccade generator (see saccade_generator.py)
     pu:   pu.State    #  6  bilateral pursuit pops
     va:   va.State    # 11  vergence (9) + accommodation (2)
-    ni:   ni.State    # 12  bilateral NI (x_L + x_R + x_null + u_lp), CANAL-PLANE
+    ni:   ni.State    # 15  bilateral NI (x_L + x_R + x_null + slide_L + slide_R), CANAL-PLANE
                       #     [H, LARP, RALP]: H→NPH, LARP/RALP→INC
     fcp:  fcp.State   # 14  12 MN dynamic states + MLF AIN→CN3_MR
     cb:   cb.State    # ≈56 EC scene + target delay cascades + sat-flag delays +

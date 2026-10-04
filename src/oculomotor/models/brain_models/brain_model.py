@@ -1008,11 +1008,13 @@ def make_x0(brain_params=None):
     else:
         fcp_state = fcp.zero_state()
 
-    # NI: both pops rest at the b_ni firing baseline (net L−R = 0 at centre), so the
-    # rectified activations start above the max(0,·) floor — no start-up transient.
+    # NI: both integrator pops rest at the b_ni firing baseline (net L−R = 0 at centre),
+    # so the rectified activations start above the max(0,·) floor — no start-up
+    # transient. The slide pops are silent at rest.
     if brain_params is not None:
         b_ni_vec = jnp.full(3, jnp.float32(brain_params.b_ni))
-        ni_state = ni.State(L=b_ni_vec, R=b_ni_vec, null=jnp.zeros(3), u_lp=jnp.zeros(3))
+        ni_state = ni.State(L=b_ni_vec, R=b_ni_vec, null=jnp.zeros(3),
+                            slide_L=jnp.zeros(3), slide_R=jnp.zeros(3))
     else:
         ni_state = ni.rest_state()
 

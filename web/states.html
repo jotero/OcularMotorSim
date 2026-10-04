@@ -114,7 +114,7 @@ tr:last-child { border-bottom: none; }
 <main>
   <h1>Model states &amp; activations</h1>
   <div class="meta">
-    57 entries · 47 LLM-plottable ·
+    59 entries · 47 LLM-plottable ·
     Source: <code>oculomotor/schema/states_schema.yaml</code> ·
     Companion to <a href="parameters.html">parameters.html</a>.
   </div>
@@ -363,7 +363,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="brain-neural_integrator">
-      <h3>Neural Integrator <small style="font-size:11px;font-weight:400;color:#888">(3 signals)</small></h3>
+      <h3>Neural Integrator <small style="font-size:11px;font-weight:400;color:#888">(5 signals)</small></h3>
       <table>
         <thead><tr>
           <th style="width:140px">Signal</th>
@@ -383,7 +383,7 @@ tr:last-child { border-bottom: none; }
           <td class="axes-cell">H, LARP, RALP</td>
           <td class="units">deg</td>
           <td><div class="encodes-cell">eye-position equivalent ('A' pop, integrated velocity)</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
-          <td><span class="repr-tag repr-firing-rate-bias">firing-rate-around-bias</span><div class="activation-cell">activation: max(0, state)  (NPH/INC neurons rectified; bias b_ni absorbs floor)</div><div class="baseline-cell">baseline: b_ni (default 0)</div></td>
+          <td><span class="repr-tag repr-firing-rate-bias">firing-rate-around-bias</span><div class="activation-cell">activation: max(0, state)  (NPH/INC neurons rectified; bias b_ni absorbs floor)</div><div class="baseline-cell">baseline: b_ni</div></td>
           <td class="desc-cell"><p>NI population 'A' — eye-position equivalent, in CANAL-PLANE coordinates [H, LARP, RALP].  Net eye position, reconstructed to cardinal at the FCP sink, = CANAL2CARDINAL · (ni_left − ni_right).  Horizontal (H) integrator is NPH; the vertical/torsional planes (LARP, RALP) are INC.  The INC is leakier in torsion (Crawford & Vilis 1991) — a roll<pitch (sum/difference) anisotropy that appears here as LARP↔RALP coupling in the leak.  Tau_i ~25 s; short tau_i → centripetal drift (gaze-evoked nystagmus).</p><div class="population">Bilateral leaky integrator (Robinson 1975); canal-plane channels</div><div class="refs">Cannon & Robinson (1985) · Crawford & Vilis (1991)</div></td>
           <td class="anatomy-cell"><div><span class="ax-tag">H</span> Horizontal integrator → NPH (nucleus prepositus hypoglossi) + MVN</div>
 <div><span class="ax-tag">LARP · RALP</span> Vertical/torsional integrator → INC (interstitial nucleus of Cajal)</div></td>
@@ -414,6 +414,30 @@ tr:last-child { border-bottom: none; }
           <td class="anatomy-cell"><div><span class="ax-tag">H</span> Cerebellar floc/paraflocculus → NPH (horizontal adapter)</div>
 <div><span class="ax-tag">LARP · RALP</span> Cerebellar projection → INC (vertical/torsional adapter)</div></td>
           <td><span class="computation">brain[_IDX_NI_NULL]</span></td>
+        </tr>
+
+        <tr>
+          <td class="signal-name">ni_slide_left</td>
+          <td class="shape-cell">(3)</td>
+          <td class="axes-cell">H, LARP, RALP</td>
+          <td class="units">deg/s</td>
+          <td><div class="encodes-cell">slide: low-passed positive half of the NI velocity command</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
+          <td><span class="repr-tag ">firing-rate (≥ 0, no resting bias)</span><div class="activation-cell">activation: max(0, state)  (non-negative by construction)</div><div class="baseline-cell">baseline: 0 (silent at rest)</div></td>
+          <td class="desc-cell"><p>Slide population for the positive direction: low-pass (tau_slide) of the rectified positive half of the NI velocity command.  ni_slide_left − ni_slide_right = LP(u_vel), which supplies the smoothed velocity and acceleration terms of the pulse-slide-step motor command (cancels the plant's two poles without a glissade).</p><div class="refs">Optican & Miles (1985)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H · LARP · RALP</span> Provisional — slide component of the pulse-slide-step; plausibly NPH/MVN burst-tonic cells</div></td>
+          <td><span class="computation">brain.ni.slide_L</span></td>
+        </tr>
+
+        <tr>
+          <td class="signal-name">ni_slide_right</td>
+          <td class="shape-cell">(3)</td>
+          <td class="axes-cell">H, LARP, RALP</td>
+          <td class="units">deg/s</td>
+          <td><div class="encodes-cell">slide: low-passed negative half of the NI velocity command</div><div class="frame-cell">frame: canal-plane [H, LARP, RALP]</div></td>
+          <td><span class="repr-tag ">firing-rate (≥ 0, no resting bias)</span><div class="activation-cell">activation: max(0, state)  (non-negative by construction)</div><div class="baseline-cell">baseline: 0 (silent at rest)</div></td>
+          <td class="desc-cell"><p>Slide population for the negative direction, push-pull with ni_slide_left. Net slide = ni_slide_left − ni_slide_right = LP(u_vel, tau_slide).</p><div class="refs">Optican & Miles (1985)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">H · LARP · RALP</span> Provisional — slide component of the pulse-slide-step; plausibly NPH/MVN burst-tonic cells</div></td>
+          <td><span class="computation">brain.ni.slide_R</span></td>
         </tr>
         </tbody>
       </table>
