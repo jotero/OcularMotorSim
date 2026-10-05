@@ -101,6 +101,7 @@ def _ocr(show):
     colors = [cmap(i / (len(TILTS_DEG) - 1)) for i in range(len(TILTS_DEG))]
 
     torsion_ss  = []
+    spv_hold    = {}     # median torsional slow-phase velocity during the hold (deg/s)
     traces_t    = {}
     traces_eye  = {}
 
@@ -122,6 +123,10 @@ def _ocr(show):
         traces_t[tilt_deg]    = t_hold
         traces_eye[tilt_deg]  = eye_roll
         torsion_ss.append(float(eye_roll[-1]))
+        # Static tilt should hold OCR without a sustained torsional nystagmus. Median
+        # slow-phase velocity from 3 s into the hold (clear of the tilt transient).
+        spv_roll = extract_spv_states(st, t, eye='version')[:, 2]
+        spv_hold[tilt_deg] = float(np.nanmedian(spv_roll[t_hold > 3.0]))
 
     torsion_expected = [-G_OCR * G0 * np.sin(np.radians(d)) for d in TILTS_DEG]
 
@@ -133,7 +138,8 @@ def _ocr(show):
     ax1 = axes[0]
     for i, tilt_deg in enumerate(TILTS_DEG):
         ax1.plot(traces_t[tilt_deg], traces_eye[tilt_deg],
-                 color=colors[i], lw=1.5, label=f'{tilt_deg:.0f}°')
+                 color=colors[i], lw=1.5,
+                 label=f'{tilt_deg:.0f}°  (SPV {spv_hold[tilt_deg]:+.1f}°/s)')
         ax1.axhline(torsion_expected[i], color=colors[i], lw=0.6, ls=':', alpha=0.5)
     ax1.axvline(0.0, color='gray', lw=0.8, ls='-',
                 label='tilt end / hold onset')
@@ -177,10 +183,17 @@ def _ocr(show):
                lo=0.8, hi=1.2, golden_tol=0.1, units='',
                cite='Laurens & Angelaki (2011)',
                desc='OCR amplitude ratio: measured SS torsion ÷ −G_OCR·G0·sin(θ)'),
-        Metric('gravity_ocr_sin_rmse', ocr_rmse, 
+        Metric('gravity_ocr_sin_rmse', ocr_rmse,
                lo=None, hi=1.0, golden_tol=0.2, units='deg',
                cite='Laurens & Angelaki (2011)',
                desc='RMS deviation of SS torsion from the expected sine law across tilts'),
+        # Band is provisional (no literature number yet): a healthy static tilt holds
+        # OCR without sustained torsional nystagmus. golden_tol=None — the target is ~0,
+        # where a fractional drift tolerance is meaningless.
+        Metric('gravity_ocr_tilt_spv', max(abs(v) for v in spv_hold.values()),
+               lo=None, hi=0.5, golden_tol=None, units='deg/s',
+               cite='provisional — healthy static tilt: no sustained torsional nystagmus',
+               desc='Max |median torsional slow-phase velocity| during the static-tilt hold, across tilts'),
     ]
 
     fig_meta = utils.fig_meta(path, rp,

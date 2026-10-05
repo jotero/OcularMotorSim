@@ -237,7 +237,8 @@ def _listing_ocr(show):
     g_est_sac    = np.array(st_sac.brain.sm.g_est)
 
     # OCR target: negative for positive head roll (left-ear-down).
-    # g_est[1] < 0 for left-ear-down; OCR = g_ocr * g_est[1] < 0.
+    # g_est is [interaural, up, fore-aft]: g_est[0] > 0 for this roll and
+    # OCR = −g_ocr · g_est[0] < 0 (see brain_model's ocr line).
     ocr_expected = -G_OCR * G0 * np.sin(np.radians(TILT_DEG))
 
     t_rel = t - (PRE_REST + TILT_DUR)   # time relative to end of tilt
@@ -254,13 +255,13 @@ def _listing_ocr(show):
     ax_fmt(axes[0], ylabel='Head roll (deg)')
     axes[0].set_title(f'Stimulus: {TILT_DEG:.0f}° head roll at {TILT_VEL:.0f}°/s then hold', fontsize=9)
 
-    axes[1].plot(t_rel, g_est_sac[:, 1], color=utils.C['canal'], lw=1.2,
-                 label='g_est[1] interaural (m/s²)')
-    axes[1].axhline(-G0 * np.sin(np.radians(TILT_DEG)), color='tomato', lw=1.0, ls='--',
-                    label=f'Expected g_est[1] = −G0·sin(30°) = {-G0*np.sin(np.radians(TILT_DEG)):.2f}')
+    axes[1].plot(t_rel, g_est_sac[:, 0], color=utils.C['canal'], lw=1.2,
+                 label='g_est[0] interaural (m/s²)')
+    axes[1].axhline(G0 * np.sin(np.radians(TILT_DEG)), color='tomato', lw=1.0, ls='--',
+                    label=f'Expected g_est[0] = G0·sin({TILT_DEG:.0f}°) = {G0*np.sin(np.radians(TILT_DEG)):.2f}')
     axes[1].axvline(0.0, color='gray', lw=0.8, ls=':')
-    ax_fmt(axes[1], ylabel='g_est[1] (m/s²)')
-    axes[1].legend(fontsize=8); axes[1].set_ylim(-12, 3)
+    ax_fmt(axes[1], ylabel='g_est[0] (m/s²)')
+    axes[1].legend(fontsize=8); axes[1].set_ylim(-3, 10)
 
     axes[2].plot(t_rel, eye_roll_no,  color='steelblue', lw=1.5, ls='--',
                  label='Torsion — no saccades (tonic NI drive only)')
@@ -273,8 +274,8 @@ def _listing_ocr(show):
     ax_fmt(axes[2], ylabel='Eye torsion (deg)', xlabel='Time rel. tilt end (s)')
     axes[2].legend(fontsize=8)
     axes[2].set_title(
-        'Torsion: tonic NI drive reaches OCR in ~τ_i=25 s (dashed); '
-        'saccade corrects rapidly (solid)', fontsize=9)
+        'Torsion: tonic NI drive approaches OCR slowly (dashed, no saccades); '
+        'saccades correct rapidly (solid)', fontsize=9)
 
     fig.tight_layout()
 
@@ -291,7 +292,7 @@ def _listing_ocr(show):
                     'Torsional listing error drives a corrective saccade.',
         expected=f'With saccades: torsion jumps to ≈{ocr_expected:.1f}° '
                  f'after accumulator delay (~80 ms × n_sacs). '
-                 f'Without saccades: slow exponential rise with τ≈τ_i=25 s.',
+                 f'Without saccades: slow approach set by the torsional integrator time constant.',
         citation='Listing (1854); Tweed et al. (1998)',
         fig_type='behavior')
     fig_meta['metrics'] = [

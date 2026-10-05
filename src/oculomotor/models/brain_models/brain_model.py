@@ -517,8 +517,13 @@ class BrainParams(NamedTuple):
     listing_l2_frac:       float = 0.0    # L2 cyclovergence fraction (0=off, 0.5=physiological)
                                           # Listing's plane tilts ±l2_frac·φ/2 per eye with vergence
                                           # Disabled until validated with binocular torsion data
-    listing_gain:          float = 1.0    # master gain on the Listing's corrections (cyc_torsion_vel
+    listing_gain:          float = 1.1    # master gain on the Listing's corrections (cyc_torsion_vel
                                           # and cyclo_verg_rate). Set to 0 to disable both for debugging.
+                                          # Theory says 1.0; tuned to 1.1 (2026-10-05) after the flocculus
+                                          # set-point fix removed a 5× amplification of Listing torsion.
+                                          # At 1.0 the achieved torsion falls ~18% short (half-angle slope
+                                          # 0.82) for a reason not yet found — NOT the NI null adaptation.
+                                          # 1.1 restores slope 0.90 / plane RMSE 0.42° / pursuit RMSE 0.23°.
 
     # Smooth pursuit — leaky integrator + Smith predictor (Lisberger 1988)
     K_pursuit:             float = 4.0    # pursuit integration gain (1/s); rise TC ≈ 1/K_pursuit
@@ -1227,6 +1232,19 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     # Both shift the NI's leak target so x_net leaks toward the correct torsion
     # at SS without relying purely on velocity-level corrections to maintain it.
     u_tonic = ocr + ll_u_tonic
+
+    # The flocculus must cancel the NI leak around the NI's FULL set point
+    # (null + u_tonic), not around the null alone. acts.cb.fl_drive is
+    # K_cereb_fl·(ni_net − ni_null)/tau_i, so remove its u_tonic share here, where
+    # u_tonic is known. Without this the cerebellar loop amplifies any tonic offset
+    # by 1/(1 − K_cereb_fl) (5× at the default 0.8): OCR torsion during static tilt
+    # drifted past its target into a torsional nystagmus, and Listing's torsion at
+    # oblique gaze likewise.
+    tau_i_axes = jnp.array([brain_params.tau_i,
+                            brain_params.tau_i * brain_params.tau_i_pitch_frac,
+                            brain_params.tau_i * brain_params.tau_i_roll_frac])
+    u_ni_in = u_ni_in - brain_params.K_cereb_fl * u_tonic / tau_i_axes
+
     dni, motor_cmd_ni = ni.step(acts.ni, weights.ni, u_ni_in, brain_params, u_tonic=u_tonic)
 
     # ── Vergence + Accommodation — single unified step ────────────────────────

@@ -400,7 +400,9 @@ def step(activations, weights, pos_delayed, target_visible, x_ni, ocr, w_est,
     #   Heun stability: (1+g_ibn_trig)·dt/tau_trig < 2 → tau_trig > 1.5ms. Current 2ms ✓.
     charge_sac   = jnp.clip(p.k_acc * (z_acc - p.threshold_acc), 0.0, 1.0)
     ibn_total    = jnp.sum(act_ibn_R) + jnp.sum(act_ibn_L)
-    ibn_norm     = jnp.clip(ibn_total / (2.0 * p.g_burst), 0.0, 1.0)
+    # Guarded: g_burst = 0 (saccades disabled) makes the IBN silent, and 0/0 here was
+    # NaN that propagated through the OPN into the whole model.
+    ibn_norm     = jnp.clip(ibn_total / jnp.maximum(2.0 * p.g_burst, 1e-6), 0.0, 1.0)
     dz_trig = (charge_sac - z_trig * (1.0 + p.g_ibn_trig * ibn_norm)) / p.tau_trig
 
     # z_acc: charging GATED by normalized_opn (1=tonic, 0=paused during burst).
