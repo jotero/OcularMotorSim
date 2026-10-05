@@ -199,6 +199,14 @@
     "cite": "Laurens & Angelaki (2011)",
     "desc": "RMS deviation of SS torsion from the expected sine law across tilts"
   },
+  "gravity_ocr_tilt_spv": {
+    "lo": null,
+    "hi": 0.5,
+    "golden_tol": null,
+    "units": "deg/s",
+    "cite": "provisional \u2014 healthy static tilt: no sustained torsional nystagmus",
+    "desc": "Max |median torsional slow-phase velocity| during the static-tilt hold, across tilts"
+  },
   "gravity_ovar_bias_10": {
     "lo": -35.0,
     "hi": 0.0,

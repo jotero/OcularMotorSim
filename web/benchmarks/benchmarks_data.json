@@ -1,6 +1,6 @@
 {
-  "generated": "2026-10-02 10:24",
-  "version": "5df9b8a",
+  "generated": "2026-10-05 09:52",
+  "version": "f59b00c-dirty",
   "sections": [
     {
       "id": "saccades",
@@ -24,17 +24,17 @@
             {
               "name": "sac_peak_vel_20deg",
               "value": 615.6904296875,
-              "golden": 640.1481323242188
+              "golden": 615.6904296875
             },
             {
               "name": "sac_mainseq_resid_max",
               "value": 0.35607865143168815,
-              "golden": 0.15859943761867354
+              "golden": 0.35607865143168815
             },
             {
               "name": "sac_primary_gain",
               "value": 0.9762079699834189,
-              "golden": 0.9864487584431967
+              "golden": 0.9762079699834189
             }
           ]
         },
@@ -52,7 +52,7 @@
             {
               "name": "sac_oblique_straightness",
               "value": 0.013367511332035065,
-              "golden": 0.014093972742557526
+              "golden": 0.013367511332035065
             }
           ]
         },
@@ -70,12 +70,12 @@
             {
               "name": "sac_refractory_isi_ms",
               "value": 259.0,
-              "golden": 315.99999999999994
+              "golden": 259.0
             },
             {
               "name": "sac_refractory_isi_median_ms",
               "value": 392.5,
-              "golden": 388.0
+              "golden": 392.5
             }
           ]
         },
@@ -93,22 +93,22 @@
             {
               "name": "sac_postsac_peak_short_noiseless",
               "value": 6.381988048553467,
-              "golden": 1.1138916015625
+              "golden": 6.381988048553467
             },
             {
               "name": "sac_postsac_peak_long_noiseless",
               "value": 4.852294921875,
-              "golden": 1.4190672636032104
+              "golden": 4.852294921875
             },
             {
               "name": "sac_postsac_verg_peak_noiseless",
               "value": 5.8851237297058105,
-              "golden": 5.373000621795654
+              "golden": 5.8851237297058105
             },
             {
               "name": "sac_cascade_count_noiseless",
               "value": 2.0,
-              "golden": 1.0
+              "golden": 2.0
             }
           ]
         }
@@ -136,22 +136,22 @@
             {
               "name": "vor_okr_vvor_gain",
               "value": 0.8389763647912613,
-              "golden": 0.8813542453647045
+              "golden": 0.8389763647912613
             },
             {
               "name": "vor_okr_postrot_tc",
               "value": 35.82650983086273,
-              "golden": 34.9654428452286
+              "golden": 35.82650983086273
             },
             {
               "name": "vor_okr_okan_tc",
               "value": 21.289315151883677,
-              "golden": 20.62671066639932
+              "golden": 21.289315151883677
             },
             {
               "name": "vor_okr_okn_ss_gain",
               "value": 0.7999946831494879,
-              "golden": 0.8344715685696169
+              "golden": 0.7999946831494879
             }
           ]
         },
@@ -181,27 +181,27 @@
             {
               "name": "vor_bode_gain_max_dark",
               "value": 1.0740280318415567,
-              "golden": 1.0655162711185782
+              "golden": 1.0740280318415567
             },
             {
               "name": "vor_bode_gain_max_light",
               "value": 1.1636458456886012,
-              "golden": 1.084041056621937
+              "golden": 1.1636458456886012
             },
             {
               "name": "vor_bode_fc_hi_light",
               "value": 16.25640276143925,
-              "golden": null
+              "golden": 16.25640276143925
             },
             {
               "name": "vor_bode_gain_max_light_target",
               "value": 1.2576117263122653,
-              "golden": 1.1291078671137007
+              "golden": 1.2576117263122653
             },
             {
               "name": "vor_bode_fc_hi_light_target",
               "value": 9.420625531625276,
-              "golden": null
+              "golden": 9.420625531625276
             }
           ]
         },
@@ -219,22 +219,22 @@
             {
               "name": "okr_bode_gain_max_scene",
               "value": 0.5147194545342827,
-              "golden": 0.5215206035887102
+              "golden": 0.5147194545342827
             },
             {
               "name": "okr_bode_fc_hi_scene",
               "value": 8.063834497736233,
-              "golden": 7.76749901993308
+              "golden": 8.063834497736233
             },
             {
               "name": "okr_bode_gain_max_scene_target",
               "value": 0.9937817796392205,
-              "golden": 1.031676732186263
+              "golden": 0.9937817796392205
             },
             {
               "name": "okr_bode_fc_hi_scene_target",
               "value": 6.812487374913717,
-              "golden": 5.528349950532553
+              "golden": 6.812487374913717
             }
           ]
         }
@@ -244,9 +244,9 @@
       "id": "gravity",
       "title": "3. Gravity Estimator + T-VOR",
       "description": "Canal-otolith interaction: OCR, OVAR, VOR tilt suppression, OCR vs tilt angle, somatogravic OCR frequency dependence, and translational VOR. These share a path \u2014 gravity/tilt and lateral translation both produce linear-acceleration components whose ocular effect is vergence/distance-dependent, so T-VOR lives here. Parameters: tau_grav=1.6666666666666667, K_gd=2.86, g_ocr=1.019 (Laurens & Angelaki 2011).",
-      "runtime_s": 155.84,
-      "version": "5df9b8a",
-      "generated": "2026-10-02 10:22",
+      "runtime_s": 152.56,
+      "version": "f59b00c-dirty.0d8a356",
+      "generated": "2026-10-05 09:38",
       "figures": [
         {
           "rel": "figures/gravity_ocr.png",
@@ -257,17 +257,22 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_ocr.png",
           "diff_status": "changed",
-          "diff": 0.04253333434462547,
+          "diff": 0.04312795773148537,
           "metrics": [
             {
               "name": "gravity_ocr_gain",
-              "value": 1.1015702136953085,
-              "golden": 1.084362098225772
+              "value": 0.9003053252605867,
+              "golden": 1.1015702136953085
             },
             {
               "name": "gravity_ocr_sin_rmse",
-              "value": 0.8581862804961643,
-              "golden": 0.6969648886559057
+              "value": 0.9758702886638779,
+              "golden": 0.8581862804961643
+            },
+            {
+              "name": "gravity_ocr_tilt_spv",
+              "value": 0.9431838393211365,
+              "golden": null
             }
           ]
         },
@@ -275,12 +280,12 @@
           "rel": "figures/gravity_ocr_cascade.png",
           "title": "OCR cascade (3 visual conditions)",
           "description": "30.0\u00b0 roll tilt \u2014 OCR cascade across dark / scene-on / scene+target-on conditions, 15 s hold, noiseless.",
-          "expected": "Eye torsion stabilises at \u2248-4.59\u00b0 in all conditions. SPV row: -VS (dashed) and -canal FT (dotted) should bracket the measured SPV.",
+          "expected": "Eye torsion stabilises at \u2248-4.96\u00b0 in all conditions. SPV row: -VS (dashed) and -canal FT (dotted) should bracket the measured SPV.",
           "citation": "Debug diagnostic",
           "type": "cascade",
           "ref_rel": "reference/gravity_ocr_cascade.png",
           "diff_status": "changed",
-          "diff": 0.04041629284620285,
+          "diff": 0.03945920243859291,
           "metrics": []
         },
         {
@@ -292,47 +297,47 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_ovar.png",
           "diff_status": "changed",
-          "diff": 0.05274386703968048,
+          "diff": 0.053110331296920776,
           "metrics": [
             {
               "name": "gravity_ovar_mod_10",
-              "value": 3.305905869443383,
-              "golden": 3.3438971807216173
+              "value": 3.299028800188072,
+              "golden": 3.305905869443383
             },
             {
               "name": "gravity_ovar_bias_10",
-              "value": -24.80957232746109,
-              "golden": -25.062992290240366
+              "value": -24.833444623755625,
+              "golden": -24.80957232746109
             },
             {
               "name": "gravity_ovar_mod_30",
-              "value": 3.4921395845668517,
-              "golden": 3.547590908545725
+              "value": 3.487649851443732,
+              "golden": 3.4921395845668517
             },
             {
               "name": "gravity_ovar_bias_30",
-              "value": -28.457093312887693,
-              "golden": -28.793634740882247
+              "value": -28.471908494557532,
+              "golden": -28.457093312887693
             },
             {
               "name": "gravity_ovar_mod_60",
-              "value": 2.70573599649987,
-              "golden": 2.6787212742968864
+              "value": 2.7209626970486958,
+              "golden": 2.70573599649987
             },
             {
               "name": "gravity_ovar_bias_60",
-              "value": -32.97754804792195,
-              "golden": -33.34295402017891
+              "value": -32.99315505264684,
+              "golden": -32.97754804792195
             },
             {
               "name": "gravity_ovar_mod_90",
-              "value": 2.4221212256380062,
-              "golden": 2.4697250599899556
+              "value": 2.4323575307002603,
+              "golden": 2.4221212256380062
             },
             {
               "name": "gravity_ovar_bias_90",
-              "value": -34.51240577128779,
-              "golden": -34.848437421826326
+              "value": -34.50438836555786,
+              "golden": -34.51240577128779
             }
           ]
         },
@@ -345,37 +350,37 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_tilt_suppression.png",
           "diff_status": "changed",
-          "diff": 0.0445595383644104,
+          "diff": 0.04469127207994461,
           "metrics": [
             {
               "name": "gravity_tilt_tc_0",
-              "value": 34.14007187030788,
-              "golden": 34.165126681189314
+              "value": 34.14173459484887,
+              "golden": 34.14007187030788
             },
             {
               "name": "gravity_tilt_tc_30",
-              "value": 15.66687437753355,
-              "golden": 15.453878707295091
+              "value": 15.670679362389393,
+              "golden": 15.66687437753355
             },
             {
               "name": "gravity_tilt_tc_60",
-              "value": 10.144868889736026,
-              "golden": 10.04065261674114
+              "value": 10.135793508723019,
+              "golden": 10.144868889736026
             },
             {
               "name": "gravity_tilt_tc_90",
-              "value": 9.065488853461448,
-              "golden": 9.019918235131016
+              "value": 9.066546664823061,
+              "golden": 9.065488853461448
             },
             {
               "name": "gravity_tilt_reversal_60",
-              "value": 1.2164743432263723,
-              "golden": 1.2240656978917575
+              "value": 1.2219478378007116,
+              "golden": 1.2164743432263723
             },
             {
               "name": "gravity_tilt_reversal_90",
-              "value": -0.051833045836674155,
-              "golden": -0.041448020433130166
+              "value": -0.05159026428949341,
+              "golden": -0.051833045836674155
             }
           ]
         },
@@ -388,22 +393,22 @@
           "type": "behavior",
           "ref_rel": "reference/gravity_somatogravic_freq.png",
           "diff_status": "changed",
-          "diff": 0.019442396238446236,
+          "diff": 0.019113782793283463,
           "metrics": [
             {
               "name": "gravity_somato_ocr_low_f",
-              "value": 4.016457557678223,
-              "golden": null
+              "value": 3.0409703254699707,
+              "golden": 4.016457557678223
             },
             {
               "name": "gravity_somato_fc_hi",
-              "value": 0.09227459788560606,
-              "golden": null
+              "value": 0.08987043368743329,
+              "golden": 0.09227459788560606
             },
             {
               "name": "gravity_somato_atten_high_f",
-              "value": 0.010803771377762308,
-              "golden": null
+              "value": 0.01237485034011632,
+              "golden": 0.010803771377762308
             }
           ]
         },
@@ -416,7 +421,7 @@
           "type": "behavior",
           "ref_rel": "reference/tvor_cascade.png",
           "diff_status": "changed",
-          "diff": 0.04054788127541542,
+          "diff": 0.04036526754498482,
           "metrics": []
         },
         {
@@ -428,42 +433,42 @@
           "type": "behavior",
           "ref_rel": "reference/tvor_bode.png",
           "diff_status": "changed",
-          "diff": 0.058985453099012375,
+          "diff": 0.05890842527151108,
           "metrics": [
             {
               "name": "tvor_bode_gain_max_dark",
-              "value": 0.05249246881963871,
-              "golden": 0.05130756032031777
+              "value": 0.05249247036783378,
+              "golden": 0.05249246881963871
             },
             {
               "name": "tvor_torsion_cross_dark",
-              "value": 0.018511868095024663,
-              "golden": 0.010655655108793669
+              "value": 0.009606393920680599,
+              "golden": 0.018511868095024663
             },
             {
               "name": "tvor_bode_gain_max_scene",
-              "value": 0.41855748160514095,
-              "golden": 0.43028764593954577
+              "value": 0.41760862855477804,
+              "golden": 0.41855748160514095
             },
             {
               "name": "tvor_torsion_cross_scene",
-              "value": 0.014466619509391798,
-              "golden": 0.008361926526529215
+              "value": 0.007464037635727654,
+              "golden": 0.014466619509391798
             },
             {
               "name": "tvor_bode_gain_max_scene_target",
-              "value": 0.511520653350802,
-              "golden": 0.48164923779195695
+              "value": 0.5114313452181478,
+              "golden": 0.511520653350802
             },
             {
               "name": "tvor_bode_fc_lo_scene_target",
-              "value": 0.10348983465475091,
-              "golden": null
+              "value": 0.10305998447355792,
+              "golden": 0.10348983465475091
             },
             {
               "name": "tvor_torsion_cross_scene_target",
-              "value": 0.11789692856323462,
-              "golden": 0.10954575143724174
+              "value": 0.11422751226866897,
+              "golden": 0.11789692856323462
             }
           ]
         }
@@ -491,17 +496,17 @@
             {
               "name": "pursuit_ss_gain_5degs",
               "value": 0.8945306420087655,
-              "golden": 0.9937063535266594
+              "golden": 0.8945306420087655
             },
             {
               "name": "pursuit_ss_gain_10degs",
               "value": 0.9018550510641891,
-              "golden": 1.0065894180969686
+              "golden": 0.9018550510641891
             },
             {
               "name": "pursuit_latency_ms",
               "value": 78.00000000000001,
-              "golden": 62.0
+              "golden": 78.00000000000001
             }
           ]
         },
@@ -519,27 +524,27 @@
             {
               "name": "pursuit_bode_gain_max",
               "value": 0.9045860380783494,
-              "golden": 0.9146719164695349
+              "golden": 0.9045860380783494
             },
             {
               "name": "pursuit_bode_gain_0p5hz",
               "value": 0.6857425657772622,
-              "golden": null
+              "golden": 0.6857425657772622
             },
             {
               "name": "pursuit_bode_gain_1hz",
               "value": 0.6837022560704692,
-              "golden": null
+              "golden": 0.6837022560704692
             },
             {
               "name": "pursuit_bode_phase_1hz",
               "value": -38.91862759204403,
-              "golden": null
+              "golden": -38.91862759204403
             },
             {
               "name": "pursuit_bode_fc_hi",
               "value": 1.7800762163325783,
-              "golden": 1.572063683925892
+              "golden": 1.7800762163325783
             }
           ]
         },
@@ -579,12 +584,12 @@
             {
               "name": "verg_sym_conv_err",
               "value": 0.115039821268768,
-              "golden": 0.1082668262736508
+              "golden": 0.115039821268768
             },
             {
               "name": "verg_sym_version_leak",
               "value": 0.01149749755859375,
-              "golden": 0.017503738403320312
+              "golden": 0.01149749755859375
             },
             {
               "name": "verg_latency_ms",
@@ -594,12 +599,12 @@
             {
               "name": "verg_tc_s",
               "value": 0.21457027170491186,
-              "golden": 0.22796688102180712
+              "golden": 0.21457027170491186
             },
             {
               "name": "verg_overshoot",
               "value": 0.02814809969247726,
-              "golden": 0.03184524100771119
+              "golden": 0.02814809969247726
             }
           ]
         },
@@ -622,17 +627,17 @@
             {
               "name": "acc_step_tc_s",
               "value": 0.5963501582646881,
-              "golden": 0.5963693191201761
+              "golden": 0.5963501582646881
             },
             {
               "name": "acc_step_gain",
               "value": 0.9766118049621582,
-              "golden": 0.9766471862792969
+              "golden": 0.9766118049621582
             },
             {
               "name": "acc_step_peak_vel",
               "value": 2.8753278255462646,
-              "golden": 2.8753576278686523
+              "golden": 2.8753278255462646
             }
           ]
         },
@@ -650,12 +655,12 @@
             {
               "name": "verg_conv_div_ratio",
               "value": 1.0157524891420078,
-              "golden": 1.0113152069783065
+              "golden": 1.0157524891420078
             },
             {
               "name": "verg_asym_facilitation",
               "value": 2.730586989123136,
-              "golden": 1.2582111881579718
+              "golden": 2.730586989123136
             }
           ]
         },
@@ -673,12 +678,12 @@
             {
               "name": "aca_vergence_delta",
               "value": 0.9113510847091675,
-              "golden": 0.9355483055114746
+              "golden": 0.9113510847091675
             },
             {
               "name": "aca_ratio_pd_per_d",
               "value": 0.8573221424240162,
-              "golden": 0.8808065735317095
+              "golden": 0.8573221424240162
             }
           ]
         },
@@ -696,22 +701,22 @@
             {
               "name": "verg_phoria_adapt",
               "value": 8.313083171844482,
-              "golden": 8.312616348266602
+              "golden": 8.313083171844482
             },
             {
               "name": "verg_phoria_tc_s",
               "value": 199.99999999999997,
-              "golden": 199.99999999999892
+              "golden": 199.99999999999997
             },
             {
               "name": "acc_darkfocus_adapt",
               "value": 1.9870699048042297,
-              "golden": 1.9874359667301178
+              "golden": 1.9870699048042297
             },
             {
               "name": "acc_darkfocus_tc_s",
               "value": 27.69363615737216,
-              "golden": 27.890370300986092
+              "golden": 27.69363615737216
             }
           ]
         },
@@ -729,12 +734,12 @@
             {
               "name": "verg_bode_gain_max",
               "value": 0.9861384535634728,
-              "golden": 0.9890976004080749
+              "golden": 0.9861384535634728
             },
             {
               "name": "verg_bode_fc_hi",
               "value": 1.0185244186552345,
-              "golden": 0.8707076119576123
+              "golden": 1.0185244186552345
             }
           ]
         },
@@ -752,12 +757,12 @@
             {
               "name": "acc_bode_gain_max",
               "value": 0.9685128075938557,
-              "golden": 0.9681940923427055
+              "golden": 0.9685128075938557
             },
             {
               "name": "acc_bode_fc_hi",
               "value": 0.5395722119393939,
-              "golden": 0.546981185648876
+              "golden": 0.5395722119393939
             }
           ]
         },
@@ -797,17 +802,17 @@
             {
               "name": "fix_noiseless_drift_std",
               "value": 0.004743106663227081,
-              "golden": 0.005167295690625906
+              "golden": 0.004743106663227081
             },
             {
               "name": "fix_drift_rms",
               "value": 0.0949341356754303,
-              "golden": 0.09826964139938354
+              "golden": 0.0949341356754303
             },
             {
               "name": "fix_microsaccade_rate",
               "value": 0.5,
-              "golden": 0.0
+              "golden": 0.5
             }
           ]
         }
@@ -835,32 +840,32 @@
             {
               "name": "gaze_hold_drift_slope_dark",
               "value": 0.030782875828401494,
-              "golden": null
+              "golden": 0.030782875828401494
             },
             {
               "name": "gaze_hold_spv_ecc_dark",
               "value": 1.2408883016705512,
-              "golden": null
+              "golden": 1.2408883016705512
             },
             {
               "name": "gaze_hold_net_drift_dark",
               "value": 0.7438278102850907,
-              "golden": null
+              "golden": 0.7438278102850907
             },
             {
               "name": "gaze_hold_spv_ecc_light",
               "value": 0.5327624974250793,
-              "golden": null
+              "golden": 0.5327624974250793
             },
             {
               "name": "gaze_hold_light_dark_ratio",
               "value": 0.4293396083336796,
-              "golden": null
+              "golden": 0.4293396083336796
             },
             {
               "name": "gaze_hold_center_spv_dark",
               "value": 2.9981134611716698e-05,
-              "golden": null
+              "golden": 2.9981134611716698e-05
             }
           ]
         },
@@ -882,9 +887,9 @@
       "id": "listing",
       "title": "8. Listing's Law",
       "description": "Torsional constraint T = OCR \u2212 H\u00b7V\u00b7\u03c0/360: saccade plane scatter and OCR-driven correction saccade.",
-      "runtime_s": 13.5,
-      "version": "5df9b8a",
-      "generated": "2026-10-02 10:24",
+      "runtime_s": 14.59,
+      "version": "f59b00c-dirty.10b7065",
+      "generated": "2026-10-05 09:52",
       "figures": [
         {
           "rel": "figures/listing_plane.png",
@@ -895,17 +900,17 @@
           "type": "behavior",
           "ref_rel": "reference/listing_plane.png",
           "diff_status": "changed",
-          "diff": 0.042385417968034744,
+          "diff": 0.041751597076654434,
           "metrics": [
             {
               "name": "listing_plane_rmse",
-              "value": 0.4703270813054024,
-              "golden": 0.4266385413988341
+              "value": 0.4213099637089359,
+              "golden": 0.4703270813054024
             },
             {
               "name": "listing_halfangle_slope",
-              "value": 0.9157144565005509,
-              "golden": 0.923265072742218
+              "value": 0.8976847934348489,
+              "golden": 0.9157144565005509
             }
           ]
         },
@@ -913,17 +918,17 @@
           "rel": "figures/listing_ocr_saccade.png",
           "title": "OCR Torsional Correction Saccade",
           "description": "Head tilt 30\u00b0; g_ocr=1.02. Torsional listing error drives a corrective saccade.",
-          "expected": "With saccades: torsion jumps to \u2248-5.0\u00b0 after accumulator delay (~80 ms \u00d7 n_sacs). Without saccades: slow exponential rise with \u03c4\u2248\u03c4_i=25 s.",
+          "expected": "With saccades: torsion jumps to \u2248-5.0\u00b0 after accumulator delay (~80 ms \u00d7 n_sacs). Without saccades: slow approach set by the torsional integrator time constant.",
           "citation": "Listing (1854); Tweed et al. (1998)",
           "type": "behavior",
           "ref_rel": "reference/listing_ocr_saccade.png",
           "diff_status": "changed",
-          "diff": 0.033075280487537384,
+          "diff": 0.03560280427336693,
           "metrics": [
             {
               "name": "listing_ocr_torsion_err",
-              "value": 0.4474163055419931,
-              "golden": 0.02182722091674716
+              "value": 0.056135654449462,
+              "golden": 0.4474163055419931
             }
           ]
         },
@@ -936,12 +941,12 @@
           "type": "behavior",
           "ref_rel": "reference/listing_pursuit.png",
           "diff_status": "changed",
-          "diff": 0.042093560099601746,
+          "diff": 0.04221723973751068,
           "metrics": [
             {
               "name": "listing_pursuit_rmse",
-              "value": 0.254056453704834,
-              "golden": 0.20286467671394348
+              "value": 0.22984983026981354,
+              "golden": 0.254056453704834
             }
           ]
         }
@@ -969,22 +974,22 @@
             {
               "name": "fcp_nerve_pullonly_frac",
               "value": 1.0,
-              "golden": null
+              "golden": 1.0
             },
             {
               "name": "fcp_gaze_amp",
               "value": 30.505754470825195,
-              "golden": null
+              "golden": 30.505754470825195
             },
             {
               "name": "fcp_verg_near",
               "value": 14.527826309204102,
-              "golden": null
+              "golden": 14.527826309204102
             },
             {
               "name": "fcp_verg_far",
               "value": 1.0429093837738037,
-              "golden": null
+              "golden": 1.0429093837738037
             }
           ]
         }

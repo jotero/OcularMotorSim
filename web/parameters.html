@@ -120,8 +120,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-09-25 15:45</strong> &nbsp;|&nbsp;
-      Version: <strong>4ccbd33-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-10-05 09:51</strong> &nbsp;|&nbsp;
+      Version: <strong>f59b00c-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>/Users/jorge/Library/CloudStorage/OneDrive-SharedLibraries-UCBerkeley/OMlab - JOM/Code/OcularMotorSim/src/oculomotor/schema/parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -569,10 +569,10 @@ tr:last-child { border-bottom: none; }
 
         <tr>
           <td class="param-name">listing_gain<span class="todo">TODO: enrich schema</span></td>
-          <td><span class="default">1</span></td>
+          <td><span class="default">1.1</span></td>
           <td class="units"></td>
           <td class="range-cell"></td>
-          <td class="desc-cell"><p>master gain on the Listing's corrections (cyc_torsion_vel and cyclo_verg_rate). Set to 0 to disable both for debugging.</p></td>
+          <td class="desc-cell"><p>master gain on the Listing's corrections (cyc_torsion_vel and cyclo_verg_rate). Set to 0 to disable both for debugging. Theory says 1.0; tuned to 1.1 (2026-10-05) after the flocculus set-point fix removed a 5× amplification of Listing torsion. At 1.0 the achieved torsion falls ~18% short (half-angle slope 0.82) for a reason not yet found — NOT the NI null adaptation. 1.1 restores slope 0.90 / plane RMSE 0.42° / pursuit RMSE 0.23°.</p></td>
           <td class="anatomy-cell"></td>
           <td></td>
         </tr>
