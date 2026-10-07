@@ -9,9 +9,10 @@ decays slowly when the target is gone.
 Component (working memory):
   4-state cognitive layer (3-D last-seen position + trust scalar).  The SG
   uses these to fire a saccade toward the remembered location after the
-  flash ends.  Memory drains proportional to |ec_d_target|, so any eye
-  movement (saccade, fast pursuit, head-impulse fast-phase) consumes the
-  memory and prevents re-triggering on the residual.
+  flash ends.  The memory is in retinal (eye-centred) coordinates, so every
+  eye movement REMAPS it by the eye displacement (x_mem −= ∫eye_vel, the
+  commanded-eye-velocity EC from the cerebellum): after a saccade to a remembered
+  target the memory holds only the residual error, so it is not re-triggered.
 
 State layout (N_STATES = 4):
     x_target_mem = [x_mem_pos (3) | mem_age (1)]
@@ -101,7 +102,7 @@ def read_activations(state):
 
 def step(activations,
          target_visible, target_pos,
-         ec_d_target):
+         eye_vel):
     """Single ODE step for target-side perception.
 
     Activation-driven: working-memory pop firing rates come from `activations`
@@ -111,7 +112,8 @@ def step(activations,
         activations:     pt.Activations  mem_pos (3,) | mem_age (scalar, s)
         target_visible:  scalar  delayed cyclopean target visibility gate ∈ [0,1]
         target_pos:      (3,)    delayed cyclopean retinal target position (eye frame, deg)
-        ec_d_target:     (3,)    delayed EC (cascade-matched to target_vel; eye frame, deg/s)
+        eye_vel:         (3,)    commanded eye velocity EC (after the MN lag, deg/s): the
+                                 memory is remapped by the eye displacement it integrates to
 
     Returns:
         dstate:        pt.State  derivative
@@ -125,22 +127,18 @@ def step(activations,
     # brief flash drive a saccade.
     seen  = jax.nn.sigmoid((target_visible - _TARGET_MEM_DETECT) / _TARGET_MEM_DETECT_WIDTH)
 
-    # Memory drain proportional to delayed-EC magnitude. Whenever the eye is
-    # moving (saccade burst, fast pursuit overshoot, head-impulse fast-phase),
-    # |ec_d_target| is large in deg/s → drain rate grows in 1/s, draining the
-    # remembered position fast even for small saccades whose cascade-delayed
-    # EC peaks at only tens of deg/s. Between saccades the LP cascade has
-    # decayed and inv_consume → 0, so the memory holds.
+    # Remap: a remembered (stationary) target moves on the retina by minus the eye
+    # displacement, so x_mem −= ∫eye_vel. (This replaces an older drain toward 0
+    # proportional to |delayed target EC|, which removed only ~35% of the memory
+    # per saccade once the cerebellar saccadic-suppression gate muted that EC.)
     # Age is the "give up and look home" clock; it is not driven by the EC.
-    inv_consume = jnp.linalg.norm(ec_d_target)
     # Lock strength is raw visibility, NOT the saturated `seen` gate. The two do
     # different jobs and must not be conflated: `seen` stays pinned at 1 until
     # visibility falls below the detection level, so locking on it keeps dragging
     # the memory along while the position signal is already DECAYING — the memory
     # ends up holding the faded tail instead of the peak. Weighting by visibility
     # makes the lock fade with the evidence, freezing x_mem near its best estimate.
-    dx_mem = target_visible * (target_pos - x_mem) / _TAU_TARGET_MEM_UPDATE \
-             - inv_consume * x_mem
+    dx_mem = target_visible * (target_pos - x_mem) / _TAU_TARGET_MEM_UPDATE - eye_vel
 
     # Age: pinned to 0 while the target is seen, otherwise counts real seconds.
     dx_age = (1.0 - seen) - seen * age / _TAU_TARGET_MEM_RESET

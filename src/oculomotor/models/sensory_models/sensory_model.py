@@ -13,7 +13,7 @@ Signal flow:
                       → [retina.step] R  → RetinaOut_R
     SensoryOutput bundles canal + otolith + retina_L + retina_R for the brain.
 
-State layout (200 states) — a NamedTuple of per-subsystem States (no flat array,
+State layout (356 states) — a NamedTuple of per-subsystem States (no flat array,
 no _IDX_* slice constants; Diffrax handles the PyTree natively):
     State(
         canal    : canal.State    (12)   two-stage bandpass
@@ -133,9 +133,9 @@ canal_nonlinearity = _canal.nonlinearity   # renamed in canal.py
 
 _N_CANAL_STATES  = _canal.N_STATES                # 12
 _N_OTO_STATES    = _otolith.N_STATES              #  6
-_N_RETINA_PER_EYE= _retina.N_STATES_PER_EYE       # 91 (90 cascade + 1 luminance)
-_N_VIS_STATES    = 2 * _N_RETINA_PER_EYE          # 91+91 = 182
-N_STATES         = _N_CANAL_STATES + _N_OTO_STATES + _N_VIS_STATES  # 12+6+182 = 200
+_N_RETINA_PER_EYE= _retina.N_STATES_PER_EYE       # 169 (168 cascade + 1 luminance)
+_N_VIS_STATES    = 2 * _N_RETINA_PER_EYE          # 169+169 = 338
+N_STATES         = _N_CANAL_STATES + _N_OTO_STATES + _N_VIS_STATES  # 12+6+338 = 356
 
 
 # ── State NamedTuple ──────────────────────────────────────────────────────────

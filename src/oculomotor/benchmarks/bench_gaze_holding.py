@@ -42,6 +42,7 @@ from oculomotor.sim.simulator import (
 )
 from oculomotor.sim import kinematics as km
 from oculomotor.sim.stimuli import strobe_train, STROBE_HZ_DEFAULT, STROBE_MS_DEFAULT
+from oculomotor.models.sensory_models import retina as retina_mod
 from oculomotor.analysis import (ax_fmt, ni_net, extract_spv_states, extract_sg,
                                  read_brain_decoded)
 from oculomotor.benchmarks.bench_metrics import Metric
@@ -318,10 +319,10 @@ def _flash_cascade(show):
     eye  = (np.array(st.plant.left[:, 0]) + np.array(st.plant.right[:, 0])) / 2.0
     ret  = st.sensory.retina_L
     tv_ret  = np.array(ret.target_visible)[:, -1]      # last cascade stage = delayed
-    tp_ret  = np.array(ret.target_pos)[:, -3]          # delayed retinal target yaw
+    tp_ret  = np.array(jax.vmap(retina_mod.read_outputs)(ret).target_pos)[:, 0]   # delayed retinal target yaw
     x_cyc   = np.array(jax.vmap(pc_mod.to_array)(st.brain.pc))
     tv_cyc  = (x_cyc @ np.array(pc_mod.C_target_visible).T)[:, 0]
-    e_pd    = (x_cyc @ np.array(pc_mod.C_pos).T)[:, 0]
+    e_pd    = np.array(jax.vmap(pc_mod.read_activations)(st.brain.pc).target_pos)[:, 0]
     mem     = np.array(st.brain.pt.mem_pos)[:, 0]
     trust   = np.array(st.brain.pt.mem_age)
     sg      = extract_sg(st, THETA)

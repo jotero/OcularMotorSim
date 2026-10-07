@@ -65,8 +65,8 @@ from oculomotor.models.plant_models.readout import rotation_matrix
 # Two-tier transmission model, split across modules:
 #   - SHARP cascade (THIS module): a gamma cascade modelling photo-transduction +
 #     axonal/synaptic transport delay (Pugh & Lamb 1993, Dunn & Rieke 2006).
-#     Produces a near-pure transport delay of mean = tau_sharp. EVERY per-eye
-#     channel — target_pos included — uses the same short cascade (see step()).
+#     Produces a transport delay of mean = tau_sharp. Every per-eye channel uses
+#     the same 6-stage cascade EXCEPT target position (see _N_STAGES_POS).
 #   - SMOOTH LP (DOWNSTREAM): optional multi-stage smoothing after the sharp
 #     cascade, modelling channel-specific neural integration (MT/MST motion
 #     window, V1 stereo correspondence, accommodation circuit). It is applied in
@@ -80,6 +80,17 @@ from oculomotor.models.plant_models.readout import rotation_matrix
 # total delay): at N=6 a 20 ms flash reaches ~0.4 of full amplitude, a 10 ms ~0.2.
 _N_STAGES_OTHER = 6
 
+# Target POSITION rides a much sharper cascade (same mean delay, 24 stages: 10–90%
+# spread ~26 ms instead of ~51 ms). Position is a place code downstream (SC map):
+# temporal smoothing belongs to the AMPLITUDE of activity at each location — the
+# 6-stage target_visible above — not to the location itself. Smoothing the position
+# value makes a target step glide through every intermediate position. The cascade
+# carries position × visibility; a matching 24-stage visibility cascade
+# (target_visible_pos) is its denominator, so read_outputs decodes the position
+# exactly. Stage TC = 50/24 ≈ 2.1 ms (> dt/2 for the 1 ms Heun step).
+_N_STAGES_POS = 24
+_VIS_EPS = 1e-3   # visibility floor when decoding position = (position × vis) / vis
+
 # ── Per-eye retina state layout ────────────────────────────────────────────────
 # Each eye has its own sharp gamma cascade per signal (N stages × τ_retina/N).
 # target_disparity is NOT here — it's a binocular construction computed in
@@ -87,10 +98,11 @@ _N_STAGES_OTHER = 6
 _RETINA_PER_EYE_LAYOUT = [
     ('scene_angular_vel', _N_STAGES_OTHER, 3),   # 18
     ('scene_linear_vel',  _N_STAGES_OTHER, 3),   # 18
-    ('target_pos',        _N_STAGES_OTHER, 3),   # 18
+    ('target_pos',        _N_STAGES_POS,   3),   # 72
     ('target_vel',        _N_STAGES_OTHER, 3),   # 18
     ('scene_visible',     _N_STAGES_OTHER, 1),   #  6
     ('target_visible',    _N_STAGES_OTHER, 1),   #  6
+    ('target_visible_pos', _N_STAGES_POS,  1),   # 24
     ('defocus',           _N_STAGES_OTHER, 1),   #  6
 ]
 N_STATES_PER_EYE = sum(N * n for _, N, n in _RETINA_PER_EYE_LAYOUT) + 1  # +1 luminance
@@ -112,10 +124,12 @@ class State(NamedTuple):
     """
     scene_angular_vel: jnp.ndarray   # (N*3,) cascade buffer
     scene_linear_vel:  jnp.ndarray   # (N*3,)
-    target_pos:        jnp.ndarray   # (N*3,)
+    target_pos:        jnp.ndarray   # (N_POS*3,) position × visibility, sharp 24-stage cascade
     target_vel:        jnp.ndarray   # (N*3,)
     scene_visible:     jnp.ndarray   # (N,)
-    target_visible:    jnp.ndarray   # (N,)
+    target_visible:    jnp.ndarray   # (N,)  — the AMPLITUDE (6-stage)
+    target_visible_pos: jnp.ndarray  # (N_POS,) visibility through the position cascade — the
+                                     #          denominator that decodes position
     defocus:           jnp.ndarray   # (N,)
     luminance:         jnp.ndarray   # (1,) afferent luminance LP register (normalised, ~[0,1])
 
@@ -126,10 +140,11 @@ def rest_state():
     return State(
         scene_angular_vel = jnp.zeros(N * 3),
         scene_linear_vel  = jnp.zeros(N * 3),
-        target_pos        = jnp.zeros(N * 3),
+        target_pos        = jnp.zeros(_N_STAGES_POS * 3),
         target_vel        = jnp.zeros(N * 3),
         scene_visible     = jnp.zeros(N),
         target_visible    = jnp.zeros(N),
+        target_visible_pos = jnp.zeros(_N_STAGES_POS),
         defocus           = jnp.zeros(N),
         luminance         = jnp.zeros(1),
     )
@@ -434,7 +449,9 @@ class RetinaOut(NamedTuple):
     """
     scene_angular_vel: jnp.ndarray  # (3,) [yaw, pitch, roll] (deg/s) — gated by scene_visible + saturated
     scene_linear_vel:  jnp.ndarray  # (3,) [x, y, z] (m/s, head frame, per-eye) — gated by scene_visible
-    target_pos:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg) — gated by target_visible
+    target_pos:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg) — POSITION, independent of visibility;
+                                    #      FICK angles (azimuth atan2(x,z), then elevation from the
+                                    #      horizontal plane), not a rotation vector
     target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg/s) — gated by target_visible + saturated
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
     target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf
@@ -511,10 +528,11 @@ def step(state,
     dstate = State(
         scene_angular_vel = delay_cascade_step(state.scene_angular_vel, scene_angular_in, tau_retina, N=N),
         scene_linear_vel  = delay_cascade_step(state.scene_linear_vel,  scene_linear_in,  tau_retina, N=N),
-        target_pos        = delay_cascade_step(state.target_pos,        target_pos_in,    tau_retina, N=N),
+        target_pos        = delay_cascade_step(state.target_pos,        target_pos_in,    tau_retina, N=_N_STAGES_POS),
         target_vel        = delay_cascade_step(state.target_vel,        target_vel_in,    tau_retina, N=N),
         scene_visible     = delay_cascade_step(state.scene_visible,     scene_vis,        tau_retina, N=N),
         target_visible    = delay_cascade_step(state.target_visible,    target_vis,       tau_retina, N=N),
+        target_visible_pos = delay_cascade_step(state.target_visible_pos, target_vis,     tau_retina, N=_N_STAGES_POS),
         defocus           = delay_cascade_step(state.defocus,           defocus_in,       tau_retina, N=N),
         luminance         = dlum,
     )
@@ -526,7 +544,8 @@ def read_outputs(state):
     """State readout — returns RetinaOut from a per-eye retina.State.
 
     Last n_axes of each cascade buffer = sharp-cascade output (delayed signal);
-    luminance is the current 1-pole afferent register.
+    luminance is the current 1-pole afferent register. target_pos is DECODED as a
+    position: (position × vis) tail ÷ the matching sharp visibility tail.
 
     Args:
         state: per-eye retina.State
@@ -534,7 +553,7 @@ def read_outputs(state):
     return RetinaOut(
         scene_angular_vel = state.scene_angular_vel[-3:],
         scene_linear_vel  = state.scene_linear_vel[-3:],
-        target_pos        = state.target_pos[-3:],
+        target_pos        = state.target_pos[-3:] / jnp.maximum(state.target_visible_pos[-1], _VIS_EPS),
         target_vel        = state.target_vel[-3:],
         scene_visible     = state.scene_visible[-1],
         target_visible    = state.target_visible[-1],

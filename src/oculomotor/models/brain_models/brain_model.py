@@ -91,6 +91,7 @@ from oculomotor.models.brain_models  import pupil                  as pupil
 from oculomotor.models.brain_models  import eyelid                 as eyelid
 from oculomotor.models.brain_models  import final_common_pathway   as fcp
 from oculomotor.models.brain_models  import cerebellum               as cb
+from oculomotor.models.brain_models  import superior_colliculus      as sc
 from oculomotor.models.brain_models  import listing
 
 from oculomotor.models.sensory_models.sensory_model import SensoryOutput
@@ -107,7 +108,7 @@ from oculomotor.models.brain_models.final_common_pathway import (
 # aggregates them under named fields.
 
 N_STATES = (sm.N_STATES + ni.N_STATES + sg.N_STATES + pu.N_STATES + va.N_STATES
-            + pt.N_STATES + pc.N_STATES + cb.N_STATES + fcp.N_STATES)
+            + pt.N_STATES + pc.N_STATES + cb.N_STATES + fcp.N_STATES + sc.N_STATES)
 #        = 21 + 9 + 18 + 3 + 11 + 4 + 43 + 21 + 21 + 12 = 163  (kept for legacy info)
 
 
@@ -127,6 +128,7 @@ class BrainState(NamedTuple):
         pc   perception_cyclopean (binocular fusion + brain LP)
         sm   self-motion observer (VS + GE + HE)
         pt   target working memory (FEF/dlPFC)
+        sc   superior colliculus map (SHADOW MODE — see PLAN_SC.md)
         sg   saccade generator
         pu   smooth pursuit
         va   vergence + accommodation
@@ -138,6 +140,7 @@ class BrainState(NamedTuple):
     pc:   pc.State              # perception_cyclopean brain LP
     sm:   sm.State              # self-motion (VS + GE + HE)
     pt:   pt.State              # target perception working memory
+    sc:   sc.State              # superior colliculus map (SHADOW MODE: nothing reads it yet)
     # Motor planning + execution
     sg:   sg.State              # saccade generator
     pu:   pu.State              # smooth pursuit
@@ -155,6 +158,7 @@ def rest_brain_state():
         pc   = pc.rest_state(),
         sm   = sm.rest_state(),
         pt   = pt.rest_state(),
+        sc   = sc.rest_state(),
         sg   = sg.rest_state(),
         pu   = pu.rest_state(),
         va   = va.rest_state(),
@@ -175,6 +179,7 @@ class Activations(NamedTuple):
     pc:  pc.Activations    # cyclopean cascade-tail delayed signals
     sm:  sm.Activations    # VS + GE + HE
     pt:  pt.Activations    # target memory
+    sc:  sc.Activations    # SC map rates (shadow mode)
     # Motor
     sg:  sg.Activations    # saccade generator
     pu:  pu.Activations    # bilateral pursuit
@@ -189,6 +194,7 @@ class Activations(NamedTuple):
 class Decoded(NamedTuple):
     """Brain-wide push-pull decoded nets — perception → motor order."""
     sm: sm.Decoded   # vs_net  (perception)
+    sc: sc.Decoded   # SC population readout: target position + valid + strength (shadow mode)
     pu: pu.Decoded   # pu_net  (motor)
     ni: ni.Decoded   # ni_net  (motor)
 
@@ -214,6 +220,7 @@ def read_activations(brain_state, brain_params):
         pc  = pc.read_activations(brain_state.pc),
         sm  = sm.read_activations(brain_state.sm),
         pt  = pt.read_activations(brain_state.pt),
+        sc  = sc.read_activations(brain_state.sc),
         sg  = sg.read_activations(brain_state.sg),
         pu  = pu.read_activations(brain_state.pu),
         va  = va.read_activations(brain_state.va),
@@ -230,6 +237,7 @@ def decode_activations(acts):
     """
     return Decoded(
         sm = sm.decode_states(acts.sm),
+        sc = sc.decode_states(acts.sc),
         pu = pu.decode_states(acts.pu),
         ni = ni.decode_states(acts.ni),
     )
@@ -387,6 +395,10 @@ class BrainParams(NamedTuple):
                                           # cutoff → direction-asymmetric holding.
     tau_ni_adapt:          float = 20.0   # NI null adaptation TC (s); controls rebound nystagmus amplitude
                                           # τ_ni_adapt → ∞: no rebound; τ_ni_adapt ~10–30 s: visible rebound
+
+    # Superior colliculus (PLAN_SC.md) — which target signal feeds the SG's working memory
+    sc_drives_sg:          float = 0.0    # 0 = SC in shadow mode (cyclopean target path drives the SG);
+                                          # 1 = the SC readout (position + valid) replaces it
 
     # Saccade generator — Robinson (1975) local-feedback burst model
     g_burst:               float = 700.0  # burst ceiling (deg/s); 0 disables saccades
@@ -1027,6 +1039,7 @@ def make_x0(brain_params=None):
         pc   = pc.rest_state(),
         sm   = sm_state,
         pt   = pt.rest_state(),
+        sc   = sc.rest_state(),
         sg   = sg_state,
         pu   = pu.rest_state(),
         va   = va_state,
@@ -1087,12 +1100,6 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     ec_pos      = decoded.ni.net
     ec_verg     = (acts.va.verg_fast + acts.va.verg_tonic
                    + jnp.array([brain_params.tonic_verg, 0.0, 0.0]))
-    # EC cascade tails come from cerebellum activations (acts.cb), already
-    # built by read_activations(brain_state, brain_params) at the top of step.
-    # ec_scene / ec_target are still consumed by pt.step (target perception
-    # memory) and by the cerebellum's own internal computations.
-    ec_d_target = acts.cb.ec_target
-
     # ── Cyclopean perception: binocular fusion + brain LP smoothing ──────────
     # ec_pos / ec_verg are 1-step-delayed via the ODE state read order — the
     # exact same-step ec_verg from this step's va.step isn't available yet, so
@@ -1110,11 +1117,32 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
     # The pursuit-side EC subtraction + Hill/directional gates moved into the
     # cerebellum (pursuit region — see cb.step below).  pt.step now produces
     # only the SG-relevant signals.
+    # ── Predicted current target position ───────────────────────────────────
+    # Perception's delayed target position + the cerebellum's predicted shift of it
+    # during the visual delay (eye displacement in flight vs target motion).
+    tgt_pos_now = cyc.target_pos[:2] + acts.cb.target_shift
+
+    # ── Superior colliculus (PLAN_SC.md) ─────────────────────────────────────
+    # Place-code map of the predicted target position, amplitude = visibility ×
+    # saccadic suppression. Shadow mode unless sc_drives_sg = 1 (below).
+    dsc = sc.step(brain_state.sc, tgt_pos_now,
+                  cyc.target_visible * acts.cb.saccadic_suppression_target)
+
+    # Target signal into the working memory: the predicted current target position
+    # (rate code; SC in shadow mode) or the SC map's readout of that same prediction
+    # (place code; sc_drives_sg = 1). Using the prediction rather than the
+    # delayed cyclopean position means the SG never re-tracks the stale pre-saccadic
+    # error after a saccade. Both are 2-D: torsion still comes from the cyclopean path.
+    use_sc     = brain_params.sc_drives_sg > 0.5
+    tgt_pos_2d = jnp.where(use_sc, decoded.sc.pos, tgt_pos_now)
+    pt_tgt_pos = jnp.concatenate([tgt_pos_2d, cyc.target_pos[2:]])
+    pt_tgt_vis = jnp.where(use_sc, decoded.sc.valid, cyc.target_visible)
+    # The memory is remapped by the eye-velocity EC (x_mem −= eye displacement).
     dpt, tgt_pos_eff, tgt_vis_eff = pt.step(
         activations    = acts.pt,
-        target_visible = cyc.target_visible,
-        target_pos     = cyc.target_pos,
-        ec_d_target    = ec_d_target,
+        target_visible = pt_tgt_vis,
+        target_pos     = pt_tgt_pos,
+        eye_vel        = jnp.concatenate([acts.cb.eye_vel, jnp.zeros(1)]),
     )
 
     # ── Cerebellum: pursuit-region activations are read at the top of step()
@@ -1346,6 +1374,7 @@ def step(brain_state, sensory_out, brain_params, noise_acc=0.0, blink_drive=0.0)
         pc   = dpc,
         sm   = dsm,
         pt   = dpt,
+        sc   = dsc,
         sg   = dsg,
         pu   = dpu,
         va   = dva,

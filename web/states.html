@@ -98,6 +98,7 @@ tr:last-child { border-bottom: none; }
 <a href="#brain-pursuit" style="padding-left:32px;font-size:11px;color:#aaa">Pursuit</a>
 <a href="#brain-saccade_generator" style="padding-left:32px;font-size:11px;color:#aaa">Saccade Generator</a>
 <a href="#brain-self_motion_observer" style="padding-left:32px;font-size:11px;color:#aaa">Self Motion Observer</a>
+<a href="#brain-superior_colliculus" style="padding-left:32px;font-size:11px;color:#aaa">Superior Colliculus</a>
 <a href="#brain-target_memory" style="padding-left:32px;font-size:11px;color:#aaa">Target Memory</a>
 <a href="#brain-velocity_storage" style="padding-left:32px;font-size:11px;color:#aaa">Velocity Storage</a>
 <a href="#brain-vergence_accommodation" style="padding-left:32px;font-size:11px;color:#aaa">Vergence Accommodation</a>
@@ -114,7 +115,7 @@ tr:last-child { border-bottom: none; }
 <main>
   <h1>Model states &amp; activations</h1>
   <div class="meta">
-    59 entries · 47 LLM-plottable ·
+    62 entries · 47 LLM-plottable ·
     Source: <code>oculomotor/schema/states_schema.yaml</code> ·
     Companion to <a href="parameters.html">parameters.html</a>.
   </div>
@@ -231,19 +232,19 @@ tr:last-child { border-bottom: none; }
         <tbody>
         <tr>
           <td class="signal-name">retina_L</td>
-          <td class="shape-cell">(90)</td>
+          <td class="shape-cell">(168)</td>
           <td class="axes-cell"></td>
           <td class="units">various</td>
           <td><div class="encodes-cell">multi-channel visual signals (slip / target / visibility / defocus, delayed)</div><div class="frame-cell">frame: left retina (foveal-centred)</div></td>
           <td><span class="repr-tag repr-bookkeeping">scalar-bookkeeping</span><div class="activation-cell">activation: n/a — multi-channel LP cascade; per-channel activations exposed via cyclopean readouts</div></td>
-          <td class="desc-cell"><p>6-stage gamma cascade per signal channel: scene_angular_vel (3), scene_linear_vel (3), target_pos (3), target_vel (3), scene_visible (1), target_visible (1), defocus (1).  Total 90 states; the last stage of each cascade is the post-delay readout.</p></td>
+          <td class="desc-cell"><p>Gamma delay cascades (mean tau_vis_sharp = 50 ms) per signal channel, 6 stages each: scene_angular_vel (3), scene_linear_vel (3), target_vel (3), scene_visible (1), target_visible (1, the AMPLITUDE), defocus (1).  Target POSITION rides a sharper 24-stage cascade (same mean, half the temporal spread): target_pos carries position × visibility (3) and target_visible_pos (1) the matching visibility, so the readout decodes a position independent of visibility (place code downstream: smoothing belongs to amplitude, not location).  Total 168 states + 1 luminance register; the last stage of each cascade is the post-delay readout.</p></td>
           <td class="anatomy-cell">Left-eye visual processing (retina → V1 / MT / MST)</td>
           <td><span class="computation">sensory[_IDX_RETINA_L]</span></td>
         </tr>
 
         <tr>
           <td class="signal-name">retina_R</td>
-          <td class="shape-cell">(90)</td>
+          <td class="shape-cell">(168)</td>
           <td class="axes-cell"></td>
           <td class="units">various</td>
           <td><div class="encodes-cell">multi-channel visual signals (slip / target / visibility / defocus, delayed)</div><div class="frame-cell">frame: right retina (foveal-centred)</div></td>
@@ -291,7 +292,7 @@ tr:last-child { border-bottom: none; }
     </div>
 
     <div class="subsection" id="brain-efference_copy">
-      <h3>Efference Copy <small style="font-size:11px;font-weight:400;color:#888">(2 signals)</small></h3>
+      <h3>Efference Copy <small style="font-size:11px;font-weight:400;color:#888">(3 signals)</small></h3>
       <table>
         <thead><tr>
           <th style="width:140px">Signal</th>
@@ -327,6 +328,18 @@ tr:last-child { border-bottom: none; }
           <td class="desc-cell"><p>Same as ec_scene_cascade but matched to the slower target_vel slip cascade for pursuit Smith-predictor cancellation.</p></td>
           <td class="anatomy-cell">Efference copy of eye velocity, target-cascade-matched</td>
           <td><span class="computation">brain[_IDX_EC_VEL_TARGET]</span></td>
+        </tr>
+
+        <tr>
+          <td class="signal-name">ec_target_pos_cascade</td>
+          <td class="shape-cell">(62)</td>
+          <td class="axes-cell">commanded eye velocity after MN lag (2), 30 stages (24 retina-position + 6 brain-position) × [yaw, pitch]</td>
+          <td class="units">deg/s</td>
+          <td><div class="encodes-cell">commanded eye velocity, delay-matched to the cyclopean target POSITION (position forward model)</div><div class="frame-cell">frame: head [yaw, pitch]</div></td>
+          <td><span class="repr-tag repr-bookkeeping">scalar-bookkeeping</span><div class="activation-cell">activation: eye displacement in flight = Σ_k τ_k · stage_k  (cerebellum.eye_disp_in_flight)</div></td>
+          <td class="desc-cell"><p>Commanded eye velocity (saccade + pursuit + T-VOR; the VOR is not commanded and gaze is stable during it) low-passed by tau_mn (the eye trails the command by the MN stage), then a cascade delay-matched to cyc.target_pos.  Its stage sum is the eye displacement the delayed target position has not seen yet.  The cerebellum's predicted shift of the target during the delay = − that displacement + delay × target-velocity estimate (retinal slip + EC) (acts.cb.target_shift); brain_model adds it to cyc.target_pos → the predicted current target position that the SC and the target working memory receive.  The current commanded eye velocity (acts.cb.eye_vel) remaps the target working memory.  Unsaturated, unlike ec_target_cascade.</p><div class="refs">Duhamel, Colby & Goldberg (1992) · Sommer & Wurtz (2002)</div></td>
+          <td class="anatomy-cell">Cerebellar forward model fed by the efference copy of eye velocity</td>
+          <td><span class="computation">brain.cb.target_pos</span></td>
         </tr>
         </tbody>
       </table>
@@ -680,6 +693,48 @@ tr:last-child { border-bottom: none; }
           <td class="desc-cell"><p>Linear velocity in head frame (gravity-corrected, ~2 s integration TC). Consumed by translational VOR (T-VOR) for distance-scaled compensation.</p><div class="refs">Paige & Tomko (1991)</div></td>
           <td class="anatomy-cell">Heading estimator (head-fixed linear velocity)</td>
           <td><span class="computation">brain[_IDX_HEAD]</span></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection" id="brain-superior_colliculus">
+      <h3>Superior Colliculus <small style="font-size:11px;font-weight:400;color:#888">(2 signals)</small></h3>
+      <table>
+        <thead><tr>
+          <th style="width:140px">Signal</th>
+          <th style="width:50px">Shape</th>
+          <th style="width:140px">Axes</th>
+          <th style="width:65px">Units</th>
+          <th style="width:200px">Encodes / frame</th>
+          <th style="width:220px">Representation / activation</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:170px">Source</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="signal-name">sc_left</td>
+          <td class="shape-cell">(323)</td>
+          <td class="axes-cell">19 Re(w) × 17 Im(w)</td>
+          <td class="units">a.u.</td>
+          <td><div class="encodes-cell">target position as a place code — rightward (contralateral) hemifield</div><div class="frame-cell">frame: retinal (eye-centred), Ottes log-polar map coordinates (u, v)</div></td>
+          <td><span class="repr-tag ">place code (bump of activity; location = position, amplitude = visibility)</span><div class="activation-cell">activation: max(0, state)</div><div class="baseline-cell">baseline: 0 (silent without a target)</div></td>
+          <td class="desc-cell"><p>Left-colliculus membranes on a 19 × 17 grid of the Ottes, Van Gisbergen & Eggermont (1986) complex-log map, w = ln((z + A)/A), extending to ~100° eccentricity and ~1.4 mm into the rostral overlap.  Input: a Gaussian bump at the cerebellum's PREDICTED current target position (delayed cyclopean position corrected for eye and target motion during the visual delay — see ec_target_pos_cascade) with amplitude = visibility × saccadic suppression.  Local excitation + same- and cross-colliculus inhibition.  Readout: thresholded population average (only rates > 0.1 of a full bump), plus a validity signal that falls to 0 when no unit is above threshold.  SHADOW MODE: its readout (analysis.sc_decoded) is compared with today's target path and the SG's e_held; nothing downstream reads it yet.</p><div class="refs">Ottes, Van Gisbergen & Eggermont (1986)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">all</span> Left superior colliculus (codes the right hemifield); rostral rows overlap a few degrees into the ipsilateral field</div></td>
+          <td><span class="computation">brain.sc.L</span></td>
+        </tr>
+
+        <tr>
+          <td class="signal-name">sc_right</td>
+          <td class="shape-cell">(323)</td>
+          <td class="axes-cell">19 Re(w) × 17 Im(w)</td>
+          <td class="units">a.u.</td>
+          <td><div class="encodes-cell">target position as a place code — leftward (contralateral) hemifield</div><div class="frame-cell">frame: retinal (eye-centred), Ottes log-polar map coordinates (u, v)</div></td>
+          <td><span class="repr-tag ">place code (bump of activity; location = position, amplitude = visibility)</span><div class="activation-cell">activation: max(0, state)</div><div class="baseline-cell">baseline: 0 (silent without a target)</div></td>
+          <td class="desc-cell"><p>Right-colliculus membranes; mirror of sc_left (x = −yaw). The two colliculi are combined in the readout with weights m⁴ (m = total activity), favouring the colliculus with the complete bump near the vertical meridian.</p><div class="refs">Ottes, Van Gisbergen & Eggermont (1986)</div></td>
+          <td class="anatomy-cell"><div><span class="ax-tag">all</span> Right superior colliculus (codes the left hemifield)</div></td>
+          <td><span class="computation">brain.sc.R</span></td>
         </tr>
         </tbody>
       </table>

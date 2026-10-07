@@ -86,16 +86,20 @@ src/oculomotor/
 │   │   ├── canal.py                   Canal array SSM (Steinhausen, 6 canals, 12 states)
 │   │   ├── otolith.py                 Otolith SSM (bilateral LP adaptation, 6 states)
 │   │   ├── retina.py                  Geometry (world_to_retina) + sensor saturation +
-│   │   │                              per-eye sharp gamma cascade + luminance afferent
-│   │   │                              register (91 states/eye). retina.step → RetinaOut.
+│   │   │                              per-eye gamma delay cascades (target position on a
+│   │   │                              sharper 24-stage one, decoded as a position) +
+│   │   │                              luminance register (169 states/eye). retina.step → RetinaOut.
 │   │   └── sensory_model.py           Connector: canal + otolith + retina_L + retina_R →
 │   │                                   SensoryOutput {canal, otolith, retina_L, retina_R}
-│   │                                   (200 states; luminance now rides in RetinaOut)
+│   │                                   (356 states; luminance now rides in RetinaOut)
 │   ├── brain_models/                  Cortical computations — operate on already-delayed signals
 │   │   ├── perception_self_motion.py  VS + GE + HE unified observer (Laurens & Angelaki 2017)
 │   │   ├── perception_target.py       Target gates + working memory (FEF/dlPFC layer)
 │   │   ├── perception_cyclopean.py    Binocular fusion (NPC gate, OKR, dominance) on delayed
 │   │   │                              per-eye signals + brain LP smoothing (43 states).
+│   │   ├── superior_colliculus.py     SC v1: 2-D place-code map (646 units, Ottes log-polar) of
+│   │   │                              the cerebellum's PREDICTED target position.
+│   │   │                              SHADOW MODE unless sc_drives_sg=1 — PLAN_SC.md.
 │   │   ├── neural_integrator.py       NI leaky integrator + bilateral push-pull + null adapt
 │   │   │                              (15 states: x_L + x_R + x_null + slide_L + slide_R)
 │   │   ├── saccade_generator.py       Robinson local-feedback burst (20 states: e_held +
@@ -107,7 +111,9 @@ src/oculomotor/
 │   │   ├── final_common_pathway.py    14-state FCP: 12 MN dynamic states (tau_mn ~5 ms) +
 │   │   │                              MLF AIN→CN3_MR pathway. Separable lesions: g_nucleus,
 │   │   │                              g_mlf, g_nerve. Replaces old algebraic relu+clip.
-│   │   ├── cerebellum.py              EC delay cascades + flocculus (FL) NI extension +
+│   │   ├── cerebellum.py              EC delay cascades + position forward model (predicted
+│   │   │                              target position → SC; eye-velocity EC → memory remap) +
+│   │   │                              flocculus (FL) NI extension +
 │   │   │                              paraflocculus (VPF) pursuit forward model.
 │   │   │                              Replaces the deleted efference_copy.py.
 │   │   └── brain_model.py             Connector: cyclopean → perception → SG/pursuit/TVOR/NI
@@ -163,19 +169,22 @@ natively, so subsystems are accessed as attributes.
 
 ```
 SimState(
-    sensory   : SensoryState   (200 states)
+    sensory   : SensoryState   (356 states)
     brain     : BrainState     (≈170 states; see breakdown)
     plant     : PlantState     (6 states, plus accommodation 1 state)
 )
 ```
 
-**Sensory** (200 states):
+**Sensory** (356 states):
 ```
-sensory: [x_c (12) | x_oto (6) | x_retina_L (91) | x_retina_R (91)]
+sensory: [x_c (12) | x_oto (6) | x_retina_L (169) | x_retina_R (169)]
 ```
-`x_retina_<L|R>` (per eye, sharp gamma cascade N=6 stages each, + luminance LP):
-`[scene_angular_vel(18) | scene_linear_vel(18) | target_pos(18) | target_vel(18) |
-  scene_visible(6) | target_visible(6) | defocus(6) | luminance(1)]`
+`x_retina_<L|R>` (per eye, gamma cascade N=6 stages each — except target position, N=24 —
++ luminance LP):
+`[scene_angular_vel(18) | scene_linear_vel(18) | target_pos(72) | target_vel(18) |
+  scene_visible(6) | target_visible(6) | target_visible_pos(24) | defocus(6) | luminance(1)]`
+`RetinaOut.target_pos` is a decoded POSITION (target_pos tail ÷ target_visible_pos tail),
+independent of visibility; `target_visible` (6-stage) is the amplitude.
 
 **Brain** (nested NamedTuple — `BrainState`):
 ```python
@@ -185,14 +194,18 @@ BrainState(
     sm:   sm.State    # 21  self-motion observer (VS bilateral + GE + HE).
                       #     VS pops are CANAL-PLANE [H, LARP, RALP] (H→MVN, LARP/RALP→SVN)
     pt:   pt.State    #  4  target working memory  (x_mem(3) + trust(1))
+    sc:   sc.State    # 646 superior colliculus map, 2 × 19 × 17 (SHADOW MODE unless
+                      #     sc_drives_sg = 1; readout via analysis.sc_decoded — PLAN_SC.md)
     sg:   sg.State    # 20  saccade generator (see saccade_generator.py)
     pu:   pu.State    #  6  bilateral pursuit pops
     va:   va.State    # 11  vergence (9) + accommodation (2)
     ni:   ni.State    # 15  bilateral NI (x_L + x_R + x_null + slide_L + slide_R), CANAL-PLANE
                       #     [H, LARP, RALP]: H→NPH, LARP/RALP→INC
     fcp:  fcp.State   # 14  12 MN dynamic states + MLF AIN→CN3_MR
-    cb:   cb.State    # ≈56 EC scene + target delay cascades + sat-flag delays +
+    cb:   cb.State    # 132 EC scene + target delay cascades + sat-flag delays +
                       #     near-response accom + verg-H EC cascades (Smith forward models)
+                      #     + position EC (62) delay-matched to cyc.target_pos → predicted
+                      #     target position (→ SC) and eye-velocity EC (→ target memory)
 )
 ```
 Subsystems are read directly as `brain_state.<sub>.<field>` — never via index
@@ -270,7 +283,7 @@ Four independent noise sources, **non-zero by default** (so a vanilla `simulate(
 |--------------|-------------|--------------------|---------|----------------|
 | `sigma_canal`  | 1.0 deg/s | `tau_canal_drift`  | 0.005 s | canal afferent noise; filtered by VS/NI/plant |
 | `sigma_slip`   | 0.0 deg/s | `tau_slip_drift`   | 0.005 s | retinal slip noise (off by default); VS/OKR |
-| `sigma_pos`    | 0.2 deg   | `tau_pos_drift`    | 0.2 s   | retinal position drift; **triggers microsaccades** |
+| `sigma_pos`    | 0.2 deg   | `tau_pos_drift`    | 0.2 s   | retinal position drift; **triggers microsaccades**. Noise on POSITION: enters the retina's position × visibility signal scaled by visibility (no target → no position noise) |
 | `sigma_vel`    | 1.0 deg/s | `tau_vel_drift`    | 0.005 s | retinal velocity noise; pursuit integrator |
 
 `SG_acc` accumulator diffusion (`sigma_acc=0.2`, in `BrainParams`) adds RT variability to saccade triggering.
@@ -527,7 +540,7 @@ Some modules have nonlinearities that wrap the linear ABCD core:
 
 - **Canal** (`canal.py`): `nonlinearity(x2, gains, floor, v_max)` applies smooth push-pull rectification to the second-stage inertia state `x2` **and** the [0, v_max] afferent-rate saturation, in one place, to get afferent firing rates. Exposed as `canal.read_outputs(state, params)`. The linear `A @ x + B @ u` drives the state derivative; only the output is nonlinear. Re-exported as `canal_nonlinearity` from `sensory_model.py`.
 - **Saccade generator**: gates (`gate_err`, `gate_res`, `gate_dir`) and adaptive reset TC layered on top of linear SSM core. Target selection (orbital clip + centering saccade) is handled internally using `x_ni` as a proxy for eye position and `target_in_vf` to detect out-of-field targets.
-- **Visual delay** (`retina.py` + `perception_cyclopean.py`): two-stage. (a) Per-eye sharp gamma cascade in `retina.step` (N=6 stages × τ_retina), with `velocity_saturation` and visibility gating done before cascade input. (b) Post-fusion brain LP smoothing in `perception_cyclopean.step` (channel-specific TCs: motion, target_vel, disparity, defocus, plus N-stage gamma for target_pos / visibility). The brain's `C_slip` / `C_pos` / `C_vel` / `C_target_disp` / `C_target_visible` / etc. readout matrices live in `perception_cyclopean` and read into `brain[:, _IDX_CYC_BRAIN]`.
+- **Visual delay** (`retina.py` + `perception_cyclopean.py`): two-stage. (a) Per-eye gamma cascade in `retina.step` (N=6 stages × τ_retina; target position N=24, decoded as a position), with `velocity_saturation` and visibility gating done before cascade input. (b) Post-fusion brain LP smoothing in `perception_cyclopean.step` (channel-specific TCs: motion, target_vel, disparity, defocus, plus N-stage gamma for target_pos / visibility). The brain's `C_slip` / `C_pos` / `C_vel` / `C_target_disp` / `C_target_visible` / etc. readout matrices live in `perception_cyclopean` and read into `brain[:, _IDX_CYC_BRAIN]`.
 
 ### Connector modules
 

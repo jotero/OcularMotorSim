@@ -206,6 +206,8 @@ def _add_sensory_noise(sensory_out, ncanal, nslip, nvel, npos):
     LinearInterpolation noise samples at t and passes them in.
     """
     def _noisy(retina):
+        # retina.target_pos is a decoded POSITION (independent of visibility), so
+        # the fixational position noise adds to it directly.
         return retina._replace(
             scene_angular_vel = retina.scene_angular_vel + nslip,
             target_vel        = retina.target_vel        + nvel,

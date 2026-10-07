@@ -86,6 +86,7 @@ tr:last-child { border-bottom: none; }
     <a href="#brainparams-neural_integrator" style="padding-left:32px;font-size:11px;color:#aaa">Neural Integrator <span style="color:#666">(7)</span></a>
     <a href="#brainparams-ungrouped" style="padding-left:32px;font-size:11px;color:#aaa">Ungrouped <span style="color:#666">(23)</span></a>
     <a href="#brainparams-binocular" style="padding-left:32px;font-size:11px;color:#aaa">Binocular <span style="color:#666">(5)</span></a>
+    <a href="#brainparams-superior_colliculus" style="padding-left:32px;font-size:11px;color:#aaa">Superior Colliculus <span style="color:#666">(1)</span></a>
     <a href="#brainparams-saccade_generator" style="padding-left:32px;font-size:11px;color:#aaa">Saccade Generator <span style="color:#666">(29)</span></a>
     <a href="#brainparams-listing" style="padding-left:32px;font-size:11px;color:#aaa">Listing <span style="color:#666">(2)</span></a>
     <a href="#brainparams-pursuit" style="padding-left:32px;font-size:11px;color:#aaa">Pursuit <span style="color:#666">(5)</span></a>
@@ -120,8 +121,8 @@ tr:last-child { border-bottom: none; }
   <main>
     <h1>ViSiOMlab — Parameter Reference</h1>
     <p class="meta">
-      Generated: <strong>2026-10-05 09:51</strong> &nbsp;|&nbsp;
-      Version: <strong>f59b00c-dirty</strong> &nbsp;|&nbsp;
+      Generated: <strong>2026-10-06 09:20</strong> &nbsp;|&nbsp;
+      Version: <strong>2aa5116-dirty</strong> &nbsp;|&nbsp;
       Schema: <strong>/Users/jorge/Library/CloudStorage/OneDrive-SharedLibraries-UCBerkeley/OMlab - JOM/Code/OcularMotorSim/src/oculomotor/schema/parameters_schema.yaml</strong>
     </p>
     <input id="search" type="search" placeholder="Search parameters by name, description, anatomy, disorder…" autofocus>
@@ -129,7 +130,7 @@ tr:last-child { border-bottom: none; }
     <div class="warning"><b>28 fields lack schema entries</b> and are flagged TODO below. Add to <code>oculomotor/schema/parameters_schema.yaml</code> to provide rich descriptions, anatomy, and disorder tags.</div>
     
   <section class="section" id="brainparams">
-    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(156 fields)</small></h2>
+    <h2>BrainParams <small style="font-size:12px;font-weight:400;color:#888">(157 fields)</small></h2>
     <p class="desc">Central neural model parameters — VS, NI, SG, gravity, vergence, accommodation, T-VOR, OCR, CN/MLF gains. Read by every brain submodule's <code>step()</code>.</p>
     
     <div class="subsection" id="brainparams-self_motion_estimation">
@@ -710,6 +711,32 @@ tr:last-child { border-bottom: none; }
           <td class="range-cell">[0, 1]</td>
           <td class="desc-cell"><p>1.0 = right eye dominant, 0.0 = left dominant.  Determines the fixating eye when fusion is suppressed (auto-overridden when motor integrity is asymmetric — healthier eye becomes fixating).</p></td>
           <td class="anatomy-cell">Sensory eye dominance preference</td>
+          <td></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection" id="brainparams-superior_colliculus">
+      <h3>Superior Colliculus <small style="font-size:11px;font-weight:400;color:#888">(1 field)</small></h3>
+      <table class="param-table">
+        <thead><tr>
+          <th style="width:160px">Parameter</th>
+          <th style="width:90px">Default</th>
+          <th style="width:60px">Units</th>
+          <th style="width:110px">Valid range</th>
+          <th>Description</th>
+          <th style="width:170px">Anatomical locus</th>
+          <th style="width:200px">Disorders / notable values</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+          <td class="param-name">sc_drives_sg</td>
+          <td><span class="default">0</span></td>
+          <td class="units">switch (0 / 1)</td>
+          <td class="range-cell"></td>
+          <td class="desc-cell"><p>Which target signal feeds the target working memory (perception_target) and through it the saccade generator. 0 (default): the cyclopean target path; the SC runs in shadow mode. 1: the SC population readout — position [yaw, pitch] (torsion still from the cyclopean path) and its validity — replaces it. See PLAN_SC.md step 5.</p></td>
+          <td class="anatomy-cell">Superior colliculus → brainstem saccade generator</td>
           <td></td>
         </tr>
         </tbody>

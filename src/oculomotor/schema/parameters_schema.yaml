@@ -295,6 +295,16 @@ brain.k_sac:
     Trigger sigmoid steepness — controls how sharply the OPN-pause / burst
     initiation gate fires once retinal error exceeds threshold.
 
+brain.sc_drives_sg:
+  group: superior_colliculus
+  units: "switch (0 / 1)"
+  anatomy: "Superior colliculus → brainstem saccade generator"
+  description: |
+    Which target signal feeds the target working memory (perception_target) and through it
+    the saccade generator. 0 (default): the cyclopean target path; the SC runs in shadow
+    mode. 1: the SC population readout — position [yaw, pitch] (torsion still from the
+    cyclopean path) and its validity — replaces it. See PLAN_SC.md step 5.
+
 brain.threshold_sac:
   group: saccade_generator
   units: "deg"

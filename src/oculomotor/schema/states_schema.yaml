@@ -140,14 +140,18 @@ sensory.retina_L:
   frame:      "left retina (foveal-centred)"
   representation: "scalar-bookkeeping"
   activation:     "n/a — multi-channel LP cascade; per-channel activations exposed via cyclopean readouts"
-  shape: [90]
+  shape: [168]
   units: "various"
   anatomy:    "Left-eye visual processing (retina → V1 / MT / MST)"
   description: |
-    6-stage gamma cascade per signal channel: scene_angular_vel (3),
-    scene_linear_vel (3), target_pos (3), target_vel (3), scene_visible (1),
-    target_visible (1), defocus (1).  Total 90 states; the last stage of
-    each cascade is the post-delay readout.
+    Gamma delay cascades (mean tau_vis_sharp = 50 ms) per signal channel, 6 stages each:
+    scene_angular_vel (3), scene_linear_vel (3), target_vel (3), scene_visible (1),
+    target_visible (1, the AMPLITUDE), defocus (1).  Target POSITION rides a sharper
+    24-stage cascade (same mean, half the temporal spread): target_pos carries
+    position × visibility (3) and target_visible_pos (1) the matching visibility, so the
+    readout decodes a position independent of visibility (place code downstream: smoothing
+    belongs to amplitude, not location).  Total 168 states + 1 luminance register; the
+    last stage of each cascade is the post-delay readout.
   state_slice: "sensory[_IDX_RETINA_L]"
   llm_plottable: false
 
@@ -157,7 +161,7 @@ sensory.retina_R:
   frame:      "right retina (foveal-centred)"
   representation: "scalar-bookkeeping"
   activation:     "n/a — multi-channel LP cascade; per-channel activations exposed via cyclopean readouts"
-  shape: [90]
+  shape: [168]
   units: "various"
   anatomy:    "Right-eye visual processing (retina → V1 / MT / MST)"
   description: |
@@ -411,6 +415,54 @@ brain.ni_slide_right:
   description: "Slide population for the negative direction, push-pull with ni_slide_left. Net slide = ni_slide_left − ni_slide_right = LP(u_vel, tau_slide)."
   state_slice: "brain.ni.slide_R"
   references: ["Optican & Miles (1985)"]
+  llm_plottable: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BRAIN — Superior colliculus map (SHADOW MODE — see PLAN_SC.md)
+# ─────────────────────────────────────────────────────────────────────────────
+
+brain.sc_left:
+  group: superior_colliculus
+  encodes:    "target position as a place code — rightward (contralateral) hemifield"
+  frame:      "retinal (eye-centred), Ottes log-polar map coordinates (u, v)"
+  representation: "place code (bump of activity; location = position, amplitude = visibility)"
+  activation:     "max(0, state)"
+  baseline:       "0 (silent without a target)"
+  shape: [323]
+  axes:  ["19 Re(w) × 17 Im(w)"]
+  units: "a.u."
+  anatomy:
+    - {axes: [all], region: "Left superior colliculus (codes the right hemifield); rostral rows overlap a few degrees into the ipsilateral field"}
+  description: |
+    Left-colliculus membranes on a 19 × 17 grid of the Ottes, Van Gisbergen & Eggermont (1986)
+    complex-log map, w = ln((z + A)/A), extending to ~100° eccentricity and ~1.4 mm into the
+    rostral overlap.  Input: a Gaussian bump at the cerebellum's PREDICTED current target
+    position (delayed cyclopean position corrected for eye and target motion during the
+    visual delay — see ec_target_pos_cascade) with amplitude = visibility × saccadic
+    suppression.  Local excitation + same- and cross-colliculus
+    inhibition.  Readout: thresholded population average (only rates > 0.1 of a full bump),
+    plus a validity signal that falls to 0 when no unit is above threshold.  SHADOW MODE: its
+    readout (analysis.sc_decoded) is compared with today's target path and the SG's e_held;
+    nothing downstream reads it yet.
+  state_slice: "brain.sc.L"
+  references: ["Ottes, Van Gisbergen & Eggermont (1986)"]
+  llm_plottable: false
+
+brain.sc_right:
+  group: superior_colliculus
+  encodes:    "target position as a place code — leftward (contralateral) hemifield"
+  frame:      "retinal (eye-centred), Ottes log-polar map coordinates (u, v)"
+  representation: "place code (bump of activity; location = position, amplitude = visibility)"
+  activation:     "max(0, state)"
+  baseline:       "0 (silent without a target)"
+  shape: [323]
+  axes:  ["19 Re(w) × 17 Im(w)"]
+  units: "a.u."
+  anatomy:
+    - {axes: [all], region: "Right superior colliculus (codes the left hemifield)"}
+  description: "Right-colliculus membranes; mirror of sc_left (x = −yaw). The two colliculi are combined in the readout with weights m⁴ (m = total activity), favouring the colliculus with the complete bump near the vertical meridian."
+  state_slice: "brain.sc.R"
+  references: ["Ottes, Van Gisbergen & Eggermont (1986)"]
   llm_plottable: false
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -814,6 +866,30 @@ brain.ec_target_cascade:
     Same as ec_scene_cascade but matched to the slower target_vel slip
     cascade for pursuit Smith-predictor cancellation.
   state_slice: "brain[_IDX_EC_VEL_TARGET]"
+  llm_plottable: false
+
+brain.ec_target_pos_cascade:
+  group: efference_copy
+  encodes:    "commanded eye velocity, delay-matched to the cyclopean target POSITION (position forward model)"
+  frame:      "head [yaw, pitch]"
+  representation: "scalar-bookkeeping"
+  activation:     "eye displacement in flight = Σ_k τ_k · stage_k  (cerebellum.eye_disp_in_flight)"
+  shape: [62]
+  axes:  ["commanded eye velocity after MN lag (2)", "30 stages (24 retina-position + 6 brain-position) × [yaw, pitch]"]
+  units: "deg/s"
+  anatomy:    "Cerebellar forward model fed by the efference copy of eye velocity"
+  description: |
+    Commanded eye velocity (saccade + pursuit + T-VOR; the VOR is not commanded and gaze is
+    stable during it) low-passed by tau_mn (the eye trails the command by the MN stage), then
+    a cascade delay-matched to cyc.target_pos.  Its stage sum is the eye displacement the
+    delayed target position has not seen yet.  The cerebellum's predicted shift of the target
+    during the delay = − that displacement + delay × target-velocity estimate (retinal slip +
+    EC) (acts.cb.target_shift); brain_model adds it to cyc.target_pos → the predicted current
+    target position that the SC and the target working memory receive.  The current
+    commanded eye velocity (acts.cb.eye_vel) remaps the target working memory.  Unsaturated,
+    unlike ec_target_cascade.
+  state_slice: "brain.cb.target_pos"
+  references: ["Duhamel, Colby & Goldberg (1992)", "Sommer & Wurtz (2002)"]
   llm_plottable: false
 
 # ─────────────────────────────────────────────────────────────────────────────

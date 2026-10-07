@@ -21,7 +21,7 @@ from oculomotor.sim.simulator import PARAMS_DEFAULT, with_brain, with_sensory, s
 from oculomotor.sim import kinematics as km
 from oculomotor.analysis import (
     ax_fmt, extract_burst, extract_sg, ni_net, vs_net,
-    read_brain_acts, read_brain_decoded, extract_z_opn,
+    read_brain_acts, read_brain_decoded, extract_z_opn, plot_sc_meridian,
 )
 from oculomotor.models.brain_models import tvor as tv_mod
 from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
@@ -599,11 +599,18 @@ def _cascade(show):
     t_np = np.arange(0.0, T_end, DT)
     T    = len(t_np)
 
-    n_rows, n_cols = 9, len(columns)
+    n_rows, n_cols = 10, len(columns)
     # Row 5 (pre-cascade) is zoomed in on the time axis, so x-axes are not
     # shared across rows.  All other rows display the full 0-T_end window.
-    fig, axes = plt.subplots(n_rows, n_cols,
-                             figsize=(3.6 * n_cols, 2.2 * n_rows), sharex=False)
+    fig, axes_all = plt.subplots(n_rows, n_cols,
+                                 figsize=(3.6 * n_cols, 2.2 * n_rows), sharex=False)
+    # SC map row (space-time, horizontal meridian) sits under the cascade-output row;
+    # `axes` is every other row, so the signal rows keep their indices below.
+    SC_ROW = 2
+    ax_sc  = axes_all[SC_ROW]
+    axes   = np.delete(axes_all, SC_ROW, axis=0)
+    ax_sc[0].set_ylabel('SC map, horiz. meridian\n(shadow) — L SC ↑ / R SC ↓\nposition coded (deg)',
+                        fontsize=8)
     fig.suptitle('Saccade Signal Cascade  ·  '
                  'cascade → accumulate → latch/freeze → burst → copy → refractory',
                  fontsize=11)
@@ -690,6 +697,11 @@ def _cascade(show):
         axes[1, ci].plot(t_np, sg['e_held'][:,0], color=utils.C['vs'], lw=1.8, label='e_held (frozen)')
         ax_fmt(axes[1, ci])
         if ci == 0: axes[1, ci].legend(fontsize=7)
+
+        # SC map: horizontal-meridian activity of both colliculi over time (shadow mode).
+        plot_sc_meridian(ax_sc[ci], t_np, st)
+        ax_sc[ci].axvline(t_jump, color='w', lw=0.6, ls='--', alpha=0.5)
+        if ci == 0: ax_sc[ci].legend(fontsize=7, loc='upper right', facecolor='gray', framealpha=0.5)
 
         # Row 2: accumulator / trigger / latch + refractory (all 0–1 scale, same axis)
         axes[2, ci].plot(t_np, sg['z_acc'],         color='#e08214', lw=1.5, label='z_acc')
@@ -829,14 +841,17 @@ def _cascade(show):
     # except the zoom row and the bottom row.
     PRE_XLIM = (0.3, 0.6)
     FULL_XLIM = (float(t_np[0]), float(t_np[-1]))
-    for r in range(n_rows):
+    for ci in range(n_cols):
+        ax_sc[ci].set_xlim(*FULL_XLIM)
+        ax_sc[ci].tick_params(labelbottom=False)
+    for r in range(axes.shape[0]):
         for ci in range(n_cols):
             ax = axes[r, ci]
             if r == 5:
                 ax.set_xlim(*PRE_XLIM)
             else:
                 ax.set_xlim(*FULL_XLIM)
-            if r not in (5, n_rows - 1):
+            if r not in (5, axes.shape[0] - 1):
                 ax.tick_params(labelbottom=False)
             else:
                 ax.tick_params(labelbottom=True)
@@ -878,10 +893,14 @@ def _cascade(show):
     fig = utils.fig_meta(path, rp,
         title='Saccade Signal Cascade',
         description='Row-by-row signal flow for the 1°/5°/20°/40° saccades (noiseless) plus a 1° saccade WITH '
-                    'noise (last column, tinted): position, visual cascade + hold, accumulator/latch, residual '
-                    'error, burst, eye velocity, suppression gates, EC vs slip, and pursuit/VS drives.',
+                    'noise (last column, tinted): position, visual cascade + hold, superior-colliculus map '
+                    '(horizontal meridian of both colliculi over time, shadow mode, with its readout), '
+                    'accumulator/latch, residual error, burst, eye velocity, suppression gates, EC vs slip, '
+                    'and pursuit/VS drives.',
         expected='e_held freezes at saccade onset; burst proportional to e_res; accumulator floor locks out the '
-                 'next saccade for ~270 ms; the noise column adds fixational drift + occasional microsaccades.',
+                 'next saccade for ~270 ms; the noise column adds fixational drift + occasional microsaccades. '
+                 'SC map: the target-site bump appears ~65 ms after the step, fades in place early in the '
+                 'saccade while the landing-site (rostral) bump grows in place — no moving hill.',
         citation='Robinson (1975) J Neurophysiol; Scudder et al. (2002); Kapoula, Robinson & Hain (1986)',
         fig_type='cascade')
     fig['metrics'] = metrics

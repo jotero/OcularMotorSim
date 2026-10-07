@@ -105,7 +105,7 @@ import jax.numpy as jnp
 
 from oculomotor.models.plant_models.readout import rotation_matrix
 from oculomotor.models.sensory_models.retina import (
-    cascade_lp_step, ypr_to_xyz, xyz_to_ypr, velocity_saturation,
+    cascade_lp_step, ypr_to_xyz, xyz_to_ypr, velocity_saturation, _N_STAGES_POS,
 )
 # VS pops are stored in canal-plane coords; recombine to cardinal for the FL
 # leak-cancellation feedback (which works per cardinal axis via tau_vs_axes).
@@ -123,7 +123,14 @@ N_PER_PATH = (_N_SHARP + _N_LP) * _N_AXES   # 21 states per cascade
 _N_SAT_PER_PATH = (_N_SHARP + _N_LP) * 1    # 7 scalar cascade states for sat-flag
 _N_ACCOM        = (_N_SHARP + _N_LP) * 1    # 7 scalar cascade states for accommodation EC
 _N_VERG         = (_N_SHARP + _N_LP) * 1    # 7 scalar cascade states for vergence EC (H axis)
-N_STATES   = 2 * N_PER_PATH + 2 * _N_SAT_PER_PATH + _N_ACCOM + _N_VERG
+
+# Position EC — commanded eye velocity [yaw, pitch] delay-matched to the cyclopean
+# TARGET POSITION signal (the retina's 24-stage position cascade + perception_cyclopean's
+# 6-stage brain-position gamma), not to a slip signal; + 2-state motor-neuron lag.
+_N_POS_SHARP = _N_STAGES_POS                  # = retina position cascade (24)
+_N_POS_LP    = 6                              # = perception_cyclopean._N_STAGES_BRAIN_POS
+_N_POS_EC    = 2 + (_N_POS_SHARP + _N_POS_LP) * 2   # 62
+N_STATES   = 2 * N_PER_PATH + 2 * _N_SAT_PER_PATH + _N_ACCOM + _N_VERG + _N_POS_EC
                                             # scene + target EC +
                                             # two scalar saturation-flag cascades +
                                             # near-response EC cascades (accommodation +
@@ -155,6 +162,11 @@ class State(NamedTuple):
     verg:       jnp.ndarray   # (7,)  vergence-command EC cascade (H axis), delay-matched
                               #       to the cyclopean disparity signal — mirror of
                               #       `accom` for the disparity loop (Smith predictor).
+    target_pos: jnp.ndarray   # (62,) position EC: [commanded eye velocity after the MN lag
+                              #       (2) | its cascade delay-matched to the cyclopean target
+                              #       POSITION (24 retina-position + 6 brain stages × 2)].
+                              #       Unsaturated (unlike `target`): it measures the eye
+                              #       displacement the delayed position has not seen yet.
 
 
 class Activations(NamedTuple):
@@ -183,6 +195,14 @@ class Activations(NamedTuple):
     fl_vs_drive:     jnp.ndarray   # (3,) VS leak-cancellation feedback → VS dx_pop
     # Nodulus + uvula (NU) — VS axis alignment with gravity (cerebellum.md §4.4)
     nu_drive:    jnp.ndarray   # (3,) gravity-axis dumping signal → VS
+    # Position forward model (→ SC / target working memory)
+    eye_vel:         jnp.ndarray   # (2,) commanded eye velocity after the MN lag (deg/s)
+    eye_disp:        jnp.ndarray   # (2,) eye displacement still in flight in the delayed
+                                   #      target-position signal (deg)
+    target_shift:    jnp.ndarray   # (2,) predicted shift of the target's retinal position during
+                                   #      the visual delay [yaw, pitch] (deg) = − eye_disp + target
+                                   #      motion over the delay. Current target position ≈
+                                   #      cyc.target_pos + target_shift (added in brain_model).
 
 
 def rest_state():
@@ -192,7 +212,23 @@ def rest_state():
                  sat_scene=jnp.zeros(_N_SAT_PER_PATH),
                  sat_target=jnp.zeros(_N_SAT_PER_PATH),
                  accom=jnp.zeros(_N_ACCOM),
-                 verg=jnp.zeros(_N_VERG))
+                 verg=jnp.zeros(_N_VERG),
+                 target_pos=jnp.zeros(_N_POS_EC))
+
+
+def eye_disp_in_flight(target_pos_ec, brain_params):
+    """Eye displacement (2,) still in the position EC's delay line (deg).
+
+    For a chain of low-pass stages with time constants τ_k and outputs c_k,
+        ∫ (u − c_last) dt = Σ_k τ_k · c_k
+    i.e. the input integrated over the delay window = all copies still in the delay
+    line, summed. Exact for the gamma cascades used here (no integrator, no drift).
+    """
+    x     = target_pos_ec[2:]
+    sharp = x[:_N_POS_SHARP * 2].reshape(_N_POS_SHARP, 2)
+    lp    = x[_N_POS_SHARP * 2:].reshape(_N_POS_LP, 2)
+    return (brain_params.tau_vis_sharp / _N_POS_SHARP) * sharp.sum(axis=0) \
+         + (brain_params.tau_brain_pos / _N_POS_LP) * lp.sum(axis=0)
 
 
 # ── Activation read (thin: just state tail reads) ─────────────────────────────
@@ -448,6 +484,28 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
     vpf_drive    = saccadic_suppression_target * target_visible * ec_no_torsion
     fl_okr_drive = saccadic_suppression_scene  * scene_visible  * ec_scene
 
+    # ── Position forward model (→ SC / target working memory) ────────────
+    # Predicted SHIFT of the target's retinal position during the ~65 ms delay of the
+    # cyclopean position signal (brain_model adds it to cyc.target_pos):
+    #   − the eye displacement still in flight: the commanded eye velocity (saccade +
+    #     pursuit + T-VOR — the VOR is not commanded, and gaze is stable during it)
+    #     after the MN lag (the eye trails the command by it), through a cascade
+    #     delay-matched to cyc.target_pos (24 retina + 6 brain stages), summed;
+    #   + the target's own displacement over that delay: delay × the target-velocity
+    #     estimate pred_err (retinal slip + EC; × visibility, so no extrapolation of an
+    #     unseen target), gated by saccadic suppression (unreliable during saccades).
+    # During pursuit the two corrections cancel; for a stationary target only the eye
+    # term acts. Unsaturated, unlike the velocity ECs: it is a displacement bookkeeper.
+    eye_vel  = state.target_pos[:2]
+    eye_disp = eye_disp_in_flight(state.target_pos, bp)
+    delay_pos = bp.tau_vis_sharp + bp.tau_brain_pos
+    target_shift = -eye_disp + delay_pos * saccadic_suppression_target * pred_err[:2]
+    d_target_pos = jnp.concatenate([
+        (ec_vel[:2] - eye_vel) / bp.tau_mn,
+        cascade_lp_step(state.target_pos[2:], eye_vel, bp.tau_vis_sharp, bp.tau_brain_pos,
+                        _N_POS_SHARP, 2, _N_POS_LP),
+    ])
+
     dstate = State(
         scene  = cascade_lp_step(state.scene,  ec_vel_scene_in,
                                   bp.tau_vis_sharp,
@@ -467,6 +525,7 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
                                         bp.tau_vis_sharp,
                                         bp.tau_vis_smooth_disparity,
                                         _N_SHARP, 1, _N_LP),
+        target_pos   = d_target_pos,
     )
     acts = Activations(ec_scene=ec_scene, ec_target=ec_target,
                        ec_accom=ec_accom, ec_verg=ec_verg,
@@ -475,7 +534,8 @@ def step(state, ec_vel, ec_pos, ni_net, ni_null,
                        saccadic_suppression_scene=saccadic_suppression_scene,
                        saccadic_suppression_target=saccadic_suppression_target,
                        fl_drive=fl_drive, fl_vs_drive=fl_vs_drive,
-                       nu_drive=nu_drive)
+                       nu_drive=nu_drive,
+                       eye_vel=eye_vel, eye_disp=eye_disp, target_shift=target_shift)
     return dstate, acts
 
 

@@ -45,6 +45,7 @@ from oculomotor.models.sensory_models.retina import (
 # ≈ 2.5 ms (sharper than the retinal per-stage 8.3 ms at default
 # tau_vis_sharp = 50 ms).
 _N_STAGES_BRAIN_POS = 6
+_VIS_EPS = 1e-3   # visibility floor when decoding position = (position × visibility) / visibility
 
 
 # ── Brain LP state layout (post-fusion smoothing) ──────────────────────────────
@@ -117,7 +118,7 @@ class CyclopeanOut(NamedTuple):
     """Cyclopean fused + brain-LP-smoothed delayed signals."""
     scene_angular_vel: jnp.ndarray  # (3,) deg/s
     scene_linear_vel:  jnp.ndarray  # (3,) m/s, head frame
-    target_pos:        jnp.ndarray  # (3,) deg
+    target_pos:        jnp.ndarray  # (3,) deg — POSITION, independent of visibility
     target_vel:        jnp.ndarray  # (3,) deg/s
     target_disparity:  jnp.ndarray  # (3,) deg
     scene_visible:     jnp.ndarray  # scalar
@@ -295,7 +296,11 @@ def step(state, retina_L, retina_R, ec_pos, ec_verg, brain_params):
     disp_visibility  = target_fusable * (1.0 - jnp.abs(w_L - w_R))
     target_disparity_cyc = raw_disp * disp_visibility
 
-    target_pos_cyc = w_L * retina_L.target_pos + w_R * retina_R.target_pos
+    # Target position, independent of visibility (each retina already decodes its
+    # own). Fuse the positions, then carry them through the brain cascade as
+    # position × the SAME fused visibility that the target_visible channel carries,
+    # so the ratio of the two tails is again the position (_read_out).
+    target_pos_cyc = (w_L * retina_L.target_pos + w_R * retina_R.target_pos) * target_visible_cyc
     target_vel_cyc = w_L * retina_L.target_vel + w_R * retina_R.target_vel
 
     # Defocus fusion uses RAW per-eye target visibility (not the fusion-gated
@@ -342,18 +347,7 @@ def step(state, retina_L, retina_R, ec_pos, ec_verg, brain_params):
     )
 
     # ── 3. Read delayed cyclopean signals (last n_axes of each block) ────────
-    cyc = CyclopeanOut(
-        scene_angular_vel = state.scene_angular_vel[-3:],
-        scene_linear_vel  = state.scene_linear_vel[-3:],
-        target_pos        = state.target_pos[-3:],
-        target_vel        = state.target_vel[-3:],
-        target_disparity  = state.target_disparity[-3:],
-        scene_visible     = state.scene_visible[-1],
-        target_visible    = state.target_visible[-1],
-        target_fusable    = target_fusable,
-        defocus           = state.defocus[-1],
-        light_drive       = state.luminance[-1],
-    )
+    cyc = _read_out(state, target_fusable)
     return dstate, cyc
 
 
@@ -369,15 +363,22 @@ def read_activations(state):
     in `step()` from the per-eye disparity / motor-integrity gates), so
     it appears as zero here; consumers that need it must run `step()`.
     """
+    return _read_out(state, jnp.float32(0.0))   # target_fusable not stored — placeholder
+
+
+def _read_out(state, target_fusable):
+    """Cascade tails → CyclopeanOut. target_pos is decoded as the ratio of the
+    position × visibility tail to the visibility tail (see step), so it is a position."""
+    target_visible = state.target_visible[-1]
     return CyclopeanOut(
         scene_angular_vel = state.scene_angular_vel[-3:],
         scene_linear_vel  = state.scene_linear_vel[-3:],
-        target_pos        = state.target_pos[-3:],
+        target_pos        = state.target_pos[-3:] / jnp.maximum(target_visible, _VIS_EPS),
         target_vel        = state.target_vel[-3:],
         target_disparity  = state.target_disparity[-3:],
         scene_visible     = state.scene_visible[-1],
-        target_visible    = state.target_visible[-1],
-        target_fusable    = jnp.float32(0.0),    # not stored — placeholder
+        target_visible    = target_visible,
+        target_fusable    = target_fusable,
         defocus           = state.defocus[-1],
         light_drive       = state.luminance[-1],
     )

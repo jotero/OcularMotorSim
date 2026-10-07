@@ -30,7 +30,6 @@ from oculomotor.sim.simulator import (
     PARAMS_DEFAULT, with_brain, with_sensory, simulate,
 )
 from oculomotor.models.brain_models import saccade_generator as sg_mod
-from oculomotor.models.brain_models.perception_cyclopean import C_slip, C_pos, C_vel, C_target_visible
 from oculomotor.models.brain_models import perception_cyclopean as _pc_mod
 from oculomotor.analysis import read_brain_acts, extract_spv, vs_net, ni_net, pupil_size, luminance, eyelid
 from oculomotor.models.brain_models.perception_self_motion import CANAL2CARDINAL
@@ -189,10 +188,6 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
     # Pursuit NET signed signal (T, 3) — push-pull difference
     x_pursuit = np.array(pu_st.R - pu_st.L)        # (T, 3) NET
 
-    # Cyclopean LP block (T, 43) — only used here for legacy compatibility with
-    # the C_pos readout matrix; safe to flatten via pc.to_array.
-    x_vis = np.array(jax.vmap(_pc_mod.to_array)(pc_st))   # (T, 43)
-
     # Eye velocity (version derivative — same as L eye vel when version ≈ L)
     w_eye = np.gradient(version, dt, axis=0)
 
@@ -202,13 +197,13 @@ def _extract_signals(states, params, t_np: np.ndarray) -> dict:
     x_ni  = ni_net(states)                        # NI net  (T, 3) cardinal
 
     # Retinal signals — cyclopean (single cascade, pre-fused)
-    e_pos_delayed = x_vis @ np.array(C_pos).T   # (T, 3)
+    e_pos_delayed = np.array(jax.vmap(_pc_mod.read_activations)(pc_st).target_pos)  # (T, 3)
 
     # Saccade burst (re-compute from SG state + cyclopean delayed retinal signals)
     def _burst_at(state):
-        x_vis_   = _pc_mod.to_array(state.brain.pc)
-        e_pd     = C_pos @ x_vis_
-        gate     = jnp.clip((C_target_visible @ x_vis_)[0], 0.0, 1.0)
+        cyc_     = _pc_mod.read_activations(state.brain.pc)
+        e_pd     = cyc_.target_pos
+        gate     = jnp.clip(cyc_.target_visible, 0.0, 1.0)
         x_ni_net = CANAL2CARDINAL @ (state.brain.ni.L - state.brain.ni.R)   # (3,) canal→cardinal
         sg_acts  = sg_mod.read_activations(state.brain.sg)
         sg_w     = sg_mod.read_weights(state.brain.sg)

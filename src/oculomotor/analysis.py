@@ -67,7 +67,6 @@ from scipy.optimize import curve_fit
 from oculomotor.models.sensory_models.sensory_model import (
     N_CANALS, FLOOR, _SOFTNESS, PINV_SENS,
 )
-from oculomotor.models.brain_models.perception_cyclopean import C_pos, C_target_visible
 from oculomotor.models.brain_models import saccade_generator   as sg_mod
 from oculomotor.models.brain_models import brain_model         as brain_mod
 from oculomotor.models.brain_models import final_common_pathway as fcp_mod
@@ -134,6 +133,58 @@ def vs_null(states):
 def ni_null(states):
     """NI null-adaptation state, shape (T, 3), deg (cardinal)."""
     return np.array(states.brain.ni.null) @ _CANAL2CARDINAL.T
+
+
+def sc_decoded(states):
+    """Superior-colliculus population readout over time (shadow mode, PLAN_SC.md).
+
+    Returns (pos, valid, strength): pos (T, 2) decoded target position [yaw, pitch]
+    (deg, retinal; 0 when no unit fires above threshold); valid (T,) ∈ [0, 1), some
+    unit above threshold; strength (T,) total map activity in units of one full bump.
+    """
+    from oculomotor.models.brain_models import superior_colliculus as sc_mod
+    dec = jax.vmap(lambda s: sc_mod.decode_states(sc_mod.read_activations(s)))(states.brain.sc)
+    return np.asarray(dec.pos), np.asarray(dec.valid), np.asarray(dec.strength)
+
+
+def sc_meridian(states):
+    """Superior-colliculus rates along the horizontal meridian over time (shadow mode).
+
+    Returns (u, ecc, r_L, r_R): u (19,) map position (mm, rostral → caudal); ecc (19,)
+    contralateral eccentricity of each unit (deg; < 0 = ipsilateral rostral overlap);
+    r_L, r_R (T, 19) rates of the left (rightward targets) and right (leftward) colliculus.
+    """
+    from oculomotor.models.brain_models import superior_colliculus as sc_mod
+    idx = sc_mod.MERIDIAN_IDX
+    r_L = np.maximum(np.asarray(states.brain.sc.L)[:, idx], 0.0)
+    r_R = np.maximum(np.asarray(states.brain.sc.R)[:, idx], 0.0)
+    return sc_mod.MERIDIAN_U, sc_mod.MERIDIAN_ECC, r_L, r_R
+
+
+def plot_sc_meridian(ax, t, states, vmax=1.2, ticks=(0, 5, 20), ecc_max=45.0):
+    """Space-time image of SC activity along the horizontal meridian of both colliculi.
+
+    y axis: LEFT SC (rightward field) above 0, RIGHT SC (leftward field) below, their
+    rostral poles (incl. the ipsilateral overlap) meeting at 0; tick labels are the signed
+    horizontal position each site codes (deg). Overlay: SC readout yaw (where valid).
+    """
+    from oculomotor.models.brain_models import superior_colliculus as sc_mod
+    u, _, r_L, r_R = sc_meridian(states)
+    du = u[1] - u[0]
+    def y_of(e):   # distance from the midline of the site coding |e| deg
+        return sc_mod._B_U * np.log((np.abs(e) + sc_mod._A) / sc_mod._A) - u[0] + du / 2
+    H = len(u) * du
+    ax.imshow(np.concatenate([r_R[:, ::-1], r_L], axis=1).T, aspect='auto', origin='lower',
+              cmap='magma', vmin=0.0, vmax=vmax, extent=[t[0], t[-1], -H, H], interpolation='nearest')
+    ax.axhline(0.0, color='w', lw=0.5, alpha=0.6)
+    pos, valid, _ = sc_decoded(states)
+    yaw = pos[:, 0]
+    ax.plot(t, np.where((valid > 0.5) & (np.abs(yaw) > 0.2), np.sign(yaw) * y_of(yaw), np.nan),
+            color='c', lw=1.0, ls='--', label='SC readout')
+    tk = np.asarray(ticks, float)
+    ax.set_yticks(np.concatenate([-y_of(tk[::-1]), y_of(tk)]))
+    ax.set_yticklabels([f'−{v:g}' if v else '0' for v in tk[::-1]] + [f'+{v:g}' if v else '0' for v in tk])
+    ax.set_ylim(-y_of(ecc_max), y_of(ecc_max))
 
 
 # ── Pupil / luminance ────────────────────────────────────────────────────────
@@ -208,13 +259,11 @@ def extract_burst(states, theta):
         (T, 3) float array  saccade burst command (yaw, pitch, roll) in deg/s.
         Slice [:, 0] for yaw only.
     """
-    # The cyclopean readout matrices C_pos / C_target_visible expect a flat
-    # (43,) cyclopean state — convert via pc.to_array.
     from oculomotor.models.brain_models import perception_cyclopean as pc_mod
     def _at(state):
-        x_vis    = pc_mod.to_array(state.brain.pc)
-        e_pd     = C_pos @ x_vis
-        gate     = (C_target_visible @ x_vis)[0]
+        cyc      = pc_mod.read_activations(state.brain.pc)
+        e_pd     = cyc.target_pos
+        gate     = cyc.target_visible
         x_ni_net = _C2C_JAX @ (state.brain.ni.L - state.brain.ni.R)   # (3,) canal→cardinal
         sg_acts  = sg_mod.read_activations(state.brain.sg)
         sg_w     = sg_mod.read_weights(state.brain.sg)
@@ -324,8 +373,7 @@ def extract_sg(states, theta):
     # Eye-position estimate (NI net) and delayed position error (cyclopean)
     x_ni  = np.array(states.brain.ni.L - states.brain.ni.R) @ _CANAL2CARDINAL.T
     from oculomotor.models.brain_models import perception_cyclopean as pc_mod
-    x_vis = np.array(jax.vmap(pc_mod.to_array)(states.brain.pc))   # (T, 43)
-    e_pd  = x_vis @ np.array(C_pos).T   # (T, 3) cyclopean delayed position error
+    e_pd  = np.array(jax.vmap(pc_mod.read_activations)(states.brain.pc).target_pos)  # (T, 3) delayed
 
     u_burst = extract_burst(states, theta)
 
