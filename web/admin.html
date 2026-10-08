@@ -78,10 +78,10 @@ tbody tr.active { background: #e4ecff; border-left: 3px solid #4a6cf7; }
 tbody tr.active td:first-child { padding-left: 7px; }
 td { padding: 7px 10px; vertical-align: top; color: #475569; }
 td.ts { color: #94a3b8; white-space: nowrap; font-size: 0.7rem; }
-td.prompt-cell { color: #1f2937; max-width: 240px; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; }
-td.title-cell { color: #64748b; font-size: 0.7rem; max-width: 150px;
+td.title-cell { color: #0f172a; font-size: 0.85rem; font-weight: 500; max-width: 240px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.prompt-cell { color: #64748b; font-size: 0.7rem; max-width: 220px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
 td.coll-cell { color: #7c9; font-size: 0.68rem; max-width: 130px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 td.coll-cell span.chip { color: #0f766e; }
@@ -257,7 +257,7 @@ tbody tr.selected.active { background: #dbe6ff; }
 
   <!-- All-runs controls -->
   <span class="only-all" style="display:contents">
-    <input id="search" placeholder="Filter by prompt…" oninput="applyFilter()">
+    <input id="search" placeholder="Filter by title or prompt…" oninput="applyFilter()">
     <button id="favFilterBtn" class="wide-btn" onclick="toggleFavFilter()" title="Show only favorites">★ Favorites</button>
     <button id="featFilterBtn" class="wide-btn" onclick="toggleFeatFilter()" title="Show only featured">◆ Featured</button>
   </span>
@@ -409,8 +409,8 @@ function renderTable() {
       <th style="width:70px">Mode</th>
       <th style="width:28px" title="Favorite — shows in the gallery">★</th>
       <th style="width:28px" title="Featured — front-page example">◆</th>
-      <th>Prompt</th>
-      <th style="width:120px">Title</th>
+      <th>Title</th>
+      <th style="width:220px">Prompt</th>
       <th style="width:120px">Collections</th>
       <th style="width:22px" title="looks-correct / ⬤ = no interactive data"></th>
     </tr></thead><tbody id="tbody"></tbody></table>`;
@@ -430,8 +430,8 @@ function renderTable() {
       <td><span class="mode-badge mode-${r.mode}">${r.mode||'—'}</span></td>
       <td class="fav-cell" title="Toggle favorite" onclick="event.stopPropagation(); toggleFavorite('${r.run_id}')">${isFav(r)?'<span class="fav-on">★</span>':'<span class="fav-off">☆</span>'}</td>
       <td class="feat-cell" title="Toggle featured" onclick="event.stopPropagation(); toggleFeatured('${r.run_id}')">${isFeatured(r)?'<span class="feat-on">◆</span>':'<span class="feat-off">◇</span>'}</td>
-      <td class="prompt-cell" title="${esc(r.prompt)}">${esc(r.prompt)}</td>
       <td class="title-cell" title="${esc(r.title)}">${esc(r.title)}</td>
+      <td class="prompt-cell" title="${esc(r.prompt)}">${esc(r.prompt)}</td>
       <td class="coll-cell" title="${coll}">${coll}</td>
       <td>${okDot}</td>`;
     tr.addEventListener('click', () => selectRun(r.run_id));
