@@ -92,6 +92,7 @@ _LOG_COLUMNS = [
 # Optional shared secret guarding the admin mutation endpoints (delete / favorite
 # / note).  If ADMIN_TOKEN is set in the environment, those endpoints require a
 # matching X-Admin-Token header; if unset, they are open (local-dev convenience).
+# Requests made directly on this machine never need it (see _is_local).
 _ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', '').strip()
 
 # Curated collections — ordered lists of runs with one level of named sections.
@@ -685,14 +686,14 @@ async def run_endpoint(req: RunRequest):
 
 
 @app.post('/rerun/{run_id}', response_model=RunResponse)
-async def rerun_endpoint(run_id: str, x_admin_token: str | None = Header(default=None)):
+async def rerun_endpoint(run_id: str, request: Request, x_admin_token: str | None = Header(default=None)):
     """Re-run the SIMULATION ONLY (no LLM) from an existing run's stored scenario.
 
     Creates a NEW run — free/local, and deterministic given the same code + params.
     Use this to re-simulate after a code/model change without paying for the LLM.
     (To re-interpret the prompt too, POST the stored prompt to /run instead.)
     """
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     payload = _read_run_json(run_id)
     if payload is None or not payload.get('detail'):
         raise HTTPException(status_code=404, detail='No stored scenario to re-run.')
@@ -805,8 +806,22 @@ class TitleRequest(BaseModel):
     title:  str = ''
 
 
-def _check_admin(token: str | None) -> None:
-    if _ADMIN_TOKEN and (token or '') != _ADMIN_TOKEN:
+_LOOPBACK = {'127.0.0.1', '::1', 'localhost'}
+_FORWARD_HEADERS = ('cf-connecting-ip', 'x-forwarded-for', 'forwarded', 'x-real-ip')
+
+
+def _is_local(request: Request) -> bool:
+    """True only for a browser on this machine hitting the server directly.
+    The Cloudflare tunnel ALSO connects from 127.0.0.1, but the edge always stamps
+    Cf-Connecting-IP / X-Forwarded-For (a visitor can't strip them), so any forwarding
+    header means 'came through a proxy' → not local."""
+    if any(h in request.headers for h in _FORWARD_HEADERS):
+        return False
+    return (request.client.host if request.client else '') in _LOOPBACK
+
+
+def _check_admin(request: Request, token: str | None) -> None:
+    if _ADMIN_TOKEN and not _is_local(request) and (token or '') != _ADMIN_TOKEN:
         raise HTTPException(status_code=403, detail='Admin token required.')
 
 
@@ -824,9 +839,9 @@ def _patch_run_json(run_id: str, **fields) -> None:
 
 @app.post('/admin/favorite')
 async def admin_favorite(req: FavoriteRequest,
-                         x_admin_token: str | None = Header(default=None)):
+                         request: Request, x_admin_token: str | None = Header(default=None)):
     """Mark/unmark a run as a favorite (favorites are what the gallery shows)."""
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     if req.run_id not in _log_entries:
         raise HTTPException(status_code=404, detail='run_id not found')
     _log_entries[req.run_id]['favorite'] = 'True' if req.favorite else ''
@@ -837,13 +852,13 @@ async def admin_favorite(req: FavoriteRequest,
 
 @app.post('/admin/featured')
 async def admin_featured(req: FeaturedRequest,
-                         x_admin_token: str | None = Header(default=None)):
+                         request: Request, x_admin_token: str | None = Header(default=None)):
     """Mark/unmark a run as FEATURED (featured runs appear as front-page examples).
 
     Featured is a curated subset of favorites — the paradigm-spanning examples shown
     under the prompt box. The full favorites set is the 'see more' gallery.
     """
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     if req.run_id not in _log_entries:
         raise HTTPException(status_code=404, detail='run_id not found')
     _log_entries[req.run_id]['featured'] = 'True' if req.featured else ''
@@ -867,9 +882,9 @@ async def admin_featured(req: FeaturedRequest,
 
 @app.post('/admin/note')
 async def admin_note(req: NoteRequest,
-                     x_admin_token: str | None = Header(default=None)):
+                     request: Request, x_admin_token: str | None = Header(default=None)):
     """Attach a free-text note/tag to a run."""
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     if req.run_id not in _log_entries:
         raise HTTPException(status_code=404, detail='run_id not found')
     _log_entries[req.run_id]['note'] = req.note
@@ -880,10 +895,10 @@ async def admin_note(req: NoteRequest,
 
 @app.post('/admin/title')
 async def admin_title(req: TitleRequest,
-                      x_admin_token: str | None = Header(default=None)):
+                      request: Request, x_admin_token: str | None = Header(default=None)):
     """Edit a run's display TITLE (independent of the prompt). Updates the log (so the
     gallery/admin show it) and the sidecar (so the viewer shows it)."""
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     if req.run_id not in _log_entries:
         raise HTTPException(status_code=404, detail='run_id not found')
     _log_entries[req.run_id]['title'] = req.title
@@ -894,9 +909,9 @@ async def admin_title(req: TitleRequest,
 
 @app.delete('/runs/{run_id}')
 async def admin_delete(run_id: str,
-                       x_admin_token: str | None = Header(default=None)):
+                       request: Request, x_admin_token: str | None = Header(default=None)):
     """Delete a run entirely: log row + data sidecar + figure + cached data."""
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     if run_id not in _log_entries:
         raise HTTPException(status_code=404, detail='run_id not found')
     _log_entries.pop(run_id, None)
@@ -923,8 +938,8 @@ async def collections_list():
 
 @app.post('/collections')
 async def collections_create(req: CollectionCreate,
-                             x_admin_token: str | None = Header(default=None)):
-    _check_admin(x_admin_token)
+                             request: Request, x_admin_token: str | None = Header(default=None)):
+    _check_admin(request, x_admin_token)
     cols = _load_collections()
     col = {'id': uuid.uuid4().hex[:12], 'title': (req.title or '').strip() or 'Untitled',
            'description': req.description, 'items': []}
@@ -935,10 +950,10 @@ async def collections_create(req: CollectionCreate,
 
 @app.put('/collections/{cid}')
 async def collections_update(cid: str, req: CollectionUpdate,
-                             x_admin_token: str | None = Header(default=None)):
+                             request: Request, x_admin_token: str | None = Header(default=None)):
     """Replace a collection's title / description / ordered items (the editor sends
     the whole items array, so reordering + sectioning is one call)."""
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     cols = _load_collections()
     for col in cols:
         if col.get('id') == cid:
@@ -952,8 +967,8 @@ async def collections_update(cid: str, req: CollectionUpdate,
 
 @app.delete('/collections/{cid}')
 async def collections_delete(cid: str,
-                             x_admin_token: str | None = Header(default=None)):
-    _check_admin(x_admin_token)
+                             request: Request, x_admin_token: str | None = Header(default=None)):
+    _check_admin(request, x_admin_token)
     if cid == _FEATURED_ID:
         raise HTTPException(status_code=400,
                             detail='The Featured collection is reserved and cannot be deleted.')
@@ -967,10 +982,10 @@ async def collections_delete(cid: str,
 
 @app.post('/collections/{cid}/add')
 async def collections_add(cid: str, req: CollectionAdd,
-                          x_admin_token: str | None = Header(default=None)):
+                          request: Request, x_admin_token: str | None = Header(default=None)):
     """Append run_ids to a collection — into a named section (created if missing),
     else as top-level run items. De-dupes against runs already in the target."""
-    _check_admin(x_admin_token)
+    _check_admin(request, x_admin_token)
     cols = _load_collections()
     for col in cols:
         if col.get('id') == cid:

@@ -358,6 +358,7 @@ function fmtTs(ts) { if(!ts) return '—'; const m=ts.match(/(\d{4})-(\d{2})-(\d
 function fmtTiming(r) { if(!r.ms_total) return '—'; const s=x=>(Number(x)/1000).toFixed(1); return `${s(r.ms_total)}s total · LLM ${s(r.ms_llm)}s · sim ${s(r.ms_sim)}s`; }
 function collNames(runId) { return COLL_OF[runId] || []; }
 function adminPost(url, body) { return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},body:JSON.stringify(body)}); }
+function httpError(resp) { return new Error(resp.status===403 ? 'admin token missing or wrong — paste it into the token box at the top' : 'HTTP '+resp.status); }
 function admMsg(t, ok=true) { const e=document.getElementById('admSaved'); if(e){ e.textContent=t; e.style.color=ok?'#16a34a':'#dc2626'; } }
 function savedMsg(t, ok=true) { const e=document.getElementById('savedMsg'); if(e){ e.textContent=t; e.style.color=ok?'#16a34a':'#dc2626'; if(t) setTimeout(()=>{ if(e.textContent===t) e.textContent=''; },2500); } }
 function curColl() { return COLLECTIONS.find(c => c.id === curId) || null; }
@@ -563,13 +564,13 @@ function addSection(){ const c=curColl(); if(!c){ alert('Create a collection fir
 function saveDesc(v){ const c=curColl(); if(c){ c.description=v; save(); } }
 async function newCollection(){ const t=prompt('New collection name (e.g. “Vestibular lecture”):',''); if(!t) return;
   try{ const resp=await fetch('/collections',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},body:JSON.stringify({title:t})});
-    if(!resp.ok) throw new Error('HTTP '+resp.status); const col=await resp.json(); COLLECTIONS.push(col); curId=col.id; renderSelect(); renderCollectionTree(); savedMsg('Created'); }
+    if(!resp.ok) throw httpError(resp); const col=await resp.json(); COLLECTIONS.push(col); curId=col.id; renderSelect(); renderCollectionTree(); savedMsg('Created'); }
   catch(e){ savedMsg('Error: '+e.message,false); } }
 async function deleteCollection(){ const c=curColl(); if(!c) return;
   if(c.reserved){ savedMsg('The Featured list is reserved — cannot delete.', false); return; }
   if(!confirm(`Delete the collection “${c.title}”? (The simulations are not deleted.)`)) return;
   try{ const resp=await fetch('/collections/'+c.id,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}});
-    if(!resp.ok) throw new Error('HTTP '+resp.status); COLLECTIONS=COLLECTIONS.filter(x=>x.id!==c.id); curId=COLLECTIONS.length?COLLECTIONS[0].id:null;
+    if(!resp.ok) throw httpError(resp); COLLECTIONS=COLLECTIONS.filter(x=>x.id!==c.id); curId=COLLECTIONS.length?COLLECTIONS[0].id:null;
     rebuildCollIndex(); renderSelect(); renderCollectionTree(); savedMsg('Deleted'); }
   catch(e){ savedMsg('Error: '+e.message,false); } }
 let _saveTimer=null;
@@ -578,7 +579,7 @@ function save(){ const c=curColl(); if(!c) return; renderSelect(); rebuildCollIn
   _saveTimer=setTimeout(async()=>{ try{
     const resp=await fetch('/collections/'+c.id,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken()},
       body:JSON.stringify({title:c.title,description:c.description,items:c.items})});
-    if(!resp.ok) throw new Error('HTTP '+resp.status); savedMsg('Saved');
+    if(!resp.ok) throw httpError(resp); savedMsg('Saved');
   }catch(e){ savedMsg('Save failed: '+e.message,false); } }, 300); }
 
 // ── Right panel: shared viewer (admin controls + avatar + plots + details) ──────
@@ -692,7 +693,7 @@ function updateRowMarks(runId) {
 async function toggleFavorite(runId) {
   const r = RUNS[runId]; if (!r) return;
   const fav = !isFav(r);
-  try { const resp = await adminPost('/admin/favorite', { run_id: runId, favorite: fav }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+  try { const resp = await adminPost('/admin/favorite', { run_id: runId, favorite: fav }); if (!resp.ok) throw httpError(resp);
     r.favorite = fav?'True':'';
     const b = document.getElementById('favBtn'); if (b && activeRun===runId) { b.classList.toggle('on',fav); b.textContent = fav?'★ Favorited':'☆ Favorite'; }
     updateRowMarks(runId); applyFilter(); admMsg(fav?'Marked favorite — will appear in the gallery':'Removed from favorites');
@@ -701,7 +702,7 @@ async function toggleFavorite(runId) {
 async function toggleFeatured(runId) {
   const r = RUNS[runId]; if (!r) return;
   const feat = !isFeatured(r);
-  try { const resp = await adminPost('/admin/featured', { run_id: runId, featured: feat }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+  try { const resp = await adminPost('/admin/featured', { run_id: runId, featured: feat }); if (!resp.ok) throw httpError(resp);
     r.featured = feat?'True':'';
     const b = document.getElementById('featBtn'); if (b && activeRun===runId) { b.classList.toggle('on',feat); b.textContent = feat?'◆ Featured':'◇ Feature'; }
     updateRowMarks(runId); applyFilter(); admMsg(feat?'Featured — will appear as a front-page example':'Removed from front-page examples');
@@ -709,13 +710,13 @@ async function toggleFeatured(runId) {
 }
 async function saveNote(runId) {
   const box = document.getElementById('noteBox'); if (!box) return;
-  try { const resp = await adminPost('/admin/note', { run_id: runId, note: box.value }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+  try { const resp = await adminPost('/admin/note', { run_id: runId, note: box.value }); if (!resp.ok) throw httpError(resp);
     const r = RUNS[runId]; if (r) r.note = box.value; admMsg('Note saved');
   } catch (e) { admMsg('Error: '+e.message,false); }
 }
 async function saveTitle(runId) {
   const box = document.getElementById('titleBox'); if (!box) return;
-  try { const resp = await adminPost('/admin/title', { run_id: runId, title: box.value }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+  try { const resp = await adminPost('/admin/title', { run_id: runId, title: box.value }); if (!resp.ok) throw httpError(resp);
     const r = RUNS[runId]; if (r) r.title = box.value;
     applyFilter();   // re-render the table so the new title shows in its column
     admMsg('Title saved');
@@ -728,7 +729,7 @@ function copyRunLink(runId) {
 }
 async function deleteRun(runId) {
   if (!confirm('Delete this run permanently? Removes its data, figure, and log entry.')) return;
-  try { const resp = await fetch('/runs/'+runId, { method:'DELETE', headers:{'X-Admin-Token':adminToken()} }); if (!resp.ok) throw new Error('HTTP '+resp.status);
+  try { const resp = await fetch('/runs/'+runId, { method:'DELETE', headers:{'X-Admin-Token':adminToken()} }); if (!resp.ok) throw httpError(resp);
     ALL_ROWS = ALL_ROWS.filter(x => x.run_id !== runId); delete RUNS[runId]; selected.delete(runId);
     if (activeRun === runId) { activeRun = null; document.getElementById('viewer').style.display='none'; document.getElementById('emptyMsg').style.display='flex'; }
     renderList();
@@ -778,18 +779,18 @@ function updateBulkBar() { const n=selected.size; document.getElementById('bulkb
 function bulkMsg(t) { const m=document.getElementById('bulkMsg'); if(m) m.textContent=t; }
 async function bulkFavorite(fav) {
   const ids=[...selected]; if(!ids.length) return; bulkMsg('Working…');
-  const res=await Promise.allSettled(ids.map(async runId => { const resp=await adminPost('/admin/favorite',{run_id:runId,favorite:fav}); if(!resp.ok) throw new Error('HTTP '+resp.status); const r=RUNS[runId]; if(r) r.favorite=fav?'True':''; }));
+  const res=await Promise.allSettled(ids.map(async runId => { const resp=await adminPost('/admin/favorite',{run_id:runId,favorite:fav}); if(!resp.ok) throw httpError(resp); const r=RUNS[runId]; if(r) r.favorite=fav?'True':''; }));
   const ok=res.filter(x=>x.status==='fulfilled').length; ids.forEach(updateRowMarks); applyFilter(); bulkMsg(`${fav?'Favorited':'Unfavorited'} ${ok}/${ids.length}`);
 }
 async function bulkFeatured(feat) {
   const ids=[...selected]; if(!ids.length) return; bulkMsg('Working…');
-  const res=await Promise.allSettled(ids.map(async runId => { const resp=await adminPost('/admin/featured',{run_id:runId,featured:feat}); if(!resp.ok) throw new Error('HTTP '+resp.status); const r=RUNS[runId]; if(r) r.featured=feat?'True':''; }));
+  const res=await Promise.allSettled(ids.map(async runId => { const resp=await adminPost('/admin/featured',{run_id:runId,featured:feat}); if(!resp.ok) throw httpError(resp); const r=RUNS[runId]; if(r) r.featured=feat?'True':''; }));
   const ok=res.filter(x=>x.status==='fulfilled').length; ids.forEach(updateRowMarks); applyFilter(); bulkMsg(`${feat?'Featured':'Unfeatured'} ${ok}/${ids.length}`);
 }
 async function bulkDelete() {
   const ids=[...selected]; if(!ids.length) return;
   if(!confirm(`Delete ${ids.length} run(s) permanently? Removes their data, figures, and log entries.`)) return; bulkMsg('Deleting…');
-  const res=await Promise.allSettled(ids.map(async runId => { const resp=await fetch('/runs/'+runId,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}}); if(!resp.ok) throw new Error('HTTP '+resp.status); ALL_ROWS=ALL_ROWS.filter(x=>x.run_id!==runId); delete RUNS[runId]; }));
+  const res=await Promise.allSettled(ids.map(async runId => { const resp=await fetch('/runs/'+runId,{method:'DELETE',headers:{'X-Admin-Token':adminToken()}}); if(!resp.ok) throw httpError(resp); ALL_ROWS=ALL_ROWS.filter(x=>x.run_id!==runId); delete RUNS[runId]; }));
   const ok=res.filter(x=>x.status==='fulfilled').length; selected.clear(); renderList();
   document.getElementById('viewer').style.display='none'; document.getElementById('emptyMsg').style.display='flex';
   bulkMsg(`Deleted ${ok}/${ids.length}`);
@@ -805,7 +806,7 @@ async function bulkRerun(kind) {
       if(kind==='prompt'){ const r=RUNS[ids[i]]; const prompt=r&&r.prompt; if(!prompt) throw new Error('no stored prompt');
         resp=await fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:prompt})}); }
       else { resp=await fetch('/rerun/'+ids[i],{method:'POST',headers:{'X-Admin-Token':token}}); }
-      if(!resp.ok) throw new Error('HTTP '+resp.status); const body=await resp.json().catch(()=>({})); if(body&&body.error) throw new Error(body.error); ok++;
+      if(!resp.ok) throw httpError(resp); const body=await resp.json().catch(()=>({})); if(body&&body.error) throw new Error(body.error); ok++;
     }catch(e){ fail++; } }
   bulkMsg(`Done: ${ok} ok${fail?', '+fail+' failed':''} — reloading…`); setTimeout(()=>window.location.reload(),1000);
 }
@@ -856,13 +857,13 @@ async function atcConfirm() {
       const title = document.getElementById('atcNewName').value.trim();
       if (!title) return err('Enter a name for the new collection.');
       const resp = await fetch('/collections', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() }, body: JSON.stringify({ title }) });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      if (!resp.ok) throw httpError(resp);
       cid = (await resp.json()).id;
     }
     let section = document.getElementById('atcSection').value || null;
     if (section === '__new__') section = (document.getElementById('atcNewSection').value || '').trim() || null;
     const resp = await fetch('/collections/' + cid + '/add', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() }, body: JSON.stringify({ run_ids: _atcIds, section }) });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    if (!resp.ok) throw httpError(resp);
     try { COLLECTIONS = ((await (await fetch('/collections')).json()).collections) || []; rebuildCollIndex(); renderSelect(); } catch (e) {}
     renderList();
     closeAtc();
