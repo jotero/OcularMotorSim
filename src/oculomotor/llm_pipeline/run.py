@@ -850,6 +850,10 @@ def _build_sim_data(t_array: np.ndarray, sig: dict, stim_kw: dict) -> dict:
 #        "lanes":   [...]                       # only for type == "gantt"
 #       }, ... ]}
 #
+#   A type == "xy" panel (eye_xy, see _xy_panel_spec) is appended last when it
+#   applies: traces carry "x"/"y" arrays (+ optional "x_offset", "role") instead
+#   of a single "y".
+#
 # Per-trace ``y`` arrays are downsampled (capped at _MAX_SPEC_POINTS) and rounded;
 # non-finite samples become ``null`` so the client draws a gap.
 
@@ -1175,6 +1179,48 @@ def _panel_spec(panel: str, t: np.ndarray, sig: dict, stim_kw: dict,
     return spec
 
 
+def _xy_panel_spec(t: np.ndarray, sig: dict, stim_kw: dict,
+                   scenario: SimulationScenario, stride: int) -> dict | None:
+    """Horizontal-vs-vertical eye position (one dot per sample, both eyes), or None.
+
+    Shown only when the eyes move in BOTH H and V (> 1 deg) while the head stays
+    still (< 2 deg) — saccade / pursuit geometry, where the 2-D path is the point.
+    Horizontal uses the same per-eye zero reference as the eye_position_h panel.
+    """
+    ep_L, ep_R = sig['eye_pos_L'], sig['eye_pos_R']
+    def _moves(i):
+        return max(float(np.ptp(ep_L[:, i])), float(np.ptp(ep_R[:, i]))) > 1.0
+    hv = np.array(stim_kw['head_vel_array']).reshape(len(t), -1)
+    dt_val = (t[1] - t[0]) if len(t) > 1 else 0.001
+    head_moves = float(np.max(np.abs(np.cumsum(hv, axis=0) * dt_val))) > 2.0
+    if not (_moves(0) and _moves(1)) or head_moves:
+        return None
+
+    cal = _binocular_display(sig, stim_kw, scenario.patient.tonic_verg)
+    present = cal['present']
+    def _xy(label, color, x, y, x_offset=0.0, **extra):
+        d = {'label': label, 'color': color,
+             'x': _jlist(x, stride), 'y': _jlist(y, stride), **extra}
+        if x_offset:
+            d['x_offset'] = float(x_offset)    # added client-side, like line-panel `offset`
+        return d
+    traces = [_xy('L eye', '#2166ac', ep_L[:, 0], ep_L[:, 1], cal['off_L']),
+              _xy('R eye', '#d6604d', ep_R[:, 0], ep_R[:, 1], cal['off_R'])]
+    if present.any():
+        traces.append(_xy('Target', '#6b7280',
+                          np.where(present, cal['target_yaw'], np.nan),
+                          np.where(present, cal['target_pitch'], np.nan), role='target'))
+    return {
+        'name':    'eye_xy',
+        'type':    'xy',
+        'ylabel':  'Eye position — horizontal vs vertical (deg)',
+        'xlabel':  f"horizontal (deg, {cal['zero_label']})",
+        'ylabel_axis': 'vertical (deg)',
+        'min_span': 5.0,
+        'traces':  traces,
+    }
+
+
 def _build_plot_spec(t_array: np.ndarray, sig: dict, stim_kw: dict,
                      scenario: SimulationScenario) -> dict:
     """Build the full library-agnostic plot spec for a single scenario run."""
@@ -1184,6 +1230,9 @@ def _build_plot_spec(t_array: np.ndarray, sig: dict, stim_kw: dict,
     for p in _order_panels(scenario.plot.panels):
         s = _panel_spec(p, t, sig, stim_kw, scenario, stride)
         panels_out.extend(s if isinstance(s, list) else [s])
+    xy = _xy_panel_spec(t, sig, stim_kw, scenario, stride)
+    if xy is not None:
+        panels_out.append(xy)    # always last, below every time-series panel
     return {
         'mode':  'single',
         'title': scenario.plot.title or scenario.description,

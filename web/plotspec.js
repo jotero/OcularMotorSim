@@ -4,11 +4,15 @@
  *   PlotSpec.render(containerEl, spec)  ->  { destroy() }
  *
  * Spec shape (per panel):
- *   { name, ylabel, ylabel_right?, ymin_span?, type: "lines"|"gantt",
+ *   { name, ylabel, ylabel_right?, ymin_span?, type: "lines"|"gantt"|"xy",
  *     hlines: [{y, color, style, label?}], shading: [[t0,t1], ...],
  *     traces: [{label, color, style, axis: "left"|"right", y: [...]}],
  *     lanes:  [...]   // type == "gantt" only
  *   }
+ * type == "xy" (horizontal vs vertical, drawn after the time panels):
+ *   { xlabel, ylabel_axis, min_span?,
+ *     traces: [{label, color, x: [...], y: [...], x_offset?, role?: "target"}] }
+ *   x/y are sampled on spec.t; setTime() moves a current-frame dot + fading trail.
  *
  * Zoom: drag-select on any panel zooms the shared time axis on every panel;
  * double-click resets. Hover shows a synced crosshair + per-series values.
@@ -51,6 +55,9 @@
                      font-size: 10px; color: #475569; white-space: nowrap; }
       .ps-swatch { width: 14px; height: 2px; border-radius: 1px;
                    display: inline-block; flex-shrink: 0; }
+      /* X–Y panel: two stacked canvases (static trace below, per-frame marker above) */
+      .ps-xy { position: relative; height: 300px; }
+      .ps-xy canvas { position: absolute; left: 0; top: 0; }
       /* gantt */
       .ps-gantt-lane { display: flex; align-items: center; height: 24px; margin: 2px 0; }
       .ps-gantt-label { box-sizing: border-box; width: 80px; flex-shrink: 0; font-size: 10px;
@@ -108,6 +115,41 @@
         },
       },
     };
+  }
+
+  // Header: y-axis label (left) + compact legend (right) on one row, so the
+  // canvas keeps its full height instead of losing it to a legend below.
+  function makeHead(panel) {
+    const head = document.createElement('div');
+    head.className = 'ps-head';
+    const label = document.createElement('span');
+    label.className = 'ps-ylabel';
+    label.textContent = panel.ylabel;
+    head.appendChild(label);
+
+    const legend = document.createElement('span');
+    legend.className = 'ps-legend';
+    (panel.traces || []).forEach((tr) => {
+      const item = document.createElement('span');
+      item.className = 'ps-leg-item';
+      const sw = document.createElement('span');
+      sw.className = 'ps-swatch';
+      const d = dash(tr.style);
+      if (d.length) {
+        // Dashed/dotted swatch matching the line style (horizontal dashes).
+        const on = d[0], off = d[1] || d[0];
+        sw.style.background =
+          `repeating-linear-gradient(90deg, ${tr.color} 0 ${on}px, transparent ${on}px ${on + off}px)`;
+      } else {
+        sw.style.background = tr.color;
+      }
+      item.appendChild(sw);
+      item.appendChild(document.createTextNode(
+        tr.label + (tr.axis === 'right' ? ' (R)' : '')));
+      legend.appendChild(item);
+    });
+    head.appendChild(legend);
+    return head;
   }
 
   function makeLinePanel(panel, t, sharedX, registerChart) {
@@ -187,38 +229,7 @@
       },
     };
 
-    // Header: y-axis label (left) + compact legend (right) on one row, so the
-    // canvas keeps its full height instead of losing it to a legend below.
-    const head = document.createElement('div');
-    head.className = 'ps-head';
-    const label = document.createElement('span');
-    label.className = 'ps-ylabel';
-    label.textContent = panel.ylabel;
-    head.appendChild(label);
-
-    const legend = document.createElement('span');
-    legend.className = 'ps-legend';
-    (panel.traces || []).forEach((tr) => {
-      const item = document.createElement('span');
-      item.className = 'ps-leg-item';
-      const sw = document.createElement('span');
-      sw.className = 'ps-swatch';
-      const d = dash(tr.style);
-      if (d.length) {
-        // Dashed/dotted swatch matching the line style (horizontal dashes).
-        const on = d[0], off = d[1] || d[0];
-        sw.style.background =
-          `repeating-linear-gradient(90deg, ${tr.color} 0 ${on}px, transparent ${on}px ${on + off}px)`;
-      } else {
-        sw.style.background = tr.color;
-      }
-      item.appendChild(sw);
-      item.appendChild(document.createTextNode(
-        tr.label + (tr.axis === 'right' ? ' (R)' : '')));
-      legend.appendChild(item);
-    });
-    head.appendChild(legend);
-    wrap.appendChild(head);
+    wrap.appendChild(makeHead(panel));
 
     const u = new uPlot(opts, data, wrap);
     registerChart.add(u);
@@ -274,6 +285,169 @@
     return wrap;
   }
 
+  // ── X–Y panel (horizontal vs vertical position; not a time series) ──────────
+  const XY_HEIGHT  = 300;
+  const XY_MIN_WIDTH = 320;
+  const XY_TRAIL_S = 0.3;    // trail drawn behind the current frame (s)
+  const XY_MARGIN  = { left: 80, right: 16, top: 8, bottom: 34 };   // left = shared y-gutter
+
+  // 1-2-5 tick step giving roughly `n` ticks across `span`.
+  function niceStep(span, n) {
+    const raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+    return p * (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10);
+  }
+  const fmtTick = (v) => String(Math.abs(v) < 1e-9 ? 0 : +v.toFixed(6));
+
+  // Last sample index with t[i] <= tq (-1 if tq precedes the trace).
+  function idxAt(t, tq) {
+    if (!t.length || tq < t[0]) return -1;
+    let lo = 0, hi = t.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (t[mid] <= tq) lo = mid; else hi = mid - 1; }
+    return lo;
+  }
+
+  function makeXYPanel(panel, t, registry) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ps-panel';
+    wrap.appendChild(makeHead(panel));
+    const box = document.createElement('div');
+    box.className = 'ps-xy';
+    const base = document.createElement('canvas');   // axes + whole trace (redrawn on resize)
+    const over = document.createElement('canvas');   // trail + current frame (redrawn per frame)
+    box.append(base, over);
+    wrap.appendChild(box);
+
+    // `x_offset` is the binocular zero-reference (same as the horizontal panel's
+    // `offset`), applied at render time so the spec data stays raw.
+    const traces = (panel.traces || []).map((s) => {
+      const off = s.x_offset || 0;
+      return { ...s, x: off ? s.x.map((v) => (v == null ? null : v + off)) : s.x };
+    });
+    // Targets first so the eyes draw on top of them.
+    traces.sort((a, b) => (b.role === 'target') - (a.role === 'target'));
+
+    // Data bounds, padded and floored at min_span so fixational noise isn't blown
+    // up to fill the panel. 1 deg is the same length on both axes.
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    traces.forEach((s) => s.x.forEach((x, i) => {
+      const y = s.y[i];
+      if (x == null || y == null) return;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }));
+    if (!isFinite(x0)) { x0 = y0 = -1; x1 = y1 = 1; }
+    const minSpan = panel.min_span || 5;
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const spanX = Math.max(x1 - x0, minSpan) * 1.15, spanY = Math.max(y1 - y0, minSpan) * 1.15;
+
+    const M = XY_MARGIN;
+    let g = null;   // geometry in CSS px: k = px per deg, (ox, oy) = pixel of (0, 0)
+    const X = (x) => g.ox + x * g.k;
+    const Y = (y) => g.oy - y * g.k;
+    const ok = (s, i) => i >= 0 && s.x[i] != null && s.y[i] != null;
+    const clipPlot = (ctx) => { ctx.beginPath(); ctx.rect(g.L, g.T, g.R - g.L, g.B - g.T); ctx.clip(); };
+
+    function layout() {
+      // Width follows the data's aspect (equal deg/px), so an H-test is ~square
+      // instead of a full-width strip of empty grid; capped at the container.
+      const full = (wrap.parentElement && wrap.parentElement.clientWidth) || 600;
+      const H = XY_HEIGHT, T = M.top, B = H - M.bottom;
+      const W = Math.round(Math.max(XY_MIN_WIDTH,
+                  Math.min(full, M.left + M.right + spanX * (B - T) / spanY)));
+      wrap.style.maxWidth = W + 'px';
+      const L = M.left, R = W - M.right;
+      const k = Math.min((R - L) / spanX, (B - T) / spanY);
+      g = { W, H, L, R, T, B, k,
+            ox: (L + R) / 2 - cx * k, oy: (T + B) / 2 + cy * k };
+      const dpr = window.devicePixelRatio || 1;
+      for (const c of [base, over]) {
+        c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+        c.style.width = W + 'px'; c.style.height = H + 'px';
+        c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+    }
+
+    function drawBase() {
+      const ctx = base.getContext('2d');
+      ctx.clearRect(0, 0, g.W, g.H);
+      const xmin = (g.L - g.ox) / g.k, xmax = (g.R - g.ox) / g.k;
+      const ymin = (g.oy - g.B) / g.k, ymax = (g.oy - g.T) / g.k;
+      const step = niceStep(Math.min(xmax - xmin, ymax - ymin), 5);   // same step on both axes
+      const hline = (x0p, y0p, x1p, y1p) => { ctx.beginPath(); ctx.moveTo(x0p, y0p); ctx.lineTo(x1p, y1p); ctx.stroke(); };
+
+      // Grid + tick labels
+      ctx.font = '10px sans-serif'; ctx.fillStyle = '#475569';
+      ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      for (let n = Math.ceil(xmin / step); n * step <= xmax; n++) {
+        const px = X(n * step); hline(px, g.T, px, g.B); ctx.fillText(fmtTick(n * step), px, g.B + 4);
+      }
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      for (let n = Math.ceil(ymin / step); n * step <= ymax; n++) {
+        const py = Y(n * step); hline(g.L, py, g.R, py); ctx.fillText(fmtTick(n * step), g.L - 6, py);
+      }
+      // Zero lines (dashed, like the time panels' hlines)
+      ctx.save(); ctx.strokeStyle = '#aaaaaa'; ctx.setLineDash([6, 4]);
+      if (xmin < 0 && xmax > 0) hline(X(0), g.T, X(0), g.B);
+      if (ymin < 0 && ymax > 0) hline(g.L, Y(0), g.R, Y(0));
+      ctx.restore();
+      // Axis labels
+      ctx.fillStyle = '#64748b'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(panel.xlabel || '', (g.L + g.R) / 2, g.H - 2);
+      ctx.save(); ctx.translate(12, (g.T + g.B) / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textBaseline = 'middle'; ctx.fillText(panel.ylabel_axis || '', 0, 0); ctx.restore();
+
+      // Whole trace: one dot per sample, so dot spacing shows speed.
+      ctx.save(); clipPlot(ctx);
+      for (const s of traces) {
+        const tgt = s.role === 'target';
+        ctx.fillStyle = s.color; ctx.globalAlpha = tgt ? 0.3 : 0.5;
+        const r = tgt ? 1.3 : 1.6;
+        for (let i = 0; i < s.x.length; i++) {
+          if (!ok(s, i)) continue;
+          ctx.beginPath(); ctx.arc(X(s.x[i]), Y(s.y[i]), r, 0, 2 * Math.PI); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawOver(tNow) {
+      const ctx = over.getContext('2d');
+      ctx.clearRect(0, 0, g.W, g.H);
+      if (tNow == null) return;
+      const i1 = idxAt(t, tNow);
+      if (i1 < 0) return;
+      const i0 = Math.max(0, idxAt(t, tNow - XY_TRAIL_S));
+      ctx.save(); clipPlot(ctx); ctx.lineCap = 'round';
+      for (const s of traces) {
+        const tgt = s.role === 'target';
+        if (!tgt) {
+          // Trail: segments thicken + darken toward the current frame.
+          ctx.strokeStyle = s.color;
+          for (let i = i0 + 1; i <= i1; i++) {
+            if (!ok(s, i - 1) || !ok(s, i)) continue;
+            const f = (i - i0) / Math.max(1, i1 - i0);
+            ctx.globalAlpha = 0.15 + 0.85 * f; ctx.lineWidth = 1 + 2.5 * f;
+            ctx.beginPath(); ctx.moveTo(X(s.x[i - 1]), Y(s.y[i - 1]));
+            ctx.lineTo(X(s.x[i]), Y(s.y[i])); ctx.stroke();
+          }
+        }
+        if (!ok(s, i1)) continue;
+        ctx.globalAlpha = 1; ctx.beginPath();
+        if (tgt) {   // current target: open ring
+          ctx.strokeStyle = s.color; ctx.lineWidth = 2;
+          ctx.arc(X(s.x[i1]), Y(s.y[i1]), 7, 0, 2 * Math.PI); ctx.stroke();
+        } else {     // current eye position: filled dot with a white rim
+          ctx.fillStyle = s.color; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+          ctx.arc(X(s.x[i1]), Y(s.y[i1]), 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    registry.addXY({ resize: () => { layout(); drawBase(); }, draw: drawOver });
+    return wrap;
+  }
+
   function render(container, spec) {
     injectStyles();
     container.innerHTML = '';
@@ -282,11 +456,13 @@
     const playheads = [];        // uPlot panels: [{ u, ph }]
     const ganttPlayheads = [];   // gantt lanes: [{ ph, tmin, tmax }] (fixed scale)
     const ganttTracks = [];      // gantt tracks: [{ track, label }] — aligned to the plot area
+    const xyPanels = [];         // X–Y panels: [{ resize(), draw(t) }]
     let playT = null;            // current playhead time (s), or null = hidden
     let syncingGlobal = false;
     const registry = {
       add: (u) => charts.push(u),
       addPlayhead: (u, ph) => playheads.push({ u, ph }),
+      addXY: (p) => xyPanels.push(p),
       addGanttPlayhead: (ph, a, b) => ganttPlayheads.push({ ph, tmin: a, tmax: b }),
       addGanttTrack: (track, label) => ganttTracks.push({ track, label }),
       // Size each gantt track to EXACTLY the uPlot plot area (same left + right
@@ -325,6 +501,8 @@
           ph.style.left = (Math.max(0, Math.min(1, frac)) * 100) + '%';
           ph.style.display = 'block';
         }
+        // X–Y panels: current-frame marker + trail (time zoom doesn't affect them).
+        for (const p of xyPanels) p.draw(playT);
       },
       setPlayT: (t) => {
         playT = t;
@@ -362,11 +540,11 @@
     const tmin = t.length ? t[0] : 0;
     const tmax = t.length ? t[t.length - 1] : 1;
 
-    (spec.panels || []).forEach((panel) => {
+    const drawPanel = (panel) => {
       try {
-        const el = (panel.type === 'gantt')
-          ? makeGanttPanel(panel, tmin, tmax, registry)
-          : makeLinePanel(panel, t, [tmin, tmax], registry);
+        const el = (panel.type === 'gantt') ? makeGanttPanel(panel, tmin, tmax, registry)
+                 : (panel.type === 'xy')    ? makeXYPanel(panel, t, registry)
+                 : makeLinePanel(panel, t, [tmin, tmax], registry);
         container.appendChild(el);
       } catch (e) {
         console.error('plotspec: failed to render panel', panel && panel.name, e);
@@ -375,13 +553,17 @@
         err.textContent = `(panel "${panel && panel.name}" could not be drawn)`;
         container.appendChild(err);
       }
-    });
+    };
+    const isXY = (p) => p.type === 'xy';
+    (spec.panels || []).filter((p) => !isXY(p)).forEach(drawPanel);
 
-    // Shared x-axis label under the bottom panel.
+    // Shared x-axis label under the bottom time panel (X–Y panels carry their own axes).
     const xlabel = document.createElement('div');
     xlabel.className = 'ps-xlabel';
     xlabel.textContent = 'time (s)';
     container.appendChild(xlabel);
+
+    (spec.panels || []).filter(isXY).forEach(drawPanel);
 
     const hint = document.createElement('div');
     hint.className = 'ps-hint';
@@ -391,6 +573,7 @@
     // Responsive width
     const onResize = () => {
       charts.forEach((u) => u.setSize({ width: u.root.parentElement.clientWidth, height: 180 }));
+      xyPanels.forEach((p) => p.resize());
       registry.alignGantt();     // re-fit gantt tracks to the (possibly resized) plot area
       registry.reposition();
     };
