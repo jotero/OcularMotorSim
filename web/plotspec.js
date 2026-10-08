@@ -418,29 +418,33 @@
       if (i1 < 0) return;
       const i0 = Math.max(0, idxAt(t, tNow - XY_TRAIL_S));
       ctx.save(); clipPlot(ctx); ctx.lineCap = 'round';
-      for (const s of traces) {
-        const tgt = s.role === 'target';
-        if (!tgt) {
-          // Trail: segments thicken + darken toward the current frame.
-          ctx.strokeStyle = s.color;
-          for (let i = i0 + 1; i <= i1; i++) {
-            if (!ok(s, i - 1) || !ok(s, i)) continue;
-            const f = (i - i0) / Math.max(1, i1 - i0);
-            ctx.globalAlpha = 0.15 + 0.85 * f; ctx.lineWidth = 1 + 2.5 * f;
-            ctx.beginPath(); ctx.moveTo(X(s.x[i - 1]), Y(s.y[i - 1]));
-            ctx.lineTo(X(s.x[i]), Y(s.y[i])); ctx.stroke();
-          }
-        }
-        if (!ok(s, i1)) continue;
-        ctx.globalAlpha = 1; ctx.beginPath();
-        if (tgt) {   // current target: open ring
-          ctx.strokeStyle = s.color; ctx.lineWidth = 2;
-          ctx.arc(X(s.x[i1]), Y(s.y[i1]), 7, 0, 2 * Math.PI); ctx.stroke();
-        } else {     // current eye position: filled dot with a white rim
-          ctx.fillStyle = s.color; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
-          ctx.arc(X(s.x[i1]), Y(s.y[i1]), 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      const eyes = traces.filter((s) => s.role !== 'target');
+      const circle = (s, r) => { ctx.beginPath(); ctx.arc(X(s.x[i1]), Y(s.y[i1]), r, 0, 2 * Math.PI); };
+      // Layered so no trail or halo ever covers another eye's current dot:
+      // trails → target rings → white halos → eye dots.
+      for (const s of eyes) {
+        // Trail: segments thicken + darken toward the current frame.
+        ctx.strokeStyle = s.color;
+        for (let i = i0 + 1; i <= i1; i++) {
+          if (!ok(s, i - 1) || !ok(s, i)) continue;
+          const f = (i - i0) / Math.max(1, i1 - i0);
+          ctx.globalAlpha = 0.15 + 0.85 * f; ctx.lineWidth = 1 + 2.5 * f;
+          ctx.beginPath(); ctx.moveTo(X(s.x[i - 1]), Y(s.y[i - 1]));
+          ctx.lineTo(X(s.x[i]), Y(s.y[i])); ctx.stroke();
         }
       }
+      ctx.globalAlpha = 1;
+      // Current target: open ring, wide enough to surround an eye dot sitting on it.
+      for (const s of traces) {
+        if (s.role !== 'target' || !ok(s, i1)) continue;
+        ctx.strokeStyle = s.color; ctx.lineWidth = 2; circle(s, 11); ctx.stroke();
+      }
+      // Current eye position: white halo + filled dot + dark outline, so it stands
+      // out against its own same-colored trace and trail.
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      for (const s of eyes) if (ok(s, i1)) { circle(s, 10); ctx.fill(); }
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.5;
+      for (const s of eyes) if (ok(s, i1)) { ctx.fillStyle = s.color; circle(s, 7); ctx.fill(); ctx.stroke(); }
       ctx.restore();
     }
 
