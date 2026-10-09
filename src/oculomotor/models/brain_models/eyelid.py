@@ -38,11 +38,14 @@ N_STATES  = 0   # stateless — the dynamics live in the eyelid plant (eyelid_pl
 N_OUTPUTS = 6   # three per-eye lid muscle drives: levator + Müller + orbicularis
 
 # ── Gaze-follow (levator relaxation on downgaze) — a central command, not a lesion.
-# At full downgaze the levator relaxes by DOWNGAZE_RELAX of its range; combined
-# with the plant's PTOSIS_LEVATOR droop-per-loss this reproduces the tuned
-# lid-follow closure (~0.4 at 70° downgaze = PTOSIS_LEVATOR · DOWNGAZE_RELAX).
-DOWNGAZE_RELAX = 0.57   # levator relaxation fraction at a full unit of downgaze
-DOWNGAZE_DEG   = 70.0   # downgaze angle mapping to a full unit of levator relaxation
+# The upper lid tracks the eye ~1:1 in downgaze, keeping its margin near the upper
+# limbus: the limbus drops ~R·sin(θ) (R ≈ 12 mm) against ~10 mm of full lid travel,
+# i.e. closure ≈ 0.02 per degree. With the plant's PTOSIS_LEVATOR droop-per-loss that
+# is closure = PTOSIS_LEVATOR · min(1, θ / DOWNGAZE_DEG · DOWNGAZE_RELAX) → 0.24 at
+# 12°, 0.6 at 30°, saturating at 0.7 from 35°. (Was 0.57 / 70° → only 0.07 at 12°,
+# leaving a band of sclera above the iris in downgaze, like lid lag.)
+DOWNGAZE_RELAX = 1.0    # levator relaxation fraction at a full unit of downgaze
+DOWNGAZE_DEG   = 35.0   # downgaze angle mapping to a full unit of levator relaxation
 
 
 def _levator_relax(pitch):
