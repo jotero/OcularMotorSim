@@ -15,10 +15,14 @@
  */
 import * as THREE     from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createRoom, ROOM_MIN_FRONT } from './room.js';
 
 // ── Renderer + scene ──────────────────────────────────────────────────────────
 const canvas   = document.getElementById('avatar-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+// Logarithmic depth: the retina camera sees from ~3 mm (cover patch) out to the room's
+// far wall, and room assets have layers < 1 mm apart (clock hands over the face) —
+// a linear depth buffer can't separate those at metres, so they flickered.
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
 // Supersample: render above the display's native pixel ratio and let the browser
 // downsample. On top of MSAA (antialias:true) this is the biggest win for jagged
 // edges — especially on standard (dpr=1) monitors. Capped at 3 so retina displays
@@ -46,6 +50,7 @@ worldCam.layers.enable(1);
 // reference rings are a screen-space overlay. Cycle L / R / both with the 'e' key.
 const RETINA_HALF_FOV = 20;               // vertical half-FOV (deg); camera fov = 2x this
 const RETINA_RING_DEG = [20, 2];          // reference-ring eccentricities (deg): field edge + fovea
+const RETINA_NEAR_M   = 0.002;            // retina camera near plane (m) — see _aimRetinaCam
 const retinaCam = new THREE.PerspectiveCamera(2 * RETINA_HALF_FOV, 1, 0.0001, 10000);
 retinaCam.layers.enable(2);
 let _reticle = null;
@@ -170,6 +175,13 @@ let pupilTargets = [];     // meshes carrying the 'pupilDilate' morph (iris/pupi
 let targetSphere = null, gazeRayL = null, gazeRayR = null;
 let sceneDots = null;               // low-contrast world surround group (rotates + flows)
 let _dotLayers = null, _dotH = 1;   // per-size dot layers {geom, base} + half-extent (wrap flow)
+// Visual surround: a furnished room (real depth → parallax) or the dot cloud. The room
+// is built lazily on first use; runs whose head travels further than it can hold
+// (locomotion) fall back to the dots, which wrap around endlessly.
+let room = null, _roomFront = ROOM_MIN_FRONT, _roomFits = true;
+const ROOM_MAX_HEAD_TRAVEL = 1.0;   // metres of head displacement the room can absorb
+let _surround = 'room';             // 'room' | 'dots' — viewer choice (remembered)
+try { if (localStorage.getItem('om_surround') === 'dots') _surround = 'dots'; } catch (e) {}
 let _restEyeMid  = null;            // world eye-mid at rest (for the world-fixed target)
 let _gazeAxisL   = null, _gazeAxisR = null;  // eye-local axis that points along gaze
 let _upAxisL     = null, _upAxisR   = null;  // eye-local "up" axis (drives retinal torsion)
@@ -454,6 +466,22 @@ function setMorph(name, value) {
   if (i !== undefined) faceMesh.morphTargetInfluences[i] = value;
 }
 
+// Lower lids: follow vertical gaze (tethered to the inferior rectus) — a few mm down in
+// downgaze (~4–5 mm by 35°), only 1–2 mm up in upgaze — and rise a little in a blink.
+// eyeSquint moves ONLY the lower lid, per eye (up ~2 mm mean / 4.7 mm max at weight 1);
+// a NEGATIVE weight lowers it, which keeps the upper lid out of it (the rig's
+// eyesLookDown would drag the upper lid too, and is shared by both eyes).
+// pitch in deg (> 0 = up); close = upper-lid closure 0..1.
+function setLowerLids(pitchL, pitchR, closeL, closeR) {
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lower = (pitch, close) =>
+      0.6 * clamp(pitch / 35, 0, 1)                // upgaze: small rise
+    - 1.0 * clamp(-pitch / 35, 0, 1.3)             // downgaze: drops with the eye
+    + 0.4 * clamp((close - 0.5) / 0.5, 0, 1);      // blink: slight rise near full closure
+  setMorph('eyeSquintLeft',  lower(pitchL, closeL));
+  setMorph('eyeSquintRight', lower(pitchR, closeR));
+}
+
 // ── Pupil dilation morph ────────────────────────────────────────────────────────
 // d in [0, 1] normally; up to ~1.6 is still geometrically valid.
 function setPupil(d) {
@@ -487,6 +515,7 @@ function updateBlink(ts) {
     _lidCloseL = _lidCloseR = _blink;
     setMorph('eyeBlinkLeft',  _blink);
     setMorph('eyeBlinkRight', _blink);
+    setLowerLids(0, 0, _blink, _blink);
   }
 }
 
@@ -676,6 +705,7 @@ function applyFrame(fi) {
     setMorph('eyeBlinkRight', _lidCloseR);
     setMorph('eyeWideLeft',  Math.min(0.5, upL) * (1 - closeL));
     setMorph('eyeWideRight', Math.min(0.5, upR) * (1 - closeR));
+    setLowerLids(L[1], R[1], _lidCloseL, _lidCloseR);
   }
 
   // Pupil dilation: drive each 'pupilDilate' morph from the model's PER-EYE pupil
@@ -722,10 +752,30 @@ function applyFrame(fi) {
     setRay(gazeRayR, oR, dR, lenR);
   }
 
+  // Room surround: shown whenever the scene is lit. Rotates with the scene (OKN) and
+  // shifts opposite the head's linear displacement, like the dot cloud below.
+  const lit = !_traj.scene_present || !!_traj.scene_present[fi];
+  const useRoom = _surround === 'room' && _roomFits;
+  if (useRoom && !room && _restEyeMid) {
+    room = createRoom(_modelUnit);
+    room.group.position.copy(_restEyeMid);
+    room.setFront(_roomFront);
+    scene.add(room.group);
+  }
+  if (room) {
+    room.group.visible = useRoom && lit;
+    if (room.group.visible) {
+      room.setHeadOffset(_traj.head_lin_pos && _traj.head_lin_pos[fi]);
+      const sp = _traj.scene_pos && _traj.scene_pos[fi];
+      if (sp) room.group.rotation.set(-sp[1] * DEG, -sp[0] * DEG, sp[2] * DEG);
+      else    room.group.rotation.set(0, 0, 0);
+    }
+  }
+
   // World dot-cloud: rotate with the scene (OKN) and flow opposite the head's
-  // linear motion (locomotion). Hidden when the scene is off (dark).
+  // linear motion (locomotion). Hidden when the scene is off (dark) or the room is shown.
   if (sceneDots) {
-    const present = !_traj.scene_present || !!_traj.scene_present[fi];
+    const present = lit && !useRoom;
     sceneDots.visible = present && !!(_traj.scene_pos || _traj.head_lin_pos);
     if (sceneDots.visible) {
       // Translational optic flow: shift dots opposite the head displacement,
@@ -774,6 +824,19 @@ window.loadEyeTrajectory = function(traj) {
   _playing = false;
   _needWorldFit = true;   // new trajectory → refit the world camera to head + targets
 
+  // Room: front wall behind the farthest present target; locomotion → dots instead.
+  let maxZ = 0, maxTravel = 0;
+  (traj.target || []).forEach((p, i) => {
+    if (p && (!traj.target_present || traj.target_present[i])) maxZ = Math.max(maxZ, p[2]);
+  });
+  (traj.head_lin_pos || []).forEach((d) => {
+    if (d) maxTravel = Math.max(maxTravel, Math.hypot(d[0], d[1], d[2]));
+  });
+  _roomFront = Math.max(ROOM_MIN_FRONT, maxZ + 0.8);
+  _roomFits  = maxTravel <= ROOM_MAX_HEAD_TRAVEL;
+  if (room) room.setFront(_roomFront);
+  _updateSurroundBtn();
+
   // One-time diagnostic: if a trajectory has any cover_L/R frames > 0,
   // log it so we can see in the console that the data path is intact.
   // (Data flows: stimuli.build_visual_flags → simulate → server _build_traj
@@ -817,6 +880,42 @@ window.loadEyeTrajectory = function(traj) {
   document.getElementById('play-btn').textContent = '⏸';
 };
 
+// Surround toggle (room ↔ dots): a playback-bar button, added here so every page that
+// embeds the avatar gets it without HTML changes; also the 'b' key. Remembered per browser.
+function _ensureSurroundBtn() {
+  let btn = document.getElementById('surround-btn');
+  const bar = document.getElementById('playback-bar');
+  if (btn || !bar) return btn;
+  if (!document.getElementById('surround-btn-style')) {
+    const st = document.createElement('style'); st.id = 'surround-btn-style';
+    st.textContent = '#surround-btn { background:#eef0f4; border:1px solid #d3d7e0; color:#334155;'
+      + ' border-radius:6px; height:32px; padding:0 10px; font-size:0.78rem; flex-shrink:0;'
+      + ' cursor:pointer; white-space:nowrap; }'
+      + ' #surround-btn:hover { border-color:#2563eb; color:#1c2230; background:#e4ecff; }'
+      + ' #surround-btn:disabled { opacity:0.55; cursor:default; }';
+    document.head.appendChild(st);
+  }
+  btn = document.createElement('button');
+  btn.id = 'surround-btn';
+  btn.onclick = () => window._avatarToggleSurround();
+  bar.appendChild(btn);
+  return btn;
+}
+function _updateSurroundBtn() {
+  const btn = _ensureSurroundBtn(); if (!btn) return;
+  btn.disabled = !_roomFits;
+  btn.textContent = !_roomFits ? '⋯ Dots' : _surround === 'room' ? '🏠 Room' : '⋯ Dots';
+  btn.title = !_roomFits
+    ? 'Head travels too far for the room in this run — showing the dot surround'
+    : 'Visual surround: furnished room or dot cloud (b)';
+}
+window._avatarToggleSurround = function() {
+  _surround = _surround === 'room' ? 'dots' : 'room';
+  try { localStorage.setItem('om_surround', _surround); } catch (e) {}
+  _updateSurroundBtn();
+  if (_traj) applyFrame(Math.min(Math.floor(_frame), _traj.n_frames - 1));
+};
+
 // Toggle the "hold lids open" override (button appears only when lids are mostly
 // shut). When on, applyFrame forces the eyelids open regardless of the data.
 window._avatarToggleLids = function() {
@@ -849,6 +948,7 @@ window._avatarOnScrub = function(val) {
 };
 
 // ── Render loop (scissor split) ───────────────────────────────────────────────
+const _roomEye = new THREE.Vector3();
 function renderViewports() {
   const w = W(), h = H();
   const fi = Math.min(Math.floor(_frame), _traj ? _traj.n_frames - 1 : 0);
@@ -876,6 +976,7 @@ function renderViewports() {
   anchorCovers();   // re-anchor covers/prisms to the rest-head eyeball
   anchorPrisms();
   [targetSphere, gazeRayL, gazeRayR].forEach(m => { if (m) m.visible = false; });
+  if (room) room.group.visible = false;   // keep the eye close-up clean (applyFrame restores it)
   headCam.fov = 15; headCam.aspect = headW / h; headCam.updateProjectionMatrix();
   renderer.setViewport(0, 0, headW, h);
   renderer.setScissor(0, 0, headW, h);
@@ -893,9 +994,12 @@ function renderViewports() {
     fitWorldCamera(); _needWorldFit = false;
   }
   setWorldView();                       // place camera (aspect-correct) every frame
+  if (room && room.group.visible && leftEyeBone)   // furniture between camera and head → hidden
+    room.hideBetween(worldCam.position, leftEyeBone.getWorldPosition(_roomEye));
   renderer.setViewport(headW, retH, worldW, worldH);   // top part (WebGL y=0 is the bottom)
   renderer.setScissor(headW, retH, worldW, worldH);
   renderer.render(scene, worldCam);
+  if (room) room.hideBetween(null);     // the eye sees the whole room
 
   // Right-bottom — retina view (what the selected eye sees).
   if (leftEyeBone && rightEyeBone) renderRetina(fi, headW, 0, worldW, retH);
@@ -968,6 +1072,10 @@ function _aimRetinaCam(bone, axis, upAx, vw, vh) {
   else      retinaCam.up.set(0, 1, 0);
   retinaCam.lookAt(_reyeTgt.copy(_reyePos).add(_reyeDir));
   retinaCam.aspect = vw / vh;
+  // Near plane in metres, not a tiny fixed unit count: a near/far ratio of ~1e8 left too
+  // little depth precision and surfaces a few cm apart (room furniture vs wall) flickered.
+  // 2 mm stays inside the nearest prop the eye should see (cover patch, ~3 mm ahead).
+  retinaCam.near = RETINA_NEAR_M * _modelUnit;
   retinaCam.updateProjectionMatrix();
 }
 
@@ -1007,4 +1115,5 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'r') setWorldView('right');
   else if (k === 'e') { _retinaEye = _retinaEye === 'L' ? 'R' : _retinaEye === 'R' ? 'B' : 'L';
                         _ensureRetinaLabel(); _updateRetinaLabel(); _updateRetinaOverlayColor(); }
+  else if (k === 'b' && _roomFits) window._avatarToggleSurround();
 });
