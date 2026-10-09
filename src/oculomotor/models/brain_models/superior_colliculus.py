@@ -24,15 +24,11 @@ The LEFT colliculus codes rightward targets (x = +yaw); the RIGHT codes leftward
 (x = −yaw). Same grid in both, per colliculus 19 (Re w) × 17 (Im w), ~0.35 mm spacing:
     Re(w) ∈ [−1.0, ln(1 + 100/A)]   → u ∈ [−1.40, 4.95] mm   (out to ~100° eccentricity)
     Im(w) ∈ [−π/2, π/2]             → v ∈ [−2.83, 2.83] mm   (the whole hemifield)
-Input coordinates are FICK angles: [yaw, pitch] = [azimuth, elevation] of the target
-direction in the eye frame (azimuth about the vertical axis first, then elevation from the
-horizontal plane — retina.world_to_retina), used directly as z = yaw + i·pitch. Ottes et al.
-define the map on the polar form of the target (eccentricity, direction), which Fick-as-
-Cartesian matches exactly on the horizontal and vertical meridians and approximates on
-obliques: at Fick (30°, 30°) |z| = 42.4° vs a true eccentricity of 41.4°, and arg z = 45° vs
-a true direction of 49.1° (≤ 0.3° / 2° up to (20°, 20°)). The readout inverts the same
-mapping, so position in → position out is exact (Fick in, Fick out); the approximation only
-moves WHICH site represents a large oblique target (matters for stimulation / lesion maps).
+Input coordinates: [yaw, pitch] are the ROTATION-VECTOR (axis-angle) components of the
+rotation taking the line of sight to the target direction (retina.world_to_retina), used
+directly as z = yaw + i·pitch. Its magnitude |z| is the target's true angular eccentricity
+and arg z its true direction (meridian), so z is exactly the polar form (eccentricity,
+direction) on which Ottes et al. define the map — no approximation on obliques.
 The map extends well past the largest target we decode (~50°) because a bump truncated at
 the map edge is read back biased inward. Re(w) < 0 is the rostral overlap: a few degrees of
 the ipsilateral field, so small (microsaccade-scale) errors are represented in both
@@ -168,9 +164,8 @@ def read_activations(state):
 def _to_map(yaw, pitch, side):
     """Visual position (deg) → map coordinates (mm) of one colliculus (side +1 = left SC).
 
-    yaw, pitch are FICK angles (azimuth, then elevation; see the module docstring),
-    used as the Cartesian components of z = x + i·y — exact on the meridians, an
-    approximation of the true (eccentricity, direction) polar form on large obliques.
+    yaw, pitch are rotation-vector components (see the module docstring): z = x + i·y
+    has |z| = true eccentricity and arg z = true direction (the Ottes polar form).
     """
     qx = side * yaw + _A
     qy = pitch
@@ -218,7 +213,7 @@ def step(state, target_pos, target_amp):
 
     Args:
         state:      sc.State  membranes of both colliculi
-        target_pos: (2,)  predicted current target position [yaw, pitch] (deg, Fick)
+        target_pos: (2,)  predicted current target position [yaw, pitch] (deg, rotation vector)
         target_amp: scalar  input bump amplitude ∈ [0, 1] (visibility × saccadic suppression)
 
     Returns:

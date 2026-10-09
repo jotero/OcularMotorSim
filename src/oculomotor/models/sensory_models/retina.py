@@ -264,7 +264,7 @@ def world_to_retina(x_target, eye_offset_head, q_head, w_head, x_head, v_head,
         eye_world  = x_head + R_head @ eye_offset_head   eye position in world frame
         p_from_eye = x_target − eye_world                target direction from this eye
         p_eye      = R_gaze.T @ p_hat                   target direction in eye frame
-        target_pos = [arctan2(x,z), arctan2(y,√(x²+z²)), 0]  (deg, eye frame)
+        target_pos = rotation vector (0,0,1) → p_eye, as [yaw, pitch, 0]  (deg, eye frame)
 
     Target angular velocity (computed from Cartesian position + velocity):
         w_target = xyz_to_ypr( cross(x_target, v_target) / |x_target|² )  [deg/s, world frame]
@@ -450,8 +450,8 @@ class RetinaOut(NamedTuple):
     scene_angular_vel: jnp.ndarray  # (3,) [yaw, pitch, roll] (deg/s) — gated by scene_visible + saturated
     scene_linear_vel:  jnp.ndarray  # (3,) [x, y, z] (m/s, head frame, per-eye) — gated by scene_visible
     target_pos:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg) — POSITION, independent of visibility;
-                                    #      FICK angles (azimuth atan2(x,z), then elevation from the
-                                    #      horizontal plane), not a rotation vector
+                                    #      rotation-vector (axis-angle) components of the rotation
+                                    #      from the line of sight to the target (Listing-compliant)
     target_vel:        jnp.ndarray  # (3,) [yaw, pitch, 0] (deg/s) — gated by target_visible + saturated
     scene_visible:     jnp.ndarray  # scalar — delayed scene_present
     target_visible:    jnp.ndarray  # scalar — delayed target_present × target_in_vf
