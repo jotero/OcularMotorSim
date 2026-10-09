@@ -16,6 +16,7 @@
 import * as THREE     from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createRoom, ROOM_MIN_FRONT } from './room.js';
+import { createEye } from './eye.js';
 
 // ── Renderer + scene ──────────────────────────────────────────────────────────
 const canvas   = document.getElementById('avatar-canvas');
@@ -168,6 +169,9 @@ let prismL = null, prismR = null;          // prism lenses (head-fixed, tilt = b
 let _prismDevL = null, _prismDevR = null;  // current-frame per-eye prism deviation [yaw,pitch,roll]
 let faceMesh     = null;   // skinned mesh carrying the ARKit morph targets (eyelids)
 let pupilTargets = [];     // meshes carrying the 'pupilDilate' morph (iris/pupil)
+let stockEye = null;       // the avatar's own eye mesh (hidden once the procedural eyes exist)
+let eyeL = null, eyeR = null;   // procedural eyeballs (eye.js) on the eye bones
+let faceSkin = null;       // the skin/face mesh (its socket lining is trimmed for the new eyes)
 
 // Target sphere + gaze rays. Everything in WORLD space; the eye anchor is the
 // eye bone's getWorldPosition() (the canonical, already-correct world position —
@@ -274,6 +278,26 @@ function makePrismWedge(hw, hh, t) {
   return g;
 }
 
+// The face mesh lines each eye socket with geometry INSIDE the eyeball (it sat behind the
+// stock front-cap eye). Triangles joining that lining to the lids pierce the full
+// procedural globe and show as slivers on the sclera, so drop every face triangle that
+// touches a vertex inside a globe (hidden behind the opaque eyeball anyway).
+function trimSocketLining(mesh, centers, rInside) {
+  const geo = mesh.geometry, pos = geo.attributes.position, idx = geo.index;
+  if (!idx) return;
+  const inside = new Uint8Array(pos.count), v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    inside[i] = centers.some((c) => v.distanceTo(c) < rInside) ? 1 : 0;
+  }
+  const keep = [];
+  for (let t = 0; t < idx.count; t += 3) {
+    const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2);
+    if (!(inside[a] || inside[b] || inside[c])) keep.push(a, b, c);
+  }
+  geo.setIndex(keep);
+}
+
 const AVATAR_PATH = 'avatar/avatar.glb';
 
 new GLTFLoader().load(AVATAR_PATH, (gltf) => {
@@ -285,6 +309,9 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
     if (obj.name === 'RightEye' || obj.name === 'RightEye_09') rightEyeBone = obj;
     // First skinned/standard mesh that carries ARKit blendshapes = the face.
     if (obj.isMesh && obj.morphTargetDictionary && !faceMesh) faceMesh = obj;
+    // Stock eye (a coarse front cap) — replaced by procedural eyes once the bones are known.
+    if (obj.isMesh && obj.material && obj.material.name === 'EyeIris') stockEye = obj;
+    if (obj.isMesh && obj.material && obj.material.name === 'Wolf3D_Avatar') faceSkin = obj;
     // Any mesh carrying the pupil dilation morph (may be the eye meshes, not the
     // face) — collected so the two pupils can be driven independently (anisocoria).
     // Tag each target with a side from its (or its parent's) name; unknown → both.
@@ -338,6 +365,27 @@ new GLTFLoader().load(AVATAR_PATH, (gltf) => {
   _gazeAxisR = new THREE.Vector3(0, 0, 1).applyQuaternion(qR0.clone().invert());
   _upAxisL   = new THREE.Vector3(0, 1, 0).applyQuaternion(qL0.clone().invert());
   _upAxisR   = new THREE.Vector3(0, 1, 0).applyQuaternion(qR0.clone().invert());
+
+  // Procedural eyes replace the stock eye: same centre (the eye bone — every stock-eye
+  // vertex sits 18.4 mm from it, at a 65.5 mm bone separation) and the avatar's own iris.
+  if (stockEye && stockEye.material.map && stockEye.material.map.image) {
+    const R = 0.0184 / 0.0655 * posL.distanceTo(posR);
+    const img = stockEye.material.map.image, s = new THREE.Vector3();
+    eyeL = createEye(R, img); eyeR = createEye(R, img);
+    leftEyeBone.add(eyeL.group); rightEyeBone.add(eyeR.group);
+    eyeL.aim(_gazeAxisL, _upAxisL, leftEyeBone.getWorldScale(s).x);
+    eyeR.aim(_gazeAxisR, _upAxisR, rightEyeBone.getWorldScale(s).x);
+    stockEye.visible = false;
+    if (faceSkin && faceSkin.skeleton) {
+      const centers = [leftEyeBone, rightEyeBone].map((bone) => {
+        const k = faceSkin.skeleton.bones.indexOf(bone);
+        return new THREE.Vector3()
+          .setFromMatrixPosition(faceSkin.skeleton.boneInverses[k].clone().invert())
+          .applyMatrix4(faceSkin.bindMatrixInverse);           // eye centre, mesh bind space
+      });
+      trimSocketLining(faceSkin, centers, 0.95 * 0.0184);    // stock-eye radius, model metres
+    }
+  }
   _restEyeWorldL = leftEyeBone.getWorldPosition(new THREE.Vector3());
   _restEyeWorldR = rightEyeBone.getWorldPosition(new THREE.Vector3());
   _restEyeMidWorld = _restEyeWorldL.clone().add(_restEyeWorldR).multiplyScalar(0.5);
@@ -466,20 +514,36 @@ function setMorph(name, value) {
   if (i !== undefined) faceMesh.morphTargetInfluences[i] = value;
 }
 
-// Lower lids: follow vertical gaze (tethered to the inferior rectus) — a few mm down in
-// downgaze (~4–5 mm by 35°), only 1–2 mm up in upgaze — and rise a little in a blink.
-// eyeSquint moves ONLY the lower lid, per eye (up ~2 mm mean / 4.7 mm max at weight 1);
-// a NEGATIVE weight lowers it, which keeps the upper lid out of it (the rig's
-// eyesLookDown would drag the upper lid too, and is shared by both eyes).
+// Lid shapes beyond the upper-lid closure (eyeBlink, from the model). This avatar's eyeball
+// is ~1.5x a real one (18.4 vs ~12 mm radius), so a rotation carries the cornea ~1.5x further
+// relative to the lids; without extra lid travel the pupil vanishes under them by ~30-40 deg.
+//   upgaze   — eyeWide (upper lid only, per eye) at full strength + eyesLookUp (shared:
+//              upper lid a few mm more, lower lid ~1.5 mm up)
+//   downgaze — eyeSquint at a NEGATIVE weight lowers only the lower lid, per eye
+//   blink    — lower lid rises slightly near full closure
 // pitch in deg (> 0 = up); close = upper-lid closure 0..1.
-function setLowerLids(pitchL, pitchR, closeL, closeR) {
+const LID_UP_DEG = 40, LID_DOWN_DEG = 40;     // gaze at which the extra lid travel is full
+const LOWER_LID_DROP = 2.4;                   // eyeSquint weight at LID_DOWN_DEG (negative)
+// The rig's eyeWide is asymmetric: the right shape lifts the upper lid ~17% less than the
+// left (mean 2.26 vs 2.65 mm over its moved vertices), so boost it to match.
+const EYE_WIDE_R_GAIN = 2.65 / 2.26;
+// The model's upper-lid closure includes a downgaze lid-follow (eyelid.py:
+// 0.7 · min(1, θ/35°)) that moves WITH the eye — only closure beyond it covers the eye.
+const lidFollow = (pitch) => 0.7 * Math.min(1, Math.max(0, -pitch) / 35);
+function setLidShapes(pitchL, pitchR, closeL, closeR) {
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const lower = (pitch, close) =>
-      0.6 * clamp(pitch / 35, 0, 1)                // upgaze: small rise
-    - 1.0 * clamp(-pitch / 35, 0, 1.3)             // downgaze: drops with the eye
-    + 0.4 * clamp((close - 0.5) / 0.5, 0, 1);      // blink: slight rise near full closure
+  const up = (p) => clamp(p / LID_UP_DEG, 0, 1.2), down = (p) => clamp(-p / LID_DOWN_DEG, 0, 1.2);
+  setMorph('eyeWideLeft',  up(pitchL) * (1 - closeL));          // a blink still closes it
+  setMorph('eyeWideRight', EYE_WIDE_R_GAIN * up(pitchR) * (1 - closeR));
+  setMorph('eyesLookUp', 0.8 * up((pitchL + pitchR) / 2));
+  const lower = (p, close) => -LOWER_LID_DROP * down(p) + 0.4 * clamp((close - 0.5) / 0.5, 0, 1);
   setMorph('eyeSquintLeft',  lower(pitchL, closeL));
   setMorph('eyeSquintRight', lower(pitchR, closeR));
+  // Lid over the eye (relative to the eye): darkens that retina; hides the cornea dome
+  // a little earlier so it can't poke through a closing lid.
+  const overL = closeL - lidFollow(pitchL), overR = closeR - lidFollow(pitchR);
+  _lidShutL = overL >= 0.5; _lidShutR = overR >= 0.5;
+  if (eyeL) { eyeL.setCornea(overL < 0.45); eyeR.setCornea(overR < 0.45); }
 }
 
 // ── Pupil dilation morph ────────────────────────────────────────────────────────
@@ -494,6 +558,7 @@ function setPupilDiameter(mm) { setPupil((mm / 2 - 1.54) / 4.35); }
 // so the avatar looks alive even when paused). Advanced from animate(ts).
 let _blink = 0;
 let _nextBlinkTs = 0;
+let _lidShutL = false, _lidShutR = false;   // lid over the eye beyond the downgaze follow → retina dark
 let _lidCloseL = 0, _lidCloseR = 0;   // current per-eye lid closure (0 open..1 shut); retina goes dark when shut
 function updateBlink(ts) {
   if (_nextBlinkTs === 0) { _nextBlinkTs = ts + 2000 + Math.random() * 3500; return; }
@@ -515,7 +580,7 @@ function updateBlink(ts) {
     _lidCloseL = _lidCloseR = _blink;
     setMorph('eyeBlinkLeft',  _blink);
     setMorph('eyeBlinkRight', _blink);
-    setLowerLids(0, 0, _blink, _blink);
+    setLidShapes(0, 0, _blink, _blink);
   }
 }
 
@@ -687,7 +752,6 @@ function applyFrame(fi) {
   // for older payloads. Upgaze retraction (eyeWide) stays local. L/R = [yaw, pitch,
   // roll] deg; pitch > 0 = up.
   if (faceMesh) {
-    const upL = Math.max(0, L[1]) / 45, upR = Math.max(0, R[1]) / 45;
     let closeL, closeR;
     if (_traj.eyelid_L) {
       closeL = _traj.eyelid_L[fi];
@@ -703,19 +767,18 @@ function applyFrame(fi) {
     _lidCloseL = Math.min(1, closeL); _lidCloseR = Math.min(1, closeR);   // drives retina blink-dark
     setMorph('eyeBlinkLeft',  _lidCloseL);
     setMorph('eyeBlinkRight', _lidCloseR);
-    setMorph('eyeWideLeft',  Math.min(0.5, upL) * (1 - closeL));
-    setMorph('eyeWideRight', Math.min(0.5, upR) * (1 - closeR));
-    setLowerLids(L[1], R[1], _lidCloseL, _lidCloseR);
+    setLidShapes(L[1], R[1], _lidCloseL, _lidCloseR);
   }
 
   // Pupil dilation: drive each 'pupilDilate' morph from the model's PER-EYE pupil
   // diameter (mm), so an efferent / iris lesion shows anisocoria. Left/right targets
   // use their own diameter; an unsided (shared) morph uses the mean. Clamp to the
   // valid morph range; physiological 3–8 mm maps to d ≈ 0.0–0.57.
-  if (pupilTargets.length && _traj.pupil_diameter_L) {
+  if (_traj.pupil_diameter_L) {
     const mmL = _traj.pupil_diameter_L[fi];
     const mmR = _traj.pupil_diameter_R ? _traj.pupil_diameter_R[fi] : mmL;
     const dOf = (mm) => Math.max(0, Math.min(1.6, (mm / 2 - 1.54) / 4.35));
+    if (mmL != null && eyeL) { eyeL.setPupil(mmL); eyeR.setPupil(mmR); }   // per-eye, every frame
     if (mmL != null) {
       const dL = dOf(mmL), dR = dOf(mmR), dMean = 0.5 * (dL + dR);
       for (const p of pupilTargets) {
@@ -1026,7 +1089,7 @@ function renderRetina(fi, vx, vy, vw, vh) {
   renderer.setScissor(vx, vy, vw, vh);
   renderer.setScissorTest(true);
 
-  const closedL = _lidCloseL >= 0.5, closedR = _lidCloseR >= 0.5;   // eyelid shut -> that eye dark
+  const closedL = _lidShutL, closedR = _lidShutR;   // lid over the eye (not just following downgaze) → dark
 
   if (_retinaEye === 'B') {
     // Both eyes overlaid in natural colour: render each eye to a target, then average them
